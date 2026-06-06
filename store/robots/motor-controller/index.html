@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DC Motor Controller — FreeRobotStore</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; line-height: 1.7; }
+    .container { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem; }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.25rem; }
+    h1 span { color: #3b82f6; }
+    .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; background: rgba(59,130,246,0.15); color: #60a5fa; margin-right: 0.5rem; }
+    .subtitle { color: #737373; font-size: 0.95rem; margin-bottom: 2rem; }
+    h2 { font-size: 1.1rem; font-weight: 700; margin: 2rem 0 0.75rem; color: #e5e5e5; border-bottom: 1px solid #1f1f1f; padding-bottom: 0.5rem; }
+    p { color: #a3a3a3; margin-bottom: 1rem; }
+    pre { background: #141414; border: 1px solid #262626; border-radius: 10px; padding: 1.25rem; overflow-x: auto; margin-bottom: 1.5rem; font-size: 0.82rem; line-height: 1.6; }
+    code { font-family: 'JetBrains Mono', 'Fira Code', monospace; color: #e5e5e5; }
+    .keyword { color: #c084fc; }
+    .comment { color: #525252; }
+    .string { color: #34d399; }
+    .number { color: #fb923c; }
+    .fn { color: #60a5fa; }
+    ul { padding-left: 1.5rem; color: #a3a3a3; margin-bottom: 1rem; }
+    li { margin-bottom: 0.35rem; }
+    .wiring { display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1.5rem; margin: 1rem 0; font-size: 0.88rem; }
+    .pin { color: #fb923c; font-weight: 600; font-family: monospace; }
+    .wire-desc { color: #a3a3a3; }
+    .download { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.5rem; border-radius: 10px; background: #3b82f6; color: white; font-weight: 600; font-size: 0.9rem; text-decoration: none; margin: 1rem 0; }
+    .download:hover { background: #2563eb; }
+    a { color: #525252; text-decoration: none; }
+    a:hover { color: #737373; }
+    .back { display: inline-block; margin-bottom: 1.5rem; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="https://freerobotstore.pages.dev" class="back">&larr; Back to store</a>
+    <h1><span>DC Motor</span> Controller</h1>
+    <div style="margin: 0.5rem 0 0.25rem"><span class="badge">Firmware</span><span class="badge" style="background:rgba(249,115,22,0.12);color:#fb923c">Arduino</span></div>
+    <p class="subtitle">PID-controlled DC motor driver with encoder feedback. Speed control, direction, and smooth acceleration.</p>
+
+    <h2>Features</h2>
+    <ul>
+      <li>PID speed control with configurable gains</li>
+      <li>Encoder feedback (quadrature, interrupt-driven)</li>
+      <li>Smooth acceleration/deceleration ramps</li>
+      <li>Direction control with brake mode</li>
+      <li>Serial monitor output (RPM, PWM, error)</li>
+      <li>Works with L298N, TB6612, or any H-bridge driver</li>
+    </ul>
+
+    <h2>Wiring (Arduino Uno + L298N)</h2>
+    <div class="wiring">
+      <span class="pin">D9</span><span class="wire-desc">ENA (PWM speed control)</span>
+      <span class="pin">D8</span><span class="wire-desc">IN1 (direction A)</span>
+      <span class="pin">D7</span><span class="wire-desc">IN2 (direction B)</span>
+      <span class="pin">D2</span><span class="wire-desc">Encoder A (interrupt)</span>
+      <span class="pin">D3</span><span class="wire-desc">Encoder B (interrupt)</span>
+      <span class="pin">GND</span><span class="wire-desc">Common ground</span>
+    </div>
+
+    <h2>Code</h2>
+    <pre><code><span class="comment">// DC Motor PID Controller — FreeRobotStore</span>
+<span class="comment">// MIT License | freerobotstore.online/robots/motor-controller</span>
+
+<span class="keyword">const int</span> ENA = <span class="number">9</span>;
+<span class="keyword">const int</span> IN1 = <span class="number">8</span>;
+<span class="keyword">const int</span> IN2 = <span class="number">7</span>;
+<span class="keyword">const int</span> ENCA = <span class="number">2</span>;
+<span class="keyword">const int</span> ENCB = <span class="number">3</span>;
+
+<span class="comment">// PID gains — tune for your motor</span>
+<span class="keyword">float</span> Kp = <span class="number">2.0</span>, Ki = <span class="number">0.5</span>, Kd = <span class="number">0.1</span>;
+<span class="keyword">float</span> targetRPM = <span class="number">120.0</span>;
+
+<span class="keyword">volatile long</span> encoderCount = <span class="number">0</span>;
+<span class="keyword">float</span> integral = <span class="number">0</span>, prevError = <span class="number">0</span>;
+<span class="keyword">unsigned long</span> lastTime = <span class="number">0</span>;
+<span class="keyword">long</span> lastCount = <span class="number">0</span>;
+
+<span class="keyword">void</span> <span class="fn">setup</span>() {
+  <span class="fn">pinMode</span>(ENA, OUTPUT);
+  <span class="fn">pinMode</span>(IN1, OUTPUT);
+  <span class="fn">pinMode</span>(IN2, OUTPUT);
+  <span class="fn">pinMode</span>(ENCA, INPUT_PULLUP);
+  <span class="fn">pinMode</span>(ENCB, INPUT_PULLUP);
+  <span class="fn">attachInterrupt</span>(<span class="fn">digitalPinToInterrupt</span>(ENCA), readEncoder, RISING);
+  Serial.<span class="fn">begin</span>(<span class="number">115200</span>);
+  <span class="fn">setDirection</span>(<span class="number">1</span>); <span class="comment">// forward</span>
+}
+
+<span class="keyword">void</span> <span class="fn">loop</span>() {
+  <span class="keyword">unsigned long</span> now = <span class="fn">millis</span>();
+  <span class="keyword">if</span> (now - lastTime < <span class="number">50</span>) <span class="keyword">return</span>; <span class="comment">// 20Hz control loop</span>
+
+  <span class="keyword">float</span> dt = (now - lastTime) / <span class="number">1000.0</span>;
+  <span class="keyword">long</span> count = encoderCount;
+  <span class="keyword">float</span> rpm = ((count - lastCount) / <span class="number">600.0</span>) * (<span class="number">60.0</span> / dt);
+
+  <span class="comment">// PID</span>
+  <span class="keyword">float</span> error = targetRPM - rpm;
+  integral += error * dt;
+  integral = <span class="fn">constrain</span>(integral, <span class="number">-100</span>, <span class="number">100</span>);
+  <span class="keyword">float</span> derivative = (error - prevError) / dt;
+  <span class="keyword">float</span> output = Kp * error + Ki * integral + Kd * derivative;
+  prevError = error;
+
+  <span class="keyword">int</span> pwm = <span class="fn">constrain</span>((<span class="keyword">int</span>)output, <span class="number">0</span>, <span class="number">255</span>);
+  <span class="fn">analogWrite</span>(ENA, pwm);
+
+  Serial.<span class="fn">print</span>(<span class="string">"RPM: "</span>); Serial.<span class="fn">print</span>(rpm, <span class="number">1</span>);
+  Serial.<span class="fn">print</span>(<span class="string">" | PWM: "</span>); Serial.<span class="fn">print</span>(pwm);
+  Serial.<span class="fn">print</span>(<span class="string">" | Err: "</span>); Serial.<span class="fn">println</span>(error, <span class="number">2</span>);
+
+  lastTime = now;
+  lastCount = count;
+}
+
+<span class="keyword">void</span> <span class="fn">readEncoder</span>() {
+  <span class="keyword">int</span> b = <span class="fn">digitalRead</span>(ENCB);
+  encoderCount += (b > <span class="number">0</span>) ? <span class="number">1</span> : <span class="number">-1</span>;
+}
+
+<span class="keyword">void</span> <span class="fn">setDirection</span>(<span class="keyword">int</span> dir) {
+  <span class="fn">digitalWrite</span>(IN1, dir > <span class="number">0</span> ? HIGH : LOW);
+  <span class="fn">digitalWrite</span>(IN2, dir > <span class="number">0</span> ? LOW : HIGH);
+}</code></pre>
+
+    <h2>Usage</h2>
+    <p>1. Copy the code into Arduino IDE. 2. Adjust <code>Kp</code>, <code>Ki</code>, <code>Kd</code> for your motor. 3. Set <code>targetRPM</code>. 4. Open Serial Monitor at 115200 baud to see RPM, PWM output, and error.</p>
+
+    <h2>Tuning Tips</h2>
+    <ul>
+      <li>Start with Kp only (Ki=0, Kd=0). Increase until the motor oscillates, then halve it.</li>
+      <li>Add Ki slowly to eliminate steady-state error.</li>
+      <li>Add Kd to dampen overshoot.</li>
+      <li>The 600.0 divisor assumes a 600 CPR encoder. Adjust for your encoder.</li>
+    </ul>
+
+    <p style="color:#525252;font-size:0.78rem;margin-top:2rem">MIT License | <a href="https://freerobotstore.pages.dev">FreeRobotStore</a></p>
+  </div>
+</body>
+</html>

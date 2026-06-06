@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Line Follower — FreeRobotStore</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    h1 { font-size: 1.3rem; font-weight: 700; margin: 1.5rem 0 0.25rem; }
+    h1 span { color: #f97316; }
+    .subtitle { color: #737373; font-size: 0.85rem; margin-bottom: 1rem; }
+    canvas { border: 1px solid #262626; border-radius: 12px; cursor: crosshair; }
+    .controls { display: flex; gap: 1rem; margin: 1rem 0; align-items: center; flex-wrap: wrap; justify-content: center; }
+    label { font-size: 0.82rem; color: #a3a3a3; display: flex; align-items: center; gap: 0.4rem; }
+    input[type=range] { width: 100px; accent-color: #f97316; }
+    .val { color: #f97316; font-weight: 600; min-width: 2.5rem; text-align: right; }
+    button { padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    button:hover { border-color: #f97316; color: #f97316; }
+    button.primary { background: #f97316; border-color: #f97316; color: white; }
+    .info { font-size: 0.75rem; color: #525252; margin-top: 0.5rem; }
+    a { color: #525252; text-decoration: none; }
+    a:hover { color: #737373; }
+  </style>
+</head>
+<body>
+  <h1>Line <span>Follower</span></h1>
+  <p class="subtitle">PID-controlled robot following a track. Draw your own path and tune parameters.</p>
+
+  <canvas id="sim" width="700" height="500"></canvas>
+
+  <div class="controls">
+    <label>Kp <input type="range" id="kp" min="0" max="5" step="0.1" value="2.0"><span class="val" id="kp-val">2.0</span></label>
+    <label>Ki <input type="range" id="ki" min="0" max="1" step="0.01" value="0.0"><span class="val" id="ki-val">0.0</span></label>
+    <label>Kd <input type="range" id="kd" min="0" max="5" step="0.1" value="1.0"><span class="val" id="kd-val">1.0</span></label>
+    <label>Speed <input type="range" id="speed" min="0.5" max="4" step="0.1" value="1.5"><span class="val" id="speed-val">1.5</span></label>
+    <button class="primary" id="btn-reset">Reset</button>
+    <button id="btn-clear">Clear Track</button>
+  </div>
+
+  <p class="info">Click and drag on the canvas to draw a track. The robot follows the black line using PID control. | <a href="https://freerobotstore.pages.dev">FreeRobotStore</a></p>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+
+    // PID params
+    const sliders = {
+      kp: document.getElementById('kp'),
+      ki: document.getElementById('ki'),
+      kd: document.getElementById('kd'),
+      speed: document.getElementById('speed'),
+    };
+    const vals = {
+      kp: document.getElementById('kp-val'),
+      ki: document.getElementById('ki-val'),
+      kd: document.getElementById('kd-val'),
+      speed: document.getElementById('speed-val'),
+    };
+
+    for (const [key, el] of Object.entries(sliders)) {
+      el.addEventListener('input', () => { vals[key].textContent = el.value; });
+    }
+
+    // Track
+    let trackPoints = [];
+    let isDrawing = false;
+
+    // Default track (figure-8)
+    function defaultTrack() {
+      trackPoints = [];
+      const cx = 350, cy = 250;
+      for (let i = 0; i <= 200; i++) {
+        const t = (i / 200) * Math.PI * 2;
+        const x = cx + 150 * Math.sin(t);
+        const y = cy + 100 * Math.sin(2 * t);
+        trackPoints.push({ x, y });
+      }
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      isDrawing = true;
+      const r = canvas.getBoundingClientRect();
+      trackPoints = [{ x: e.clientX - r.left, y: e.clientY - r.top }];
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDrawing) return;
+      const r = canvas.getBoundingClientRect();
+      trackPoints.push({ x: e.clientX - r.left, y: e.clientY - r.top });
+    });
+    canvas.addEventListener('mouseup', () => { isDrawing = false; });
+
+    // Robot state
+    let robot = { x: 0, y: 0, angle: 0, targetIdx: 0 };
+    let integral = 0;
+    let prevError = 0;
+
+    function resetRobot() {
+      if (trackPoints.length === 0) return;
+      robot.x = trackPoints[0].x;
+      robot.y = trackPoints[0].y;
+      robot.targetIdx = 1;
+      if (trackPoints.length > 1) {
+        robot.angle = Math.atan2(trackPoints[1].y - trackPoints[0].y, trackPoints[1].x - trackPoints[0].x);
+      }
+      integral = 0;
+      prevError = 0;
+    }
+
+    document.getElementById('btn-reset').addEventListener('click', resetRobot);
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      trackPoints = [];
+      resetRobot();
+    });
+
+    defaultTrack();
+    resetRobot();
+
+    // Simulation
+    function update() {
+      if (trackPoints.length < 2) return;
+
+      const kp = parseFloat(sliders.kp.value);
+      const ki = parseFloat(sliders.ki.value);
+      const kd = parseFloat(sliders.kd.value);
+      const speed = parseFloat(sliders.speed.value);
+
+      // Find closest point on track ahead
+      let target = trackPoints[robot.targetIdx % trackPoints.length];
+      const dx = target.x - robot.x;
+      const dy = target.y - robot.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < 10) {
+        robot.targetIdx = (robot.targetIdx + 1) % trackPoints.length;
+        target = trackPoints[robot.targetIdx];
+      }
+
+      // PID
+      const targetAngle = Math.atan2(target.y - robot.y, target.x - robot.x);
+      let error = targetAngle - robot.angle;
+      // Normalize to [-PI, PI]
+      while (error > Math.PI) error -= 2 * Math.PI;
+      while (error < -Math.PI) error += 2 * Math.PI;
+
+      integral += error;
+      integral = Math.max(-50, Math.min(50, integral)); // anti-windup
+      const derivative = error - prevError;
+      prevError = error;
+
+      const steering = kp * error + ki * integral + kd * derivative;
+      robot.angle += Math.max(-0.15, Math.min(0.15, steering * 0.05));
+      robot.x += Math.cos(robot.angle) * speed;
+      robot.y += Math.sin(robot.angle) * speed;
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Grid
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 50) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 50) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+
+      // Track
+      if (trackPoints.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(trackPoints[0].x, trackPoints[0].y);
+        for (let i = 1; i < trackPoints.length; i++) {
+          ctx.lineTo(trackPoints[i].x, trackPoints[i].y);
+        }
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 20;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+
+        // Center line
+        ctx.beginPath();
+        ctx.moveTo(trackPoints[0].x, trackPoints[0].y);
+        for (let i = 1; i < trackPoints.length; i++) {
+          ctx.lineTo(trackPoints[i].x, trackPoints[i].y);
+        }
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Robot
+      if (trackPoints.length > 0) {
+        ctx.save();
+        ctx.translate(robot.x, robot.y);
+        ctx.rotate(robot.angle);
+
+        // Body
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.moveTo(12, 0);
+        ctx.lineTo(-8, -7);
+        ctx.lineTo(-6, 0);
+        ctx.lineTo(-8, 7);
+        ctx.closePath();
+        ctx.fill();
+
+        // Sensors (three dots at front)
+        ctx.fillStyle = '#fb923c';
+        for (const offset of [-6, 0, 6]) {
+          ctx.beginPath();
+          ctx.arc(14, offset, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Trail glow
+        ctx.restore();
+
+        // Target indicator
+        if (trackPoints.length > 1) {
+          const target = trackPoints[robot.targetIdx % trackPoints.length];
+          ctx.beginPath();
+          ctx.arc(target.x, target.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(249, 115, 22, 0.4)';
+          ctx.fill();
+        }
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>
