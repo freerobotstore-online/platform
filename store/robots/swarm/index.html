@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Swarm — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .25rem} h1 span{color:#f97316}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.75rem;text-align:center;max-width:520px}
+    canvas{border:1px solid #262626;border-radius:12px;cursor:crosshair}
+    .controls{display:flex;gap:.75rem;margin:1rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.4rem 1rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    button.active{background:#f97316;border-color:#f97316;color:#fff}
+    label{font-size:.82rem;color:#a3a3a3;display:flex;align-items:center;gap:.4rem}
+    input[type=range]{width:80px;accent-color:#f97316}
+    .val{color:#f97316;font-weight:600;min-width:2rem}
+    .stats{font-size:.78rem;color:#525252;margin:.5rem;display:flex;gap:1.5rem}
+    .stats span{color:#a3a3a3}
+    a{color:#525252;text-decoration:none}
+  </style>
+</head>
+<body>
+  <h1>Robot <span>Swarm</span></h1>
+  <p class="sub">Multi-robot coordination with flocking behavior (Boids). Click to place attractors, watch robots self-organize. Adjust separation, alignment, and cohesion.</p>
+
+  <canvas id="sim" width="800" height="600"></canvas>
+
+  <div class="controls">
+    <label>Robots <input type="range" id="count" min="10" max="200" value="60"><span class="val" id="count-v">60</span></label>
+    <label>Separation <input type="range" id="sep" min="0" max="5" step=".1" value="1.5"><span class="val" id="sep-v">1.5</span></label>
+    <label>Alignment <input type="range" id="ali" min="0" max="5" step=".1" value="1.0"><span class="val" id="ali-v">1.0</span></label>
+    <label>Cohesion <input type="range" id="coh" min="0" max="5" step=".1" value="1.0"><span class="val" id="coh-v">1.0</span></label>
+    <button id="btn-scatter">Scatter</button>
+    <button id="btn-circle">Circle</button>
+    <button id="btn-line">Line</button>
+    <button id="btn-predator" class="">Predator</button>
+  </div>
+  <div class="stats">
+    <div>Bots: <span id="bots">60</span></div>
+    <div>Avg Speed: <span id="avgspd">0</span></div>
+    <div>Clusters: <span id="clusters">1</span></div>
+    <div><a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    let boids = [], attractors = [], predator = null, predatorEnabled = false;
+
+    function createBoid(x, y) {
+      const angle = Math.random() * Math.PI * 2;
+      return { x, y, vx: Math.cos(angle) * 2, vy: Math.sin(angle) * 2, trail: [] };
+    }
+
+    function initBoids(n) {
+      boids = [];
+      for (let i = 0; i < n; i++) boids.push(createBoid(Math.random() * W, Math.random() * H));
+    }
+
+    const sl = (id) => document.getElementById(id);
+    const sliders = { count: sl('count'), sep: sl('sep'), ali: sl('ali'), coh: sl('coh') };
+    const vals = { count: sl('count-v'), sep: sl('sep-v'), ali: sl('ali-v'), coh: sl('coh-v') };
+    for (const [k, el] of Object.entries(sliders)) el.addEventListener('input', () => {
+      vals[k].textContent = el.value;
+      if (k === 'count') { const n = +el.value; while (boids.length < n) boids.push(createBoid(Math.random()*W, Math.random()*H)); while (boids.length > n) boids.pop(); }
+    });
+
+    canvas.addEventListener('click', (e) => {
+      const r = canvas.getBoundingClientRect();
+      attractors.push({ x: e.clientX - r.left, y: e.clientY - r.top, life: 300 });
+    });
+
+    canvas.addEventListener('contextmenu', e => { e.preventDefault(); attractors = []; });
+
+    sl('btn-scatter').addEventListener('click', () => boids.forEach(b => { b.vx = (Math.random()-.5)*10; b.vy = (Math.random()-.5)*10; }));
+    sl('btn-circle').addEventListener('click', () => {
+      const cx = W/2, cy = H/2, r = 150;
+      boids.forEach((b, i) => {
+        const a = (i / boids.length) * Math.PI * 2;
+        b.x = cx + Math.cos(a) * r; b.y = cy + Math.sin(a) * r;
+        b.vx = -Math.sin(a) * 2; b.vy = Math.cos(a) * 2;
+      });
+    });
+    sl('btn-line').addEventListener('click', () => {
+      boids.forEach((b, i) => {
+        b.x = 50 + (i / boids.length) * (W - 100); b.y = H / 2;
+        b.vx = 0; b.vy = 0;
+      });
+    });
+    sl('btn-predator').addEventListener('click', function() {
+      predatorEnabled = !predatorEnabled;
+      this.classList.toggle('active');
+      if (predatorEnabled) predator = { x: W/2, y: H/2, vx: 1, vy: 0.5 };
+      else predator = null;
+    });
+
+    function update() {
+      const sep = +sliders.sep.value;
+      const ali = +sliders.ali.value;
+      const coh = +sliders.coh.value;
+      const maxSpeed = 4, viewDist = 60, sepDist = 25;
+
+      for (const b of boids) {
+        let sx=0, sy=0, ax=0, ay=0, cx=0, cy=0, nc=0, ns=0;
+
+        for (const o of boids) {
+          if (o === b) continue;
+          const dx = o.x-b.x, dy = o.y-b.y, d = Math.sqrt(dx*dx+dy*dy);
+          if (d > viewDist) continue;
+
+          // Separation
+          if (d < sepDist && d > 0) { sx -= dx/d; sy -= dy/d; ns++; }
+          // Alignment
+          ax += o.vx; ay += o.vy;
+          // Cohesion
+          cx += o.x; cy += o.y;
+          nc++;
+        }
+
+        if (nc > 0) {
+          ax /= nc; ay /= nc;
+          cx = cx/nc - b.x; cy = cy/nc - b.y;
+        }
+
+        b.vx += sx * sep * .3 + (ax - b.vx) * ali * .05 + cx * coh * .005;
+        b.vy += sy * sep * .3 + (ay - b.vy) * ali * .05 + cy * coh * .005;
+
+        // Attractors
+        for (const a of attractors) {
+          const dx = a.x-b.x, dy = a.y-b.y, d = Math.max(10, Math.sqrt(dx*dx+dy*dy));
+          b.vx += dx/d * .3; b.vy += dy/d * .3;
+        }
+
+        // Predator avoidance
+        if (predator) {
+          const dx = b.x-predator.x, dy = b.y-predator.y, d = Math.sqrt(dx*dx+dy*dy);
+          if (d < 100) { b.vx += dx/d * 3; b.vy += dy/d * 3; }
+        }
+
+        // Speed limit
+        const spd = Math.sqrt(b.vx*b.vx+b.vy*b.vy);
+        if (spd > maxSpeed) { b.vx = b.vx/spd*maxSpeed; b.vy = b.vy/spd*maxSpeed; }
+
+        b.x += b.vx; b.y += b.vy;
+
+        // Wrap
+        if (b.x < 0) b.x += W; if (b.x > W) b.x -= W;
+        if (b.y < 0) b.y += H; if (b.y > H) b.y -= H;
+
+        // Trail
+        b.trail.push({ x: b.x, y: b.y });
+        if (b.trail.length > 8) b.trail.shift();
+      }
+
+      // Predator movement (chases nearest boid)
+      if (predator) {
+        let nearest = null, nd = Infinity;
+        for (const b of boids) {
+          const d = Math.hypot(b.x-predator.x, b.y-predator.y);
+          if (d < nd) { nd = d; nearest = b; }
+        }
+        if (nearest) {
+          const dx = nearest.x-predator.x, dy = nearest.y-predator.y, d = Math.max(1, Math.sqrt(dx*dx+dy*dy));
+          predator.vx += dx/d*.15; predator.vy += dy/d*.15;
+        }
+        const ps = Math.sqrt(predator.vx**2+predator.vy**2);
+        if (ps > 3) { predator.vx = predator.vx/ps*3; predator.vy = predator.vy/ps*3; }
+        predator.x += predator.vx; predator.y += predator.vy;
+        if (predator.x<0) predator.x+=W; if (predator.x>W) predator.x-=W;
+        if (predator.y<0) predator.y+=H; if (predator.y>H) predator.y-=H;
+      }
+
+      // Attractor decay
+      attractors = attractors.filter(a => { a.life--; return a.life > 0; });
+
+      // Stats
+      let totalSpd = 0;
+      boids.forEach(b => totalSpd += Math.sqrt(b.vx**2+b.vy**2));
+      sl('bots').textContent = boids.length;
+      sl('avgspd').textContent = (totalSpd/boids.length).toFixed(1);
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, W, H);
+
+      // Attractors
+      for (const a of attractors) {
+        ctx.fillStyle = `rgba(249,115,22,${a.life/300*.2})`;
+        ctx.beginPath(); ctx.arc(a.x, a.y, 20, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath(); ctx.arc(a.x, a.y, 3, 0, Math.PI*2); ctx.fill();
+      }
+
+      // Boids
+      for (const b of boids) {
+        // Trail
+        if (b.trail.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(b.trail[0].x, b.trail[0].y);
+          for (let i=1; i<b.trail.length; i++) ctx.lineTo(b.trail[i].x, b.trail[i].y);
+          ctx.strokeStyle = 'rgba(249,115,22,.08)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        const angle = Math.atan2(b.vy, b.vx);
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.lineTo(-4, -3);
+        ctx.lineTo(-3, 0);
+        ctx.lineTo(-4, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Predator
+      if (predator) {
+        const angle = Math.atan2(predator.vy, predator.vx);
+        ctx.save();
+        ctx.translate(predator.x, predator.y);
+        ctx.rotate(angle);
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.moveTo(12, 0);
+        ctx.lineTo(-8, -6);
+        ctx.lineTo(-5, 0);
+        ctx.lineTo(-8, 6);
+        ctx.closePath();
+        ctx.fill();
+        // Danger radius
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(239,68,68,.1)';
+        ctx.beginPath(); ctx.arc(predator.x, predator.y, 100, 0, Math.PI*2); ctx.stroke();
+      }
+    }
+
+    function loop() { requestAnimationFrame(loop); update(); draw(); }
+    initBoids(60);
+    loop();
+  </script>
+</body>
+</html>

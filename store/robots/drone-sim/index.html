@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drone Simulator — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;overflow:hidden}
+    #app{width:100vw;height:100vh;position:relative}
+    canvas{display:block}
+    #hud{position:absolute;top:1rem;left:1rem;font-size:.78rem;color:#525252;z-index:10;line-height:1.7}
+    #hud span{color:#f97316;font-weight:600}
+    #hud .g{color:#10b981}
+    #controls{position:absolute;bottom:1rem;left:50%;transform:translateX(-50%);display:flex;gap:.5rem;z-index:10;flex-wrap:wrap;justify-content:center}
+    button{padding:.4rem .9rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.75rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    button.active{background:#f97316;border-color:#f97316;color:#fff}
+    .key{display:inline-block;padding:.1rem .3rem;border-radius:3px;border:1px solid #404040;background:#1f1f1f;font-size:.65rem;font-family:monospace;color:#737373}
+    #help{position:absolute;top:1rem;right:1rem;font-size:.7rem;color:#404040;z-index:10;text-align:right;line-height:1.8}
+    a{color:#404040;text-decoration:none;position:absolute;bottom:1rem;right:1rem;font-size:.72rem;z-index:10}
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <span>Drone Simulator</span><br>
+    Alt: <span id="alt">0.0</span>m | Speed: <span id="spd">0.0</span>m/s<br>
+    Pitch: <span id="pitch">0</span>&deg; | Roll: <span id="roll">0</span>&deg;<br>
+    Throttle: <span class="g" id="thr">0</span>% | Battery: <span class="g" id="bat">100</span>%
+  </div>
+  <div id="help">
+    <span class="key">W</span><span class="key">S</span> Pitch
+    <span class="key">A</span><span class="key">D</span> Roll<br>
+    <span class="key">Space</span> Throttle up <span class="key">Shift</span> Down<br>
+    <span class="key">Q</span><span class="key">E</span> Yaw
+    <span class="key">R</span> Reset
+  </div>
+  <div id="controls">
+    <button id="btn-hover" class="active">Hover Assist</button>
+    <button id="btn-acro">Acro Mode</button>
+    <button id="btn-ring">Ring Course</button>
+    <button id="btn-wind">Wind: Off</button>
+    <button id="btn-fp">First Person</button>
+  </div>
+  <a href="https://freerobotstore.pages.dev">FreeRobotStore</a>
+</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.FogExp2(0x87ceeb, 0.008);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 500);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+document.getElementById('app').prepend(renderer.domElement);
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(50, 80, 30); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
+sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
+scene.add(sun);
+
+// Ground
+const groundGeo = new THREE.PlaneGeometry(200, 200, 40, 40);
+const groundMat = new THREE.MeshStandardMaterial({color: 0x4a7c4f, roughness: 0.9});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+
+// Landing pad
+const pad = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 0.05, 32), new THREE.MeshStandardMaterial({color: 0x333333}));
+pad.position.y = 0.025; scene.add(pad);
+const padRing = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.8, 32), new THREE.MeshBasicMaterial({color: 0xf97316, side: THREE.DoubleSide}));
+padRing.rotation.x = -Math.PI/2; padRing.position.y = 0.06; scene.add(padRing);
+
+// Trees
+for(let i=0;i<30;i++){
+  const h = 3+Math.random()*4;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(.15,.2,h,6), new THREE.MeshStandardMaterial({color:0x8B4513}));
+  const crown = new THREE.Mesh(new THREE.ConeGeometry(1+Math.random(),h*.6,6), new THREE.MeshStandardMaterial({color:0x228B22}));
+  const x = (Math.random()-.5)*150, z = (Math.random()-.5)*150;
+  if(Math.abs(x)<10 && Math.abs(z)<10) continue;
+  trunk.position.set(x, h/2, z); crown.position.set(x, h+1, z);
+  trunk.castShadow=true; crown.castShadow=true;
+  scene.add(trunk, crown);
+}
+
+// Rings (course)
+const rings = [];
+function createRings(){
+  rings.forEach(r=>scene.remove(r));
+  rings.length=0;
+  const pts = [[15,8,0],[30,12,15],[20,6,-20],[-10,15,25],[-25,8,-10],[0,10,-30],[25,5,20],[-15,12,0]];
+  pts.forEach(([x,y,z])=>{
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5,.15,8,24), new THREE.MeshStandardMaterial({color:0xf97316,emissive:0xf97316,emissiveIntensity:.3}));
+    ring.position.set(x,y,z);
+    ring.lookAt(0,y,0);
+    ring.userData.passed=false;
+    scene.add(ring);
+    rings.push(ring);
+  });
+}
+
+// Drone
+const droneGroup = new THREE.Group();
+const body = new THREE.Mesh(new THREE.BoxGeometry(.6,.15,.6), new THREE.MeshStandardMaterial({color:0x333333,metalness:.6,roughness:.3}));
+body.castShadow=true; droneGroup.add(body);
+
+const armMat = new THREE.MeshStandardMaterial({color:0xf97316,metalness:.4});
+const propMat = new THREE.MeshStandardMaterial({color:0x666,metalness:.8});
+const arms = [], props = [];
+for(let i=0;i<4;i++){
+  const angle = i*Math.PI/2 + Math.PI/4;
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(.03,.03,.7,6), armMat);
+  arm.rotation.z = Math.PI/2;
+  arm.position.set(Math.cos(angle)*.35, 0, Math.sin(angle)*.35);
+  arm.lookAt(0,0,0); arm.rotateX(Math.PI/2);
+  droneGroup.add(arm);
+  arms.push(arm);
+
+  const prop = new THREE.Mesh(new THREE.BoxGeometry(.4,.02,.06), propMat);
+  prop.position.set(Math.cos(angle)*.5, .08, Math.sin(angle)*.5);
+  droneGroup.add(prop);
+  props.push(prop);
+
+  const motor = new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.06,8), new THREE.MeshStandardMaterial({color:0x444}));
+  motor.position.copy(prop.position); motor.position.y = .04;
+  droneGroup.add(motor);
+}
+
+// Camera on drone
+const fpCam = new THREE.Mesh(new THREE.BoxGeometry(.08,.05,.05), new THREE.MeshStandardMaterial({color:0x3b82f6}));
+fpCam.position.set(0,-.05,.3); droneGroup.add(fpCam);
+
+// LED
+const led = new THREE.PointLight(0x10b981, .5, 3);
+led.position.set(0,-.1,0); droneGroup.add(led);
+
+droneGroup.position.set(0, .5, 0);
+scene.add(droneGroup);
+
+// Shadow circle
+const shadowGeo = new THREE.CircleGeometry(.5, 16);
+const shadowMat = new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:.2});
+const droneShadow = new THREE.Mesh(shadowGeo, shadowMat);
+droneShadow.rotation.x = -Math.PI/2; droneShadow.position.y = .01;
+scene.add(droneShadow);
+
+// Physics state
+let drone = {x:0, y:.5, z:0, vx:0, vy:0, vz:0, pitch:0, roll:0, yaw:0, vPitch:0, vRoll:0, vYaw:0, throttle:0};
+let hoverAssist = true, firstPerson = false, windEnabled = false, battery = 100, ringsVisible = false;
+let ringsPassed = 0;
+
+const keys = {};
+addEventListener('keydown', e=>{keys[e.key.toLowerCase()]=true; keys[e.code]=true; if(e.key===' ')e.preventDefault();});
+addEventListener('keyup', e=>{keys[e.key.toLowerCase()]=false; keys[e.code]=false;});
+
+document.getElementById('btn-hover').addEventListener('click', ()=>{ hoverAssist=true; document.getElementById('btn-hover').classList.add('active'); document.getElementById('btn-acro').classList.remove('active'); });
+document.getElementById('btn-acro').addEventListener('click', ()=>{ hoverAssist=false; document.getElementById('btn-acro').classList.add('active'); document.getElementById('btn-hover').classList.remove('active'); });
+document.getElementById('btn-ring').addEventListener('click', ()=>{ ringsVisible=!ringsVisible; if(ringsVisible){createRings(); ringsPassed=0;} else{rings.forEach(r=>scene.remove(r)); rings.length=0;} });
+document.getElementById('btn-wind').addEventListener('click', function(){ windEnabled=!windEnabled; this.textContent=`Wind: ${windEnabled?'On':'Off'}`; });
+document.getElementById('btn-fp').addEventListener('click', function(){ firstPerson=!firstPerson; this.classList.toggle('active'); });
+
+function resetDrone(){
+  drone = {x:0, y:.5, z:0, vx:0, vy:0, vz:0, pitch:0, roll:0, yaw:0, vPitch:0, vRoll:0, vYaw:0, throttle:0};
+  battery = 100;
+}
+
+const dt = 1/60, gravity = -9.81;
+
+function physics(){
+  if(keys.r || keys.R) resetDrone();
+
+  // Throttle
+  if(keys[' '] || keys.Space) drone.throttle = Math.min(100, drone.throttle + 2);
+  else if(keys.shift || keys.Shift || keys.ShiftLeft) drone.throttle = Math.max(0, drone.throttle - 2);
+  else if(hoverAssist && drone.y > 1) drone.throttle += (50 - drone.throttle) * .02; // auto-hover
+
+  // Attitude input
+  const pitchIn = (keys.w?1:0) - (keys.s?1:0);
+  const rollIn = (keys.d?1:0) - (keys.a?1:0);
+  const yawIn = (keys.e?1:0) - (keys.q?1:0);
+
+  if(hoverAssist){
+    drone.vPitch += (pitchIn * .8 - drone.pitch * 3 - drone.vPitch * 4) * dt;
+    drone.vRoll += (rollIn * .8 - drone.roll * 3 - drone.vRoll * 4) * dt;
+  } else {
+    drone.vPitch += pitchIn * 2 * dt;
+    drone.vRoll += rollIn * 2 * dt;
+    drone.vPitch *= .98; drone.vRoll *= .98;
+  }
+  drone.vYaw += (yawIn * 3 - drone.vYaw * 2) * dt;
+
+  drone.pitch += drone.vPitch;
+  drone.roll += drone.vRoll;
+  drone.yaw += drone.vYaw;
+
+  // Thrust
+  const thrust = drone.throttle / 100 * 15;
+  const cp = Math.cos(drone.pitch), sp = Math.sin(drone.pitch);
+  const cr = Math.cos(drone.roll), sr = Math.sin(drone.roll);
+  const cy = Math.cos(drone.yaw), sy = Math.sin(drone.yaw);
+
+  drone.vy += (thrust * cp * cr + gravity) * dt;
+  drone.vx += (-thrust * sp * cy + thrust * sr * sy) * dt;
+  drone.vz += (-thrust * sp * sy - thrust * sr * cy) * dt;
+
+  // Wind
+  if(windEnabled){
+    const wt = performance.now() * .001;
+    drone.vx += Math.sin(wt * .7) * .02;
+    drone.vz += Math.cos(wt * .5) * .015;
+    drone.vPitch += Math.sin(wt * 1.3) * .001;
+  }
+
+  // Drag
+  drone.vx *= .99; drone.vy *= .995; drone.vz *= .99;
+
+  drone.x += drone.vx * dt;
+  drone.y += drone.vy * dt;
+  drone.z += drone.vz * dt;
+
+  // Ground
+  if(drone.y < .3){
+    drone.y = .3; drone.vy = Math.max(0, drone.vy);
+    drone.vx *= .9; drone.vz *= .9;
+    if(hoverAssist){ drone.pitch *= .9; drone.roll *= .9; }
+  }
+
+  // Ceiling
+  if(drone.y > 50) { drone.y = 50; drone.vy = 0; }
+
+  // Battery
+  battery = Math.max(0, battery - drone.throttle * .0003);
+
+  // Ring collision
+  for(const ring of rings){
+    if(ring.userData.passed) continue;
+    const d = new THREE.Vector3(drone.x, drone.y, drone.z).distanceTo(ring.position);
+    if(d < 3){
+      ring.userData.passed = true;
+      ring.material.color.set(0x10b981);
+      ring.material.emissive.set(0x10b981);
+      ringsPassed++;
+    }
+  }
+
+  // Update HUD
+  document.getElementById('alt').textContent = drone.y.toFixed(1);
+  document.getElementById('spd').textContent = Math.sqrt(drone.vx**2+drone.vz**2).toFixed(1);
+  document.getElementById('pitch').textContent = Math.round(drone.pitch*180/Math.PI);
+  document.getElementById('roll').textContent = Math.round(drone.roll*180/Math.PI);
+  document.getElementById('thr').textContent = Math.round(drone.throttle);
+  document.getElementById('bat').textContent = Math.round(battery);
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  physics();
+
+  // Update drone mesh
+  droneGroup.position.set(drone.x, drone.y, drone.z);
+  droneGroup.rotation.set(drone.pitch, drone.yaw, drone.roll);
+
+  // Spin props
+  const propSpeed = drone.throttle * .01 + .05;
+  props.forEach(p => p.rotation.y += propSpeed);
+
+  // LED color based on throttle
+  led.color.set(drone.throttle > 10 ? 0x10b981 : 0xef4444);
+
+  // Shadow
+  droneShadow.position.set(drone.x, .01, drone.z);
+  droneShadow.scale.setScalar(Math.max(.2, 1 - drone.y * .02));
+
+  // Camera
+  if(firstPerson){
+    const fwd = new THREE.Vector3(0,0,1).applyQuaternion(droneGroup.quaternion);
+    camera.position.set(drone.x, drone.y, drone.z);
+    camera.lookAt(drone.x+fwd.x*10, drone.y+fwd.y*10, drone.z+fwd.z*10);
+  } else {
+    const camDist = 8 + drone.y * .3;
+    camera.position.set(drone.x - Math.sin(drone.yaw)*camDist, drone.y + 3 + drone.y*.2, drone.z - Math.cos(drone.yaw)*camDist);
+    camera.lookAt(drone.x, drone.y, drone.z);
+  }
+
+  renderer.render(scene, camera);
+}
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>

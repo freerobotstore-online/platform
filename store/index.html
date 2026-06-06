@@ -175,22 +175,24 @@
 
     <section>
       <div class="tabs">
-          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">10</span></button>
+          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">13</span></button>
           <button class="tab" onclick="switchTab('firmware')">Firmware <span class="tab-count">1</span></button>
-          <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">2</span></button>
-          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">7</span></button>
+          <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">3</span></button>
+          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">9</span></button>
         </div>
 
         <div class="toolbar">
         <button class="filter-btn active" onclick="filterCategory('all')">All</button>
         <button class="filter-btn" onclick="filterCategory('manipulation')">Manipulation</button>
+        <button class="filter-btn" onclick="filterCategory('flight')">Flight</button>
+        <button class="filter-btn" onclick="filterCategory('coordination')">Coordination</button>
         <button class="filter-btn" onclick="filterCategory('locomotion')">Locomotion</button>
         <button class="filter-btn" onclick="filterCategory('navigation')">Navigation</button>
         <button class="filter-btn" onclick="filterCategory('control')">Control</button>
         <button class="filter-btn" onclick="filterCategory('simulation')">Simulation</button>
         <button class="filter-btn" onclick="filterCategory('perception')">Perception</button>
         <button class="filter-btn" onclick="filterCategory('actuators')">Actuators</button>
-        <span class="agent-count" id="agentCount">10 agents</span>
+        <span class="agent-count" id="agentCount">13 agents</span>
       </div>
             <div class="agents-grid" id="agentsGrid">
         <div class="agent-card" data-category="manipulation" data-store-type="behavior">
@@ -198,7 +200,7 @@
             <div class="agent-icon" style="background:#f97316">🦾</div>
             <div class="agent-body">
               <span class="agent-name">Robot Arm</span>
-              <span class="agent-desc">5-DOF robot arm — keyboard &amp; slider control, pick-and-place ...</span>
+              <span class="agent-desc">5-DOF robot arm — keyboard control (QWEASD), mouse orbit, pi...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
                 <span class="tag"></span>
@@ -211,12 +213,48 @@
           </a>
         </div>
 
+        <div class="agent-card" data-category="flight" data-store-type="behavior">
+          <a href="/robots/drone-sim/" class="agent-card-body">
+            <div class="agent-icon" style="background:#f97316">🚁</div>
+            <div class="agent-body">
+              <span class="agent-name">Drone Simulator</span>
+              <span class="agent-desc">3D quadcopter with hover assist and acro mode — WASD flight,...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/drone-sim/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="coordination" data-store-type="behavior">
+          <a href="/robots/swarm/" class="agent-card-body">
+            <div class="agent-icon" style="background:#f97316">🐝</div>
+            <div class="agent-body">
+              <span class="agent-name">Robot Swarm</span>
+              <span class="agent-desc">60-200 boids with flocking behavior — click to attract, adju...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/swarm/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
         <div class="agent-card" data-category="locomotion" data-store-type="behavior">
           <a href="/robots/walker/" class="agent-card-body">
             <div class="agent-icon" style="background:#f97316">🚶</div>
             <div class="agent-body">
               <span class="agent-name">Walking Robot</span>
-              <span class="agent-desc">Bipedal robot learning to walk — adjust stride, speed, hip o...</span>
+              <span class="agent-desc">Bipedal robot learning to walk — adjust stride, speed, hip/k...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
                 <span class="tag"></span>
@@ -234,7 +272,7 @@
             <div class="agent-icon" style="background:#f97316">🔴</div>
             <div class="agent-body">
               <span class="agent-name">Mars Rover</span>
-              <span class="agent-desc">Drive a 6-wheeled rover across Mars terrain — WASD controls,...</span>
+              <span class="agent-desc">Drive a 6-wheeled rover across Mars — WASD, collect samples,...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
                 <span class="tag"></span>
@@ -252,7 +290,7 @@
             <div class="agent-icon" style="background:#f97316">🧩</div>
             <div class="agent-body">
               <span class="agent-name">Maze Solver</span>
-              <span class="agent-desc">Robot navigates random mazes — compare Wall Following vs A* ...</span>
+              <span class="agent-desc">Robot navigates random mazes — compare A* vs BFS vs Wall Fol...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
                 <span class="tag"></span>
@@ -270,7 +308,7 @@
             <div class="agent-icon" style="background:#f97316">⚖️</div>
             <div class="agent-body">
               <span class="agent-name">Inverted Pendulum</span>
-              <span class="agent-desc">Classic control systems demo — PID controller balances a pen...</span>
+              <span class="agent-desc">Classic control theory — PID balances pendulum on cart, tune...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
                 <span class="tag"></span>
@@ -288,7 +326,7 @@
             <div class="agent-icon" style="background:#f97316">🏀</div>
             <div class="agent-body">
               <span class="agent-name">Bouncing Ball</span>
-              <span class="agent-desc">3D physics sim — Rapier.js rigid bodies, 5 gravity modes (Ea...</span>
+              <span class="agent-desc">3D rigid-body physics with Rapier.js — 5 gravity modes (Eart...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
                 <span class="tag"></span>
@@ -306,7 +344,7 @@
             <div class="agent-icon" style="background:#f97316">🛤️</div>
             <div class="agent-body">
               <span class="agent-name">Line Follower</span>
-              <span class="agent-desc">PID-controlled robot following a track — draw your own path,...</span>
+              <span class="agent-desc">PID line-following robot — draw your own track, tune Kp/Ki/K...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
                 <span class="tag"></span>
@@ -320,11 +358,29 @@
         </div>
 
         <div class="agent-card" data-category="perception" data-store-type="model">
+          <a href="/robots/pose-tracker/" class="agent-card-body">
+            <div class="agent-icon" style="background:#10b981">🤸</div>
+            <div class="agent-body">
+              <span class="agent-name">Pose Tracker</span>
+              <span class="agent-desc">Real-time human pose estimation (17 keypoints) via MoveNet —...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/pose-tracker/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="perception" data-store-type="model">
           <a href="/robots/object-detector/" class="agent-card-body">
             <div class="agent-icon" style="background:#10b981">👁️</div>
             <div class="agent-body">
               <span class="agent-name">Object Detector</span>
-              <span class="agent-desc">Real-time DETR object detection from webcam — 80 object clas...</span>
+              <span class="agent-desc">Real-time DETR detection from webcam — 80 object classes, bo...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
                 <span class="tag"></span>
@@ -342,7 +398,7 @@
             <div class="agent-icon" style="background:#10b981">📐</div>
             <div class="agent-body">
               <span class="agent-name">Depth Camera</span>
-              <span class="agent-desc">Monocular depth estimation — Depth Anything model estimates ...</span>
+              <span class="agent-desc">Monocular depth estimation — neural net estimates distance f...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
                 <span class="tag"></span>
@@ -360,7 +416,7 @@
             <div class="agent-icon" style="background:#3b82f6">⚙️</div>
             <div class="agent-body">
               <span class="agent-name">DC Motor Controller</span>
-              <span class="agent-desc">PID-controlled DC motor driver for Arduino — speed control, ...</span>
+              <span class="agent-desc">Arduino PID motor driver — speed control, encoder feedback, ...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(59,130,246,0.15);color:#60a5fa">Firmware</span>
                 <span class="tag"></span>

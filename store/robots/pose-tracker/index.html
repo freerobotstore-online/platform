@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pose Tracker — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .25rem} h1 span{color:#10b981}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.75rem;text-align:center;max-width:520px}
+    .badge{display:inline-block;padding:.15rem .6rem;border-radius:6px;font-size:.72rem;font-weight:600;background:rgba(16,185,129,.15);color:#34d399;margin:.25rem}
+    #status{color:#f97316;font-size:.85rem;margin:.75rem 0}
+    .views{display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin:.5rem}
+    .view{position:relative}
+    .view label{position:absolute;top:.5rem;left:.5rem;font-size:.72rem;background:rgba(0,0,0,.7);padding:.15rem .5rem;border-radius:4px;color:#a3a3a3;z-index:1}
+    canvas,video{border-radius:12px;border:1px solid #262626;display:block}
+    .controls{display:flex;gap:.75rem;margin:1rem 0}
+    button{padding:.5rem 1.25rem;border-radius:10px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#10b981;color:#10b981}
+    button.primary{background:#10b981;border-color:#10b981;color:#fff}
+    button:disabled{opacity:.4;cursor:not-allowed}
+    .info{font-size:.75rem;color:#525252;margin:.5rem}
+    a{color:#525252;text-decoration:none}
+  </style>
+</head>
+<body>
+  <h1>Pose <span>Tracker</span></h1>
+  <p class="sub">Real-time human pose estimation in your browser. Detects 17 body keypoints from webcam using MoveNet. Use for robot teleoperation, gesture control, or motion capture.</p>
+  <div><span class="badge">Model</span><span class="badge">TensorFlow.js</span><span class="badge">Pose Estimation</span></div>
+  <div id="status">Click "Start" to load model and camera</div>
+
+  <div class="views">
+    <div class="view">
+      <label>Camera + Skeleton</label>
+      <canvas id="output" width="640" height="480"></canvas>
+      <video id="video" width="640" height="480" autoplay muted playsinline style="display:none"></video>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="btn-start">Start</button>
+    <button id="btn-stop" disabled>Stop</button>
+    <button id="btn-mirror">Mirror: On</button>
+  </div>
+  <div class="info">FPS: <span id="fps">-</span> | Keypoints: <span id="kps">0</span>/17 | <a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
+
+  <script type="module">
+    // Use TF.js + MoveNet for pose detection
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('output');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const fpsEl = document.getElementById('fps');
+    const kpsEl = document.getElementById('kps');
+
+    let detector = null, running = false, stream = null, mirror = true;
+    let frameCount = 0, lastFpsTime = performance.now();
+
+    // MoveNet keypoint connections (skeleton)
+    const EDGES = [
+      [0,1],[0,2],[1,3],[2,4], // head
+      [5,6], // shoulders
+      [5,7],[7,9], // left arm
+      [6,8],[8,10], // right arm
+      [5,11],[6,12], // torso
+      [11,12], // hips
+      [11,13],[13,15], // left leg
+      [12,14],[14,16], // right leg
+    ];
+
+    const COLORS = {
+      face: '#3b82f6',
+      arm: '#f97316',
+      torso: '#10b981',
+      leg: '#a855f7',
+    };
+
+    function getColor(i) {
+      if (i <= 4) return COLORS.face;
+      if (i <= 10) return COLORS.arm;
+      if (i <= 12) return COLORS.torso;
+      return COLORS.leg;
+    }
+
+    function getEdgeColor(a, b) {
+      if (a <= 4 || b <= 4) return COLORS.face;
+      if ((a >= 5 && a <= 10) || (b >= 5 && b <= 10)) return COLORS.arm;
+      if (a <= 12 && b <= 12) return COLORS.torso;
+      return COLORS.leg;
+    }
+
+    document.getElementById('btn-mirror').addEventListener('click', function() {
+      mirror = !mirror;
+      this.textContent = `Mirror: ${mirror ? 'On' : 'Off'}`;
+    });
+
+    document.getElementById('btn-start').addEventListener('click', async () => {
+      document.getElementById('btn-start').disabled = true;
+      statusEl.textContent = 'Loading TensorFlow.js + MoveNet...';
+
+      try {
+        // Dynamically load TF.js
+        if (!window.tf) {
+          await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js');
+          await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js');
+        }
+
+        statusEl.textContent = 'Creating detector...';
+        detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.MoveNet,
+          { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+        );
+
+        statusEl.textContent = 'Starting camera...';
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, facingMode: 'user' }
+        });
+        video.srcObject = stream;
+        await video.play();
+
+        running = true;
+        document.getElementById('btn-stop').disabled = false;
+        statusEl.textContent = 'Tracking...';
+        detect();
+      } catch (e) {
+        statusEl.textContent = 'Error: ' + e.message;
+        document.getElementById('btn-start').disabled = false;
+      }
+    });
+
+    document.getElementById('btn-stop').addEventListener('click', () => {
+      running = false;
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('btn-start').disabled = false;
+      document.getElementById('btn-stop').disabled = true;
+      statusEl.textContent = 'Stopped';
+    });
+
+    async function detect() {
+      if (!running) return;
+
+      const poses = await detector.estimatePoses(video);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw video
+      ctx.save();
+      if (mirror) {
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+      } else {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
+      ctx.restore();
+
+      // Dark overlay
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let visibleKps = 0;
+
+      if (poses.length > 0) {
+        const kps = poses[0].keypoints;
+
+        // Draw skeleton edges
+        for (const [a, b] of EDGES) {
+          const ka = kps[a], kb = kps[b];
+          if (ka.score < 0.3 || kb.score < 0.3) continue;
+          const ax = mirror ? canvas.width - ka.x : ka.x;
+          const bx = mirror ? canvas.width - kb.x : kb.x;
+          ctx.beginPath();
+          ctx.moveTo(ax, ka.y);
+          ctx.lineTo(bx, kb.y);
+          ctx.strokeStyle = getEdgeColor(a, b);
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+
+        // Draw keypoints
+        for (let i = 0; i < kps.length; i++) {
+          const kp = kps[i];
+          if (kp.score < 0.3) continue;
+          visibleKps++;
+          const x = mirror ? canvas.width - kp.x : kp.x;
+          ctx.beginPath();
+          ctx.arc(x, kp.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = getColor(i);
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Confidence bar
+        const avgConf = kps.reduce((s, k) => s + k.score, 0) / kps.length;
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(10, canvas.height - 30, 120, 16);
+        ctx.fillStyle = avgConf > 0.6 ? '#10b981' : avgConf > 0.3 ? '#eab308' : '#ef4444';
+        ctx.fillRect(10, canvas.height - 30, avgConf * 120, 16);
+        ctx.fillStyle = '#fff'; ctx.font = '10px Manrope';
+        ctx.fillText(`Confidence: ${Math.round(avgConf*100)}%`, 14, canvas.height - 19);
+      }
+
+      kpsEl.textContent = visibleKps;
+
+      // FPS
+      frameCount++;
+      const now = performance.now();
+      if (now - lastFpsTime >= 1000) {
+        fpsEl.textContent = frameCount;
+        frameCount = 0;
+        lastFpsTime = now;
+      }
+
+      requestAnimationFrame(detect);
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+  </script>
+</body>
+</html>
