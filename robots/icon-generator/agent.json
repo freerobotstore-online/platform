@@ -1,0 +1,17 @@
+{
+  "name": "Icon Generator",
+  "description": "Browse 80+ curated SVG icons or describe what you need. Color customization, SVG/PNG export. Works instantly, no AI required.",
+  "version": "2.0.0",
+  "task": "icon-generation",
+  "category": "creative",
+  "models": [],
+  "estimatedDownload": "0MB",
+  "input": ["text/plain"],
+  "output": ["image/svg+xml"],
+  "requiresWebGPU": false,
+  "requiresOllama": false,
+  "requiresWebContainers": false,
+  "offlineCapable": true,
+  "desktopOnly": false,
+  "runtimeType": "heuristic"
+}
