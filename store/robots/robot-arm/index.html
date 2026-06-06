@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Arm Simulator — FreeRobotStore</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; overflow: hidden; }
+    #app { width: 100vw; height: 100vh; position: relative; }
+    canvas { display: block; }
+    #panel {
+      position: absolute; right: 1rem; top: 1rem; background: rgba(23,23,23,0.95);
+      border: 1px solid #262626; border-radius: 14px; padding: 1.25rem; width: 240px;
+      z-index: 10; backdrop-filter: blur(8px);
+    }
+    #panel h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .joint { margin-bottom: 0.75rem; }
+    .joint label { display: flex; justify-content: space-between; font-size: 0.78rem; color: #a3a3a3; margin-bottom: 0.2rem; }
+    .joint label span { color: #f97316; font-weight: 600; }
+    input[type=range] { width: 100%; accent-color: #f97316; }
+    #info { position: absolute; top: 1rem; left: 1rem; font-size: 0.78rem; color: #525252; z-index: 10; line-height: 1.6; }
+    #info span { color: #f97316; font-weight: 600; }
+    button { padding: 0.4rem 0.85rem; border-radius: 8px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; width: 100%; margin-top: 0.5rem; }
+    button:hover { border-color: #f97316; color: #f97316; }
+    a { color: #525252; text-decoration: none; position: absolute; bottom: 1rem; right: 1rem; font-size: 0.72rem; z-index: 10; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="info">
+      <span>Robot Arm</span> — 3-DOF Simulator<br>
+      Drag sliders to control joints<br>
+      Forward kinematics visualization
+    </div>
+    <div id="panel">
+      <h2>Joint Control</h2>
+      <div class="joint">
+        <label>Base Rotation <span id="j0-val">0</span>&deg;</label>
+        <input type="range" id="j0" min="-180" max="180" value="0">
+      </div>
+      <div class="joint">
+        <label>Shoulder <span id="j1-val">-30</span>&deg;</label>
+        <input type="range" id="j1" min="-90" max="90" value="-30">
+      </div>
+      <div class="joint">
+        <label>Elbow <span id="j2-val">60</span>&deg;</label>
+        <input type="range" id="j2" min="-135" max="135" value="60">
+      </div>
+      <div class="joint">
+        <label>Gripper <span id="grip-val">Open</span></label>
+        <input type="range" id="grip" min="0" max="1" step="1" value="0">
+      </div>
+      <button id="btn-home">Home Position</button>
+      <button id="btn-pick">Pick Demo</button>
+    </div>
+    <a href="https://freerobotstore.pages.dev">FreeRobotStore</a>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a0a);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(6, 4, 8);
+    camera.lookAt(0, 2, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    document.getElementById('app').prepend(renderer.domElement);
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dir = new THREE.DirectionalLight(0xffffff, 1);
+    dir.position.set(5, 8, 5); dir.castShadow = true; scene.add(dir);
+    scene.add(new THREE.PointLight(0xf97316, 0.4, 15).translateY(6));
+
+    // Ground
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(20, 20),
+      new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.9 })
+    );
+    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+    const grid = new THREE.GridHelper(20, 20, 0x262626, 0x1a1a1a);
+    grid.position.y = 0.005; scene.add(grid);
+
+    // Materials
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 });
+    const armMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3, metalness: 0.4 });
+    const jointMat = new THREE.MeshStandardMaterial({ color: 0x525252, roughness: 0.5, metalness: 0.7 });
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0xa3a3a3, roughness: 0.4, metalness: 0.5 });
+    const targetMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.3 });
+
+    // Robot arm hierarchy
+    // Base
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 0.3, 32), baseMat);
+    base.position.y = 0.15; base.castShadow = true; scene.add(base);
+
+    // Turntable (rotates around Y)
+    const turntable = new THREE.Group();
+    turntable.position.y = 0.3;
+    base.add(turntable);
+
+    // Joint 0 visual
+    const j0Visual = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.2, 16), jointMat);
+    turntable.add(j0Visual);
+
+    // Upper arm
+    const shoulder = new THREE.Group();
+    shoulder.position.y = 0.1;
+    turntable.add(shoulder);
+
+    const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2, 0.2), armMat);
+    upperArm.position.y = 1; upperArm.castShadow = true;
+    shoulder.add(upperArm);
+
+    const j1Visual = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), jointMat);
+    j1Visual.castShadow = true;
+    shoulder.add(j1Visual);
+
+    // Forearm
+    const elbow = new THREE.Group();
+    elbow.position.y = 2;
+    shoulder.add(elbow);
+
+    const j2Visual = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), jointMat);
+    j2Visual.castShadow = true;
+    elbow.add(j2Visual);
+
+    const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.5, 0.15), armMat);
+    forearm.position.y = 0.75; forearm.castShadow = true;
+    elbow.add(forearm);
+
+    // Gripper
+    const wrist = new THREE.Group();
+    wrist.position.y = 1.5;
+    elbow.add(wrist);
+
+    const gripBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.2), jointMat);
+    wrist.add(gripBase);
+
+    const fingerL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.08), gripMat);
+    fingerL.position.set(-0.12, -0.15, 0); fingerL.castShadow = true;
+    wrist.add(fingerL);
+
+    const fingerR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.08), gripMat);
+    fingerR.position.set(0.12, -0.15, 0); fingerR.castShadow = true;
+    wrist.add(fingerR);
+
+    // End effector marker
+    const endEffector = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
+    wrist.add(endEffector);
+    endEffector.position.y = -0.3;
+
+    // Target object
+    const target = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), targetMat);
+    target.position.set(1.5, 0.15, 1); target.castShadow = true; scene.add(target);
+
+    // Trail
+    const trailPoints = [];
+    const trailGeo = new THREE.BufferGeometry();
+    const trailMat2 = new THREE.LineBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.3 });
+    const trail = new THREE.Line(trailGeo, trailMat2);
+    scene.add(trail);
+
+    // Sliders
+    const j0Slider = document.getElementById('j0');
+    const j1Slider = document.getElementById('j1');
+    const j2Slider = document.getElementById('j2');
+    const gripSlider = document.getElementById('grip');
+
+    function updateArm() {
+      const j0 = parseFloat(j0Slider.value);
+      const j1 = parseFloat(j1Slider.value);
+      const j2 = parseFloat(j2Slider.value);
+      const grip = parseFloat(gripSlider.value);
+
+      document.getElementById('j0-val').textContent = j0;
+      document.getElementById('j1-val').textContent = j1;
+      document.getElementById('j2-val').textContent = j2;
+      document.getElementById('grip-val').textContent = grip > 0.5 ? 'Closed' : 'Open';
+
+      turntable.rotation.y = THREE.MathUtils.degToRad(j0);
+      shoulder.rotation.z = THREE.MathUtils.degToRad(j1);
+      elbow.rotation.z = THREE.MathUtils.degToRad(j2);
+
+      const spread = grip > 0.5 ? 0.02 : 0.12;
+      fingerL.position.x = -spread;
+      fingerR.position.x = spread;
+
+      // Trail
+      const worldPos = new THREE.Vector3();
+      endEffector.getWorldPosition(worldPos);
+      trailPoints.push(worldPos.clone());
+      if (trailPoints.length > 200) trailPoints.shift();
+      trailGeo.setFromPoints(trailPoints);
+    }
+
+    for (const s of [j0Slider, j1Slider, j2Slider, gripSlider]) {
+      s.addEventListener('input', updateArm);
+    }
+
+    document.getElementById('btn-home').addEventListener('click', () => {
+      j0Slider.value = 0; j1Slider.value = -30; j2Slider.value = 60; gripSlider.value = 0;
+      trailPoints.length = 0;
+      updateArm();
+    });
+
+    // Pick demo animation
+    let animating = false;
+    document.getElementById('btn-pick').addEventListener('click', () => {
+      if (animating) return;
+      animating = true;
+      trailPoints.length = 0;
+      const steps = [
+        { j0: 45, j1: 0, j2: 0, grip: 0, dur: 800 },
+        { j0: 45, j1: 30, j2: 90, grip: 0, dur: 600 },
+        { j0: 45, j1: 30, j2: 90, grip: 1, dur: 300 },
+        { j0: 45, j1: -20, j2: 40, grip: 1, dur: 600 },
+        { j0: -45, j1: -20, j2: 40, grip: 1, dur: 800 },
+        { j0: -45, j1: 30, j2: 90, grip: 1, dur: 600 },
+        { j0: -45, j1: 30, j2: 90, grip: 0, dur: 300 },
+        { j0: 0, j1: -30, j2: 60, grip: 0, dur: 800 },
+      ];
+
+      let i = 0;
+      function playStep() {
+        if (i >= steps.length) { animating = false; return; }
+        const s = steps[i];
+        const startVals = { j0: +j0Slider.value, j1: +j1Slider.value, j2: +j2Slider.value, grip: +gripSlider.value };
+        const start = performance.now();
+        function tick(now) {
+          const t = Math.min(1, (now - start) / s.dur);
+          const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+          j0Slider.value = startVals.j0 + (s.j0 - startVals.j0) * ease;
+          j1Slider.value = startVals.j1 + (s.j1 - startVals.j1) * ease;
+          j2Slider.value = startVals.j2 + (s.j2 - startVals.j2) * ease;
+          gripSlider.value = startVals.grip + (s.grip - startVals.grip) * ease;
+          updateArm();
+          if (t < 1) requestAnimationFrame(tick);
+          else { i++; setTimeout(playStep, 100); }
+        }
+        requestAnimationFrame(tick);
+      }
+      playStep();
+    });
+
+    // Camera orbit
+    let drag = false, px = 0, py = 0, angle = 0.9, height = 4, dist = 10;
+    renderer.domElement.addEventListener('mousedown', e => { drag = true; px = e.clientX; py = e.clientY; });
+    window.addEventListener('mousemove', e => {
+      if (!drag) return;
+      angle += (e.clientX - px) * 0.005;
+      height = Math.max(1, Math.min(12, height - (e.clientY - py) * 0.04));
+      px = e.clientX; py = e.clientY;
+    });
+    window.addEventListener('mouseup', () => { drag = false; });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    updateArm();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      camera.position.set(Math.sin(angle) * dist, height, Math.cos(angle) * dist);
+      camera.lookAt(0, 2, 0);
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

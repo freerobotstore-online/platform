@@ -121,7 +121,7 @@
         </span>
       </a>
       <nav>
-        <a href="/">All</a>
+        <a href="/">All Robots</a>
         <a href="/robots/bouncing-ball/">Bouncing Ball</a>
         <a href="/robots/line-follower/">Line Follower</a>
         <a href="/robots/motor-controller/">Motor Controller</a>
@@ -175,18 +175,21 @@
 
     <section>
       <div class="tabs">
-          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">3</span></button>
+          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">8</span></button>
           <button class="tab" onclick="switchTab('firmware')">Firmware <span class="tab-count">1</span></button>
-          <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">0</span></button>
-          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">2</span></button>
+          <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">2</span></button>
+          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">5</span></button>
         </div>
 
         <div class="toolbar">
         <button class="filter-btn active" onclick="filterCategory('all')">All</button>
         <button class="filter-btn" onclick="filterCategory('simulation')">Simulation</button>
+        <button class="filter-btn" onclick="filterCategory('manipulation')">Manipulation</button>
         <button class="filter-btn" onclick="filterCategory('navigation')">Navigation</button>
+        <button class="filter-btn" onclick="filterCategory('control')">Control</button>
+        <button class="filter-btn" onclick="filterCategory('perception')">Perception</button>
         <button class="filter-btn" onclick="filterCategory('actuators')">Actuators</button>
-        <span class="agent-count" id="agentCount">3 agents</span>
+        <span class="agent-count" id="agentCount">8 agents</span>
       </div>
             <div class="agents-grid" id="agentsGrid">
         <div class="agent-card" data-category="simulation" data-store-type="behavior">
@@ -207,6 +210,60 @@
           </a>
         </div>
 
+        <div class="agent-card" data-category="manipulation" data-store-type="behavior">
+          <a href="/robots/robot-arm/" class="agent-card-body">
+            <div class="agent-icon" style="background:#f97316">🦾</div>
+            <div class="agent-body">
+              <span class="agent-name">Robot Arm</span>
+              <span class="agent-desc">3-DOF robot arm simulator — control joints with sliders, wat...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/robot-arm/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="navigation" data-store-type="behavior">
+          <a href="/robots/maze-solver/" class="agent-card-body">
+            <div class="agent-icon" style="background:#f97316">🧩</div>
+            <div class="agent-body">
+              <span class="agent-name">Maze Solver</span>
+              <span class="agent-desc">Robot navigates random mazes using Wall Following, A*, or BF...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/maze-solver/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="control" data-store-type="behavior">
+          <a href="/robots/pendulum/" class="agent-card-body">
+            <div class="agent-icon" style="background:#f97316">⚖️</div>
+            <div class="agent-body">
+              <span class="agent-name">Inverted Pendulum</span>
+              <span class="agent-desc">Classic control systems demo — PID controller balances a pen...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/pendulum/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
         <div class="agent-card" data-category="navigation" data-store-type="behavior">
           <a href="/robots/line-follower/" class="agent-card-body">
             <div class="agent-icon" style="background:#f97316">🛤️</div>
@@ -220,6 +277,42 @@
             </div>
           </a>
           <a href="/robots/line-follower/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="perception" data-store-type="model">
+          <a href="/robots/object-detector/" class="agent-card-body">
+            <div class="agent-icon" style="background:#10b981">👁️</div>
+            <div class="agent-body">
+              <span class="agent-name">Object Detector</span>
+              <span class="agent-desc">Real-time object detection in your browser — DETR model iden...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/object-detector/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="perception" data-store-type="model">
+          <a href="/robots/depth-camera/" class="agent-card-body">
+            <div class="agent-icon" style="background:#10b981">📐</div>
+            <div class="agent-body">
+              <span class="agent-name">Depth Camera</span>
+              <span class="agent-desc">Monocular depth estimation — neural network estimates distan...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/depth-camera/" class="agent-cta">
             <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
             Open
           </a>

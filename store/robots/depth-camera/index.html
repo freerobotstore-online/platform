@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Depth Camera — FreeRobotStore</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    h1 { font-size: 1.3rem; font-weight: 700; margin: 1.5rem 0 0.25rem; } h1 span { color: #10b981; }
+    .sub { color: #737373; font-size: 0.85rem; margin-bottom: 1rem; text-align: center; max-width: 520px; }
+    .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; background: rgba(16,185,129,0.15); color: #34d399; margin: 0.25rem; }
+    #status { color: #f97316; font-size: 0.85rem; margin: 0.75rem 0; }
+    .views { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; margin: 0.5rem; }
+    .view { position: relative; }
+    .view label { position: absolute; top: 0.5rem; left: 0.5rem; font-size: 0.72rem; background: rgba(0,0,0,0.7); padding: 0.15rem 0.5rem; border-radius: 4px; color: #a3a3a3; z-index: 1; }
+    canvas, video { border-radius: 12px; border: 1px solid #262626; display: block; }
+    .controls { display: flex; gap: 0.75rem; margin: 1rem 0; }
+    button { padding: 0.5rem 1.25rem; border-radius: 10px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    button:hover { border-color: #10b981; color: #10b981; }
+    button.primary { background: #10b981; border-color: #10b981; color: white; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .info { font-size: 0.75rem; color: #525252; margin: 0.5rem; }
+    a { color: #525252; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>Depth <span>Camera</span></h1>
+  <p class="sub">Monocular depth estimation running in your browser. Uses a neural network to estimate distance from a single camera image — no stereo camera needed.</p>
+  <div><span class="badge">Model</span><span class="badge">Transformers.js</span><span class="badge">Depth Estimation</span></div>
+  <div id="status">Click "Start" to load model and camera</div>
+
+  <div class="views">
+    <div class="view">
+      <label>Camera</label>
+      <video id="video" width="320" height="240" autoplay muted playsinline></video>
+    </div>
+    <div class="view">
+      <label>Depth Map</label>
+      <canvas id="depth" width="320" height="240"></canvas>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="btn-start">Start</button>
+    <button id="btn-stop" disabled>Stop</button>
+    <button id="btn-colormap">Colormap: Turbo</button>
+  </div>
+  <div class="info">Inference: <span id="time">-</span>ms | Model: depth-anything-small | <a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
+
+  <script type="module">
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1';
+
+    env.allowLocalModels = false;
+
+    const video = document.getElementById('video');
+    const depthCanvas = document.getElementById('depth');
+    const dCtx = depthCanvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const timeEl = document.getElementById('time');
+
+    let estimator = null;
+    let running = false;
+    let stream = null;
+    let colormapIdx = 0;
+    const colormaps = ['turbo', 'magma', 'viridis'];
+
+    // Turbo colormap approximation
+    function turbo(t) {
+      const r = Math.max(0, Math.min(255, 34.61 + t * (1172.33 - t * (10793.56 - t * (33300.12 - t * (38394.49 - t * 14825.05))))));
+      const g = Math.max(0, Math.min(255, 23.31 + t * (557.33 + t * (1225.33 - t * (3574.96 - t * (1073.77 + t * 707.56))))));
+      const b = Math.max(0, Math.min(255, 27.2 + t * (3211.1 - t * (15327.97 - t * (27814 - t * (22569.18 - t * 6838.66))))));
+      return [r, g, b];
+    }
+
+    function magma(t) {
+      const r = Math.max(0, Math.min(255, (0.001462 + t * (1.613 + t * (-3.054 + t * 5.837))) * 255));
+      const g = Math.max(0, Math.min(255, (0.0004686 + t * (-0.1048 + t * (1.404 + t * (-1.481)))) * 255));
+      const b = Math.max(0, Math.min(255, (0.01387 + t * (1.371 + t * (-3.586 + t * 2.711))) * 255));
+      return [r, g, b];
+    }
+
+    function viridis(t) {
+      const r = Math.max(0, Math.min(255, (0.267 + t * (-0.003 + t * (1.397 + t * (-1.023)))) * 255));
+      const g = Math.max(0, Math.min(255, (0.004 + t * (1.514 + t * (-1.385 + t * 0.592))) * 255));
+      const b = Math.max(0, Math.min(255, (0.329 + t * (1.426 + t * (-4.867 + t * 3.455))) * 255));
+      return [r, g, b];
+    }
+
+    const cmaps = { turbo, magma, viridis };
+
+    document.getElementById('btn-colormap').addEventListener('click', () => {
+      colormapIdx = (colormapIdx + 1) % colormaps.length;
+      document.getElementById('btn-colormap').textContent = `Colormap: ${colormaps[colormapIdx].charAt(0).toUpperCase() + colormaps[colormapIdx].slice(1)}`;
+    });
+
+    document.getElementById('btn-start').addEventListener('click', async () => {
+      document.getElementById('btn-start').disabled = true;
+      statusEl.textContent = 'Loading depth model (~40MB)...';
+
+      try {
+        if (!estimator) {
+          estimator = await pipeline('depth-estimation', 'Xenova/depth-anything-small-hf');
+        }
+
+        statusEl.textContent = 'Starting camera...';
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 320, height: 240, facingMode: 'environment' }
+        });
+        video.srcObject = stream;
+        await video.play();
+
+        running = true;
+        document.getElementById('btn-stop').disabled = false;
+        statusEl.textContent = 'Estimating depth...';
+        processFrame();
+      } catch (e) {
+        statusEl.textContent = 'Error: ' + e.message;
+        document.getElementById('btn-start').disabled = false;
+      }
+    });
+
+    document.getElementById('btn-stop').addEventListener('click', () => {
+      running = false;
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      document.getElementById('btn-start').disabled = false;
+      document.getElementById('btn-stop').disabled = true;
+      statusEl.textContent = 'Stopped';
+    });
+
+    async function processFrame() {
+      if (!running) return;
+
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = 320; tmpCanvas.height = 240;
+      const tmpCtx = tmpCanvas.getContext('2d');
+      tmpCtx.drawImage(video, 0, 0, 320, 240);
+      const imageData = tmpCanvas.toDataURL('image/jpeg', 0.7);
+
+      const t0 = performance.now();
+      const result = await estimator(imageData);
+      timeEl.textContent = Math.round(performance.now() - t0);
+
+      // Render depth map
+      const depth = result.depth;
+      const w = depth.width, h = depth.height;
+      const imgData = dCtx.createImageData(depthCanvas.width, depthCanvas.height);
+      const data = depth.data;
+
+      // Find min/max for normalization
+      let min = Infinity, max = -Infinity;
+      for (let i = 0; i < data.length; i++) {
+        if (data[i] < min) min = data[i];
+        if (data[i] > max) max = data[i];
+      }
+      const range = max - min || 1;
+
+      const cmap = cmaps[colormaps[colormapIdx]];
+      const scaleX = w / depthCanvas.width;
+      const scaleY = h / depthCanvas.height;
+
+      for (let y = 0; y < depthCanvas.height; y++) {
+        for (let x = 0; x < depthCanvas.width; x++) {
+          const sx = Math.floor(x * scaleX);
+          const sy = Math.floor(y * scaleY);
+          const val = (data[sy * w + sx] - min) / range;
+          const [r, g, b] = cmap(1 - val); // invert: close = warm
+          const idx = (y * depthCanvas.width + x) * 4;
+          imgData.data[idx] = r;
+          imgData.data[idx + 1] = g;
+          imgData.data[idx + 2] = b;
+          imgData.data[idx + 3] = 255;
+        }
+      }
+      dCtx.putImageData(imgData, 0, 0);
+
+      setTimeout(() => processFrame(), 100); // throttle to ~10fps
+    }
+  </script>
+</body>
+</html>

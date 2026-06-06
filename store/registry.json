@@ -3,10 +3,37 @@
     {
       "id": "bouncing-ball",
       "name": "Bouncing Ball",
-      "description": "Interactive 3D physics simulation with Rapier.js — drop balls, change gravity, orbit camera",
+      "description": "Interactive 3D physics simulation with Rapier.js — drop balls, change gravity (Earth/Moon/Mars/Jupiter/Zero-G), orbit camera",
       "storeType": "behavior",
       "category": "simulation",
       "icon": "🏀",
+      "iconBg": "#f97316"
+    },
+    {
+      "id": "robot-arm",
+      "name": "Robot Arm",
+      "description": "3-DOF robot arm simulator — control joints with sliders, watch forward kinematics, run pick-and-place demo",
+      "storeType": "behavior",
+      "category": "manipulation",
+      "icon": "🦾",
+      "iconBg": "#f97316"
+    },
+    {
+      "id": "maze-solver",
+      "name": "Maze Solver",
+      "description": "Robot navigates random mazes using Wall Following, A*, or BFS — compare algorithms side by side",
+      "storeType": "behavior",
+      "category": "navigation",
+      "icon": "🧩",
+      "iconBg": "#f97316"
+    },
+    {
+      "id": "pendulum",
+      "name": "Inverted Pendulum",
+      "description": "Classic control systems demo — PID controller balances a pendulum on a cart, tune gains, add disturbances",
+      "storeType": "behavior",
+      "category": "control",
+      "icon": "⚖️",
       "iconBg": "#f97316"
     },
     {
@@ -19,9 +46,27 @@
       "iconBg": "#f97316"
     },
     {
+      "id": "object-detector",
+      "name": "Object Detector",
+      "description": "Real-time object detection in your browser — DETR model identifies 80 objects from webcam via Transformers.js",
+      "storeType": "model",
+      "category": "perception",
+      "icon": "👁️",
+      "iconBg": "#10b981"
+    },
+    {
+      "id": "depth-camera",
+      "name": "Depth Camera",
+      "description": "Monocular depth estimation — neural network estimates distance from a single camera image, 3 colormaps",
+      "storeType": "model",
+      "category": "perception",
+      "icon": "📐",
+      "iconBg": "#10b981"
+    },
+    {
       "id": "motor-controller",
       "name": "DC Motor Controller",
-      "description": "PID-controlled DC motor driver for Arduino — speed control, direction, encoder feedback",
+      "description": "PID-controlled DC motor driver for Arduino — speed control, direction, encoder feedback with wiring guide",
       "storeType": "firmware",
       "category": "actuators",
       "icon": "⚙️",

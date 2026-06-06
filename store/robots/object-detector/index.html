@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Object Detector — FreeRobotStore</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    h1 { font-size: 1.3rem; font-weight: 700; margin: 1.5rem 0 0.25rem; }
+    h1 span { color: #10b981; }
+    .subtitle { color: #737373; font-size: 0.85rem; margin-bottom: 1rem; text-align: center; max-width: 500px; }
+    .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; background: rgba(16,185,129,0.15); color: #34d399; margin: 0.25rem; }
+    #status { color: #f97316; font-size: 0.85rem; margin: 0.75rem 0; min-height: 1.2em; }
+    .container { position: relative; display: inline-block; margin: 0.5rem; }
+    video, canvas { border-radius: 12px; max-width: 90vw; }
+    video { display: block; background: #141414; }
+    #overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
+    .controls { display: flex; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; justify-content: center; }
+    button { padding: 0.5rem 1.25rem; border-radius: 10px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    button:hover { border-color: #10b981; color: #10b981; }
+    button.primary { background: #10b981; border-color: #10b981; color: white; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .stats { font-size: 0.78rem; color: #525252; margin: 0.5rem 0; }
+    a { color: #525252; text-decoration: none; } a:hover { color: #737373; }
+  </style>
+</head>
+<body>
+  <h1>Object <span>Detector</span></h1>
+  <p class="subtitle">Real-time object detection running entirely in your browser via Transformers.js. Identifies 80 common objects from your webcam.</p>
+  <div><span class="badge">Model</span><span class="badge">ONNX</span><span class="badge">WebGPU</span></div>
+  <div id="status">Click "Start Camera" to begin</div>
+
+  <div class="container">
+    <video id="video" width="640" height="480" autoplay muted playsinline></video>
+    <canvas id="overlay" width="640" height="480"></canvas>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="btn-start">Start Camera</button>
+    <button id="btn-stop" disabled>Stop</button>
+  </div>
+  <div class="stats">
+    Objects: <span id="count">0</span> | Inference: <span id="time">-</span>ms | <a href="https://freerobotstore.pages.dev">FreeRobotStore</a>
+  </div>
+
+  <script type="module">
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1';
+
+    env.allowLocalModels = false;
+
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const ctx = overlay.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const countEl = document.getElementById('count');
+    const timeEl = document.getElementById('time');
+    const btnStart = document.getElementById('btn-start');
+    const btnStop = document.getElementById('btn-stop');
+
+    let detector = null;
+    let running = false;
+    let stream = null;
+
+    const colors = {
+      person: '#f97316', car: '#3b82f6', dog: '#10b981', cat: '#a855f7',
+      chair: '#eab308', cup: '#06b6d4', bottle: '#ec4899', book: '#ef4444',
+    };
+    function getColor(label) {
+      return colors[label] || '#f97316';
+    }
+
+    btnStart.addEventListener('click', async () => {
+      btnStart.disabled = true;
+      statusEl.textContent = 'Loading model (~50MB, first time only)...';
+
+      try {
+        if (!detector) {
+          detector = await pipeline('object-detection', 'Xenova/detr-resnet-50', {
+            device: 'webgpu',
+          }).catch(() => {
+            statusEl.textContent = 'WebGPU failed, falling back to WASM...';
+            return pipeline('object-detection', 'Xenova/detr-resnet-50');
+          });
+        }
+
+        statusEl.textContent = 'Starting camera...';
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, facingMode: 'environment' }
+        });
+        video.srcObject = stream;
+        await video.play();
+
+        overlay.width = video.videoWidth;
+        overlay.height = video.videoHeight;
+
+        running = true;
+        btnStop.disabled = false;
+        statusEl.textContent = 'Detecting...';
+        detect();
+      } catch (e) {
+        statusEl.textContent = 'Error: ' + e.message;
+        btnStart.disabled = false;
+      }
+    });
+
+    btnStop.addEventListener('click', () => {
+      running = false;
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+      statusEl.textContent = 'Stopped';
+      countEl.textContent = '0';
+    });
+
+    async function detect() {
+      if (!running) return;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const tmpCtx = canvas.getContext('2d');
+      tmpCtx.drawImage(video, 0, 0);
+      const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+      const t0 = performance.now();
+      const results = await detector(imageData, { threshold: 0.5 });
+      const elapsed = Math.round(performance.now() - t0);
+
+      timeEl.textContent = elapsed;
+      countEl.textContent = results.length;
+
+      // Draw boxes
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      for (const det of results) {
+        const { xmin, ymin, xmax, ymax } = det.box;
+        const color = getColor(det.label);
+        const w = xmax - xmin;
+        const h = ymax - ymin;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(xmin, ymin, w, h);
+
+        ctx.fillStyle = color;
+        ctx.fillRect(xmin, ymin - 20, ctx.measureText(det.label).width + 16, 20);
+        ctx.fillStyle = '#fff';
+        ctx.font = '600 12px Manrope, sans-serif';
+        ctx.fillText(`${det.label} ${Math.round(det.score * 100)}%`, xmin + 4, ymin - 6);
+      }
+
+      requestAnimationFrame(detect);
+    }
+  </script>
+</body>
+</html>

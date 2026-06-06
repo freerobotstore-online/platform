@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inverted Pendulum — FreeRobotStore</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    h1 { font-size: 1.3rem; font-weight: 700; margin: 1.5rem 0 0.25rem; } h1 span { color: #f97316; }
+    .sub { color: #737373; font-size: 0.85rem; margin-bottom: 1rem; text-align: center; max-width: 500px; }
+    canvas { border: 1px solid #262626; border-radius: 12px; }
+    .controls { display: flex; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; justify-content: center; align-items: center; }
+    label { font-size: 0.82rem; color: #a3a3a3; display: flex; align-items: center; gap: 0.4rem; }
+    input[type=range] { width: 80px; accent-color: #f97316; }
+    .val { color: #f97316; font-weight: 600; min-width: 2rem; }
+    button { padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    button:hover { border-color: #f97316; color: #f97316; }
+    button.primary { background: #f97316; border-color: #f97316; color: white; }
+    .stats { display: flex; gap: 1.5rem; font-size: 0.78rem; color: #525252; margin: 0.5rem; }
+    .stats span { color: #a3a3a3; }
+    a { color: #525252; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>Inverted <span>Pendulum</span></h1>
+  <p class="sub">Classic control systems demo. A PID controller keeps a pendulum balanced upright on a cart. Tune gains, add disturbances, learn control theory.</p>
+
+  <canvas id="sim" width="800" height="400"></canvas>
+
+  <div class="controls">
+    <label>Kp <input type="range" id="kp" min="0" max="100" value="40"><span class="val" id="kp-v">40</span></label>
+    <label>Ki <input type="range" id="ki" min="0" max="20" value="0"><span class="val" id="ki-v">0</span></label>
+    <label>Kd <input type="range" id="kd" min="0" max="50" value="20"><span class="val" id="kd-v">20</span></label>
+    <button id="btn-push">Push!</button>
+    <button id="btn-reset">Reset</button>
+    <button class="primary" id="btn-auto">Auto-tune</button>
+  </div>
+
+  <div class="stats">
+    <div>Angle: <span id="angle">0.0</span>&deg;</div>
+    <div>Cart: <span id="cart-x">0.0</span></div>
+    <div>Force: <span id="force">0.0</span>N</div>
+    <div>Uptime: <span id="uptime">0</span>s</div>
+    <div><a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    // Physics params
+    const g = 9.81;
+    const M = 1.0;     // cart mass
+    const m = 0.3;     // pendulum mass
+    const L = 1.5;     // pendulum length
+    const dt = 0.016;
+
+    let theta, thetaDot, x, xDot, integral, prevError, startTime, fallen;
+
+    function reset() {
+      theta = 0.05 + (Math.random() - 0.5) * 0.02;
+      thetaDot = 0;
+      x = 0;
+      xDot = 0;
+      integral = 0;
+      prevError = 0;
+      startTime = performance.now();
+      fallen = false;
+    }
+
+    const sliders = { kp: document.getElementById('kp'), ki: document.getElementById('ki'), kd: document.getElementById('kd') };
+    const vals = { kp: document.getElementById('kp-v'), ki: document.getElementById('ki-v'), kd: document.getElementById('kd-v') };
+    for (const [k, el] of Object.entries(sliders)) el.addEventListener('input', () => vals[k].textContent = el.value);
+
+    document.getElementById('btn-push').addEventListener('click', () => {
+      thetaDot += (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3);
+    });
+    document.getElementById('btn-reset').addEventListener('click', reset);
+    document.getElementById('btn-auto').addEventListener('click', () => {
+      sliders.kp.value = 50; sliders.ki.value = 2; sliders.kd.value = 25;
+      vals.kp.textContent = '50'; vals.ki.textContent = '2'; vals.kd.textContent = '25';
+    });
+
+    function physics(force) {
+      const sinT = Math.sin(theta), cosT = Math.cos(theta);
+      const denom = M + m - m * cosT * cosT;
+
+      const thetaAcc = (g * sinT * (M + m) - cosT * (force + m * L * thetaDot * thetaDot * sinT)) / (L * denom);
+      const xAcc = (force + m * L * (thetaDot * thetaDot * sinT - thetaAcc * cosT)) / (M + m);
+
+      thetaDot += thetaAcc * dt;
+      theta += thetaDot * dt;
+      xDot += xAcc * dt;
+      x += xDot * dt;
+
+      // Walls
+      if (x < -3) { x = -3; xDot = -xDot * 0.5; }
+      if (x > 3) { x = 3; xDot = -xDot * 0.5; }
+
+      if (Math.abs(theta) > Math.PI / 2) fallen = true;
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, W, H);
+
+      // Grid
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1;
+      for (let gx = 0; gx < W; gx += 50) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
+
+      // Track
+      const trackY = H * 0.7;
+      ctx.strokeStyle = '#262626'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, trackY); ctx.lineTo(W, trackY); ctx.stroke();
+
+      const scale = 80;
+      const cx = W / 2 + x * scale;
+
+      // Cart
+      ctx.fillStyle = '#333';
+      ctx.fillRect(cx - 30, trackY - 15, 60, 20);
+      // Wheels
+      ctx.fillStyle = '#525252';
+      ctx.beginPath(); ctx.arc(cx - 18, trackY + 8, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + 18, trackY + 8, 6, 0, Math.PI * 2); ctx.fill();
+
+      // Pendulum
+      const px = cx + Math.sin(theta) * L * scale;
+      const py = trackY - 15 - Math.cos(theta) * L * scale;
+
+      ctx.strokeStyle = fallen ? '#ef4444' : '#f97316';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(cx, trackY - 15); ctx.lineTo(px, py); ctx.stroke();
+
+      // Bob
+      ctx.fillStyle = fallen ? '#ef4444' : '#f97316';
+      ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI * 2); ctx.fill();
+
+      // Pivot
+      ctx.fillStyle = '#737373';
+      ctx.beginPath(); ctx.arc(cx, trackY - 15, 5, 0, Math.PI * 2); ctx.fill();
+
+      // Force arrow
+      const Kp = parseFloat(sliders.kp.value);
+      const Ki = parseFloat(sliders.ki.value);
+      const Kd = parseFloat(sliders.kd.value);
+      const error = theta;
+      integral += error * dt;
+      integral = Math.max(-10, Math.min(10, integral));
+      const derivative = (error - prevError) / dt;
+      prevError = error;
+      const f = -(Kp * error + Ki * integral + Kd * derivative);
+      const clampedF = Math.max(-30, Math.min(30, f));
+
+      if (Math.abs(clampedF) > 0.5) {
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        const arrowLen = clampedF * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, trackY - 5);
+        ctx.lineTo(cx + arrowLen, trackY - 5);
+        ctx.stroke();
+        // Arrowhead
+        ctx.fillStyle = '#3b82f6';
+        ctx.beginPath();
+        const dir = arrowLen > 0 ? 1 : -1;
+        ctx.moveTo(cx + arrowLen, trackY - 5);
+        ctx.lineTo(cx + arrowLen - dir * 8, trackY - 10);
+        ctx.lineTo(cx + arrowLen - dir * 8, trackY);
+        ctx.fill();
+      }
+
+      return clampedF;
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      if (!fallen) {
+        const f = draw();
+        physics(f);
+      } else {
+        draw();
+      }
+
+      document.getElementById('angle').textContent = (theta * 180 / Math.PI).toFixed(1);
+      document.getElementById('cart-x').textContent = x.toFixed(2);
+      document.getElementById('force').textContent = prevError ? (-(parseFloat(sliders.kp.value) * theta)).toFixed(1) : '0.0';
+      document.getElementById('uptime').textContent = fallen ? 'FALLEN' : ((performance.now() - startTime) / 1000).toFixed(0);
+    }
+
+    reset();
+    loop();
+  </script>
+</body>
+</html>
