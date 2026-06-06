@@ -5,44 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Walking Robot — FreeRobotStore</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-    h1 { font-size: 1.3rem; font-weight: 700; margin: 1.5rem 0 0.25rem; } h1 span { color: #f97316; }
-    .sub { color: #737373; font-size: 0.85rem; margin-bottom: 1rem; text-align: center; max-width: 520px; }
-    canvas { border: 1px solid #262626; border-radius: 12px; }
-    .controls { display: flex; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; justify-content: center; align-items: center; }
-    button { padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; }
-    button:hover { border-color: #f97316; color: #f97316; }
-    button.primary { background: #f97316; border-color: #f97316; color: white; }
-    label { font-size: 0.82rem; color: #a3a3a3; display: flex; align-items: center; gap: 0.4rem; }
-    input[type=range] { width: 80px; accent-color: #f97316; }
-    .val { color: #f97316; font-weight: 600; min-width: 2rem; }
-    .stats { font-size: 0.78rem; color: #525252; margin: 0.5rem; display: flex; gap: 1.5rem; }
-    .stats span { color: #a3a3a3; }
-    a { color: #525252; text-decoration: none; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.25rem 0 .25rem} h1 span{color:#f97316}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.5rem;text-align:center;max-width:520px}
+    .tutorial{background:#171717;border:1px solid #262626;border-radius:12px;padding:.75rem 1rem;margin:.5rem;max-width:600px;font-size:.82rem;color:#a3a3a3;line-height:1.6}
+    .tutorial b{color:#f97316}
+    .tutorial .key{display:inline-block;padding:.1rem .4rem;border-radius:4px;border:1px solid #404040;background:#1f1f1f;font-size:.72rem;font-family:monospace;color:#f97316;margin:0 .1rem}
+    canvas{border:1px solid #262626;border-radius:12px}
+    .controls{display:flex;gap:.5rem;margin:.75rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.4rem 1rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    button.primary{background:#f97316;border-color:#f97316;color:#fff}
+    button.active{background:#f97316;border-color:#f97316;color:#fff}
+    label{font-size:.78rem;color:#a3a3a3;display:flex;align-items:center;gap:.3rem}
+    input[type=range]{width:70px;accent-color:#f97316}
+    .val{color:#f97316;font-weight:600;min-width:1.5rem;font-size:.75rem}
+    .stats{font-size:.75rem;color:#525252;margin:.35rem;display:flex;gap:1.25rem;flex-wrap:wrap;justify-content:center}
+    .stats span{color:#a3a3a3}
+    a{color:#525252;text-decoration:none}
   </style>
 </head>
 <body>
   <h1>Walking <span>Robot</span></h1>
-  <p class="sub">A bipedal robot learning to walk using cyclic gait patterns. Adjust stride, speed, and leg angles. Watch it stumble, recover, and eventually walk.</p>
+  <p class="sub">Teach a bipedal robot to walk. Press <b>W</b> to walk forward, <b>S</b> to walk backward.</p>
 
-  <canvas id="sim" width="900" height="400"></canvas>
+  <div class="tutorial" id="tutorial">
+    <b>How to play:</b> Press <span class="key">W</span> to walk forward. <span class="key">S</span> to reverse. <span class="key">P</span> to push (test balance). <span class="key">Space</span> to jump. Tune the sliders to find the perfect gait that goes the farthest without falling. The robot auto-balances using a PID controller — bad settings = faceplant.
+  </div>
+
+  <canvas id="sim" width="900" height="350"></canvas>
 
   <div class="controls">
-    <label>Stride <input type="range" id="stride" min="10" max="60" value="30"><span class="val" id="stride-v">30</span></label>
-    <label>Speed <input type="range" id="speed" min="1" max="8" step="0.5" value="3"><span class="val" id="speed-v">3.0</span></label>
-    <label>Hip Offset <input type="range" id="hip" min="-20" max="20" value="5"><span class="val" id="hip-v">5</span></label>
-    <label>Knee Bend <input type="range" id="knee" min="10" max="60" value="30"><span class="val" id="knee-v">30</span></label>
-    <button class="primary" id="btn-walk">Walk</button>
-    <button id="btn-stop">Stop</button>
-    <button id="btn-reset">Reset</button>
-    <button id="btn-push">Push!</button>
+    <button class="primary" id="btn-walk">W Walk</button>
+    <button id="btn-back">S Back</button>
+    <button id="btn-push">P Push</button>
+    <button id="btn-jump">Space Jump</button>
+    <button id="btn-reset">R Reset</button>
+    <label>Stride <input type="range" id="stride" min="10" max="60" value="28"><span class="val" id="stride-v">28</span></label>
+    <label>Speed <input type="range" id="speed" min="1" max="8" step=".5" value="3"><span class="val" id="speed-v">3.0</span></label>
+    <label>Knee <input type="range" id="knee" min="10" max="60" value="30"><span class="val" id="knee-v">30</span></label>
+    <label>Balance <input type="range" id="balance" min="1" max="20" value="8"><span class="val" id="bal-v">8</span></label>
   </div>
   <div class="stats">
     <div>Distance: <span id="dist">0.0</span>m</div>
     <div>Steps: <span id="steps">0</span></div>
-    <div>Balance: <span id="balance">Stable</span></div>
-    <div>Phase: <span id="phase">Stand</span></div>
+    <div>Best: <span id="best">0.0</span>m</div>
+    <div>Status: <span id="status">Standing</span></div>
     <div><a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
   </div>
 
@@ -50,252 +59,311 @@
     const canvas = document.getElementById('sim');
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
+    const groundY = H * 0.78;
 
-    const groundY = H * 0.75;
-    const g = 0.3;
-
-    let robot, walking, time, stepCount;
+    let robot, walking, direction, time, stepCount, bestDist;
 
     function createRobot() {
       return {
-        x: W * 0.3, y: groundY,
-        vx: 0, vy: 0,
+        x: W * 0.3, y: groundY, vy: 0,
         angle: 0, angVel: 0,
-        hipL: 0, hipR: 0,
-        kneeL: 0, kneeR: 0,
-        footLx: 0, footLy: 0,
-        footRx: 0, footRy: 0,
-        phase: 0, // 0-1 gait cycle
-        fallen: false,
+        hipL: 0, hipR: 0, kneeL: 0, kneeR: 0,
+        phase: 0,
+        fallen: false, airborne: false,
       };
     }
 
     function reset() {
+      const wasBest = bestDist || 0;
       robot = createRobot();
-      walking = false;
-      time = 0;
-      stepCount = 0;
+      walking = 0; direction = 1; time = 0; stepCount = 0;
+      bestDist = wasBest;
       document.getElementById('dist').textContent = '0.0';
       document.getElementById('steps').textContent = '0';
-      document.getElementById('balance').textContent = 'Stable';
-      document.getElementById('phase').textContent = 'Stand';
+      document.getElementById('status').textContent = 'Standing';
     }
 
-    const sliders = {
-      stride: document.getElementById('stride'),
-      speed: document.getElementById('speed'),
-      hip: document.getElementById('hip'),
-      knee: document.getElementById('knee'),
-    };
-    const valEls = {
-      stride: document.getElementById('stride-v'),
-      speed: document.getElementById('speed-v'),
-      hip: document.getElementById('hip-v'),
-      knee: document.getElementById('knee-v'),
-    };
+    const sl = id => document.getElementById(id);
+    const sliders = { stride: sl('stride'), speed: sl('speed'), knee: sl('knee'), balance: sl('balance') };
+    const valEls = { stride: sl('stride-v'), speed: sl('speed-v'), knee: sl('knee-v'), balance: sl('bal-v') };
     for (const [k, el] of Object.entries(sliders)) {
-      el.addEventListener('input', () => { valEls[k].textContent = k === 'speed' ? parseFloat(el.value).toFixed(1) : el.value; });
+      el.addEventListener('input', () => { valEls[k].textContent = k === 'speed' ? (+el.value).toFixed(1) : el.value; });
     }
 
-    document.getElementById('btn-walk').addEventListener('click', () => { walking = true; robot.fallen = false; });
-    document.getElementById('btn-stop').addEventListener('click', () => { walking = false; });
-    document.getElementById('btn-reset').addEventListener('click', reset);
-    document.getElementById('btn-push').addEventListener('click', () => {
-      robot.angVel += (Math.random() > 0.5 ? 1 : -1) * 0.03;
-      robot.vx += (Math.random() > 0.5 ? 1 : -1) * 2;
+    // Keyboard
+    const keys = {};
+    addEventListener('keydown', e => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.key === ' ') e.preventDefault();
     });
+    addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+    // Button controls (for mobile)
+    let btnWalk = false, btnBack = false;
+    sl('btn-walk').addEventListener('mousedown', () => btnWalk = true);
+    sl('btn-walk').addEventListener('mouseup', () => btnWalk = false);
+    sl('btn-walk').addEventListener('touchstart', e => { e.preventDefault(); btnWalk = true; });
+    sl('btn-walk').addEventListener('touchend', e => { e.preventDefault(); btnWalk = false; });
+    sl('btn-back').addEventListener('mousedown', () => btnBack = true);
+    sl('btn-back').addEventListener('mouseup', () => btnBack = false);
+    sl('btn-back').addEventListener('touchstart', e => { e.preventDefault(); btnBack = true; });
+    sl('btn-back').addEventListener('touchend', e => { e.preventDefault(); btnBack = false; });
+    sl('btn-push').addEventListener('click', () => {
+      robot.angVel += (Math.random() > 0.5 ? 1 : -1) * 0.04;
+      robot.x += (Math.random() > 0.5 ? 1 : -1) * 10;
+    });
+    sl('btn-jump').addEventListener('click', () => { if (!robot.airborne) { robot.vy = -8; robot.airborne = true; } });
+    sl('btn-reset').addEventListener('click', reset);
 
     function update() {
       if (robot.fallen) return;
 
-      const stride = parseFloat(sliders.stride.value);
-      const speed = parseFloat(sliders.speed.value);
-      const hipOff = parseFloat(sliders.hip.value);
-      const kneeBend = parseFloat(sliders.knee.value);
+      const stride = +sliders.stride.value;
+      const speed = +sliders.speed.value;
+      const kneeBend = +sliders.knee.value;
+      const balanceK = +sliders.balance.value;
 
-      const bodyLen = 40; // torso height
-      const upperLeg = 35;
-      const lowerLeg = 30;
+      // Walking input
+      const wantWalk = keys.w || keys.arrowup || btnWalk;
+      const wantBack = keys.s || keys.arrowdown || btnBack;
+      const wantPush = keys.p;
+      const wantJump = keys[' '];
 
-      if (walking) {
-        robot.phase += speed * 0.008;
+      if (wantWalk) { walking = 1; direction = 1; }
+      else if (wantBack) { walking = 1; direction = -1; }
+      else { walking *= 0.95; if (walking < 0.1) walking = 0; }
+
+      if (wantPush) {
+        robot.angVel += (Math.random() > 0.5 ? 1 : -1) * 0.02;
+        keys.p = false;
+      }
+      if (wantJump && !robot.airborne) {
+        robot.vy = -8; robot.airborne = true;
+        keys[' '] = false;
+      }
+
+      // Gravity + vertical
+      robot.vy += 0.4;
+      robot.y += robot.vy;
+      if (robot.y >= groundY) {
+        robot.y = groundY; robot.vy = 0; robot.airborne = false;
+      }
+
+      // Gait
+      if (walking > 0.1) {
+        robot.phase += speed * 0.008 * walking;
         if (robot.phase >= 1) {
           robot.phase -= 1;
           stepCount++;
-          document.getElementById('steps').textContent = stepCount;
+          sl('steps').textContent = stepCount;
         }
 
-        // Gait: sinusoidal hip angles, offset by half cycle
         const p = robot.phase * Math.PI * 2;
-        robot.hipL = Math.sin(p) * stride + hipOff;
-        robot.hipR = Math.sin(p + Math.PI) * stride + hipOff;
-        robot.kneeL = Math.max(0, Math.sin(p) * kneeBend);
-        robot.kneeR = Math.max(0, Math.sin(p + Math.PI) * kneeBend);
+        robot.hipL = Math.sin(p) * stride * direction;
+        robot.hipR = Math.sin(p + Math.PI) * stride * direction;
+        robot.kneeL = Math.max(0, Math.sin(p)) * kneeBend;
+        robot.kneeR = Math.max(0, Math.sin(p + Math.PI)) * kneeBend;
 
         // Forward movement
-        robot.vx += Math.cos(robot.angle) * speed * 0.15;
-        robot.vx *= 0.95; // friction
-
-        // Balance dynamics
-        const leanForce = Math.sin(robot.angle) * 0.008;
-        robot.angVel += leanForce;
-        robot.angVel *= 0.98; // damping
-
-        // Walking correction (shift weight toward stance foot)
-        const stanceSide = Math.sin(robot.phase * Math.PI * 2) > 0 ? -1 : 1;
-        robot.angVel += stanceSide * 0.002;
+        robot.x += direction * speed * 0.6 * walking * Math.cos(robot.angle);
+      } else {
+        // Settle legs
+        robot.hipL *= 0.9; robot.hipR *= 0.9;
+        robot.kneeL *= 0.9; robot.kneeR *= 0.9;
       }
 
-      robot.angle += robot.angVel;
-      robot.x += robot.vx;
+      // Balance (PID-ish)
+      const balanceForce = -robot.angle * balanceK * 0.01;
+      robot.angVel += balanceForce;
 
-      // Ground contact
-      robot.y = groundY;
+      // Natural lean when walking
+      if (walking > 0.5) {
+        const leanTarget = direction * 0.03;
+        robot.angVel += (leanTarget - robot.angle) * 0.005;
+      }
+
+      // Damping
+      robot.angVel *= 0.97;
+      robot.angle += robot.angVel;
 
       // Fall detection
-      if (Math.abs(robot.angle) > 0.8) {
+      if (Math.abs(robot.angle) > 0.9) {
         robot.fallen = true;
-        walking = false;
-        document.getElementById('balance').textContent = 'FALLEN!';
-        document.getElementById('phase').textContent = 'Down';
+        sl('status').textContent = 'FALLEN! Press R to reset';
       } else {
-        document.getElementById('balance').textContent =
-          Math.abs(robot.angle) < 0.1 ? 'Stable' :
-          Math.abs(robot.angle) < 0.3 ? 'Wobbling' : 'Unstable!';
-        document.getElementById('phase').textContent =
-          !walking ? 'Stand' :
-          robot.phase < 0.5 ? 'Left swing' : 'Right swing';
+        sl('status').textContent = walking > 0.1 ?
+          (Math.abs(robot.angle) < 0.1 ? 'Walking (stable)' :
+           Math.abs(robot.angle) < 0.3 ? 'Walking (wobbly)' : 'Walking (DANGER!)') :
+          'Standing';
       }
 
-      // Distance
-      const distM = ((robot.x - W * 0.3) / 50).toFixed(1);
-      document.getElementById('dist').textContent = distM;
-
-      // Scroll camera
-      time++;
-    }
-
-    function drawRobot() {
-      const cx = W / 2 - (robot.x - W * 0.3) * 0.3; // camera follow
-      const bx = cx;
-      const by = robot.y;
-
-      ctx.save();
-      ctx.translate(bx, by);
-      ctx.rotate(robot.angle);
-
-      const bodyH = 40;
-      const headR = 12;
-      const upperL = 35;
-      const lowerL = 30;
-
-      // Body
-      ctx.fillStyle = '#f97316';
-      ctx.fillRect(-10, -bodyH, 20, bodyH);
-
-      // Head
-      ctx.fillStyle = '#fb923c';
-      ctx.beginPath(); ctx.arc(0, -bodyH - headR, headR, 0, Math.PI * 2); ctx.fill();
-      // Eyes
-      ctx.fillStyle = '#0a0a0a';
-      ctx.beginPath(); ctx.arc(-4, -bodyH - headR - 2, 2.5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(4, -bodyH - headR - 2, 2.5, 0, Math.PI * 2); ctx.fill();
-
-      // Arms (swing with gait)
-      const armSwing = walking ? Math.sin(robot.phase * Math.PI * 2) * 20 : 0;
-      ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 5; ctx.lineCap = 'round';
-      // Left arm
-      ctx.beginPath();
-      ctx.moveTo(-12, -bodyH + 5);
-      const laX = -12 + Math.sin(THREE_DEG(armSwing)) * 20;
-      const laY = -bodyH + 5 + Math.cos(THREE_DEG(armSwing)) * 20;
-      ctx.lineTo(laX, laY);
-      ctx.stroke();
-      // Right arm
-      ctx.beginPath();
-      ctx.moveTo(12, -bodyH + 5);
-      const raX = 12 + Math.sin(THREE_DEG(-armSwing)) * 20;
-      const raY = -bodyH + 5 + Math.cos(THREE_DEG(-armSwing)) * 20;
-      ctx.lineTo(raX, raY);
-      ctx.stroke();
-
-      // Left leg
-      drawLeg(-6, 0, robot.hipL, robot.kneeL, '#ea580c');
-      // Right leg
-      drawLeg(6, 0, robot.hipR, robot.kneeR, '#c2410c');
-
-      ctx.restore();
-
-      function drawLeg(ox, oy, hipAngle, kneeAngle, color) {
-        ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.lineCap = 'round';
-        const hRad = THREE_DEG(hipAngle);
-        const kRad = THREE_DEG(kneeAngle);
-
-        const kneeX = ox + Math.sin(hRad) * upperL;
-        const kneeY = oy + Math.cos(hRad) * upperL;
-
-        const footX = kneeX + Math.sin(hRad + kRad) * lowerL;
-        const footY = kneeY + Math.cos(hRad + kRad) * lowerL;
-
-        ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(kneeX, kneeY); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(kneeX, kneeY); ctx.lineTo(footX, footY); ctx.stroke();
-
-        // Foot
-        ctx.fillStyle = '#333';
-        ctx.fillRect(footX - 8, footY - 2, 16, 5);
-
-        // Joint dots
-        ctx.fillStyle = '#737373';
-        ctx.beginPath(); ctx.arc(kneeX, kneeY, 3, 0, Math.PI * 2); ctx.fill();
+      // Distance tracking
+      const dist = ((robot.x - W * 0.3) / 50);
+      sl('dist').textContent = dist.toFixed(1);
+      if (Math.abs(dist) > bestDist) {
+        bestDist = Math.abs(dist);
+        sl('best').textContent = bestDist.toFixed(1);
       }
     }
-
-    function THREE_DEG(deg) { return deg * Math.PI / 180; }
 
     function draw() {
       ctx.fillStyle = '#0a0a0a';
       ctx.fillRect(0, 0, W, H);
 
+      // Sky gradient (subtle)
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+      skyGrad.addColorStop(0, '#0f0f14');
+      skyGrad.addColorStop(1, '#0a0a0a');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, W, groundY);
+
       // Ground
       ctx.fillStyle = '#141414';
       ctx.fillRect(0, groundY, W, H - groundY);
 
-      // Grid lines on ground
-      ctx.strokeStyle = '#1f1f1f'; ctx.lineWidth = 1;
-      const scroll = (robot.x - W * 0.3) * 0.3;
-      for (let x = -scroll % 50; x < W; x += 50) {
+      // Scrolling grid
+      const scroll = (robot.x - W * 0.3) * 0.5;
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1;
+      for (let x = (-scroll % 50 + 50) % 50; x < W; x += 50) {
         ctx.beginPath(); ctx.moveTo(x, groundY); ctx.lineTo(x, H); ctx.stroke();
       }
 
       // Distance markers
-      ctx.fillStyle = '#262626'; ctx.font = '10px Manrope, sans-serif';
-      for (let m = 0; m < 50; m++) {
-        const mx = W / 2 - scroll + m * 50;
-        if (mx > 0 && mx < W) {
+      ctx.fillStyle = '#262626'; ctx.font = '10px Manrope';
+      for (let m = -20; m < 100; m++) {
+        const mx = W / 2 - scroll + m * 50 - (W * 0.3 - W / 2);
+        if (mx > -20 && mx < W + 20) {
           ctx.fillText(`${m}m`, mx - 5, groundY + 15);
+          // Small tick
+          ctx.fillRect(mx, groundY, 1, 5);
         }
       }
 
-      drawRobot();
+      // Camera follow
+      const cx = W / 2 - (robot.x - W * 0.3) * 0.5;
+
+      // Draw robot
+      ctx.save();
+      ctx.translate(cx + (robot.x - W * 0.3) * 0.5, robot.y);
+      ctx.rotate(robot.angle);
+
+      const bodyH = 45, headR = 14, upperL = 38, lowerL = 32;
+
+      // Shadow
+      ctx.fillStyle = 'rgba(249, 115, 22, 0.05)';
+      ctx.beginPath(); ctx.ellipse(0, 5, 30, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+      // Body
+      const bodyGrad = ctx.createLinearGradient(-12, -bodyH, 12, 0);
+      bodyGrad.addColorStop(0, '#f97316');
+      bodyGrad.addColorStop(1, '#ea580c');
+      ctx.fillStyle = bodyGrad;
+      ctx.beginPath();
+      ctx.roundRect(-12, -bodyH, 24, bodyH, 4);
+      ctx.fill();
+
+      // Chest detail
+      ctx.fillStyle = '#c2410c';
+      ctx.fillRect(-8, -bodyH + 8, 16, 3);
+      ctx.fillRect(-8, -bodyH + 14, 16, 3);
+
+      // Head
+      ctx.fillStyle = '#fb923c';
+      ctx.beginPath(); ctx.arc(0, -bodyH - headR + 2, headR, 0, Math.PI * 2); ctx.fill();
+
+      // Visor
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath(); ctx.arc(0, -bodyH - headR, headR - 3, -0.6, 0.6); ctx.fill();
+
+      // Eyes (glow)
+      ctx.fillStyle = robot.fallen ? '#ef4444' : '#10b981';
+      ctx.shadowColor = robot.fallen ? '#ef4444' : '#10b981';
+      ctx.shadowBlur = 6;
+      ctx.beginPath(); ctx.arc(-5, -bodyH - headR - 1, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(5, -bodyH - headR - 1, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Arms (swing with gait)
+      const armSwing = walking > 0.1 ? Math.sin(robot.phase * Math.PI * 2) * 25 * walking : 0;
+      ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+
+      function drawArm(side, swing) {
+        const sx = side * 14;
+        const rad = swing * Math.PI / 180;
+        const elbowX = sx + Math.sin(rad) * 22;
+        const elbowY = -bodyH + 10 + Math.cos(rad) * 22;
+        const handX = elbowX + Math.sin(rad + 0.5) * 18;
+        const handY = elbowY + Math.cos(rad + 0.5) * 18;
+        ctx.beginPath(); ctx.moveTo(sx, -bodyH + 8); ctx.lineTo(elbowX, elbowY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(elbowX, elbowY); ctx.lineTo(handX, handY); ctx.stroke();
+        // Hand
+        ctx.fillStyle = '#fb923c';
+        ctx.beginPath(); ctx.arc(handX, handY, 3, 0, Math.PI * 2); ctx.fill();
+      }
+      drawArm(-1, armSwing);
+      drawArm(1, -armSwing);
+
+      // Legs
+      function drawLeg(ox, hipAngle, kneeAngle, color, highlight) {
+        const hRad = hipAngle * Math.PI / 180;
+        const kRad = kneeAngle * Math.PI / 180;
+
+        const kneeX = ox + Math.sin(hRad) * upperL;
+        const kneeY = Math.cos(hRad) * upperL;
+        const footX = kneeX + Math.sin(hRad + kRad) * lowerL;
+        const footY = kneeY + Math.cos(hRad + kRad) * lowerL;
+
+        // Upper leg
+        ctx.strokeStyle = color; ctx.lineWidth = 8; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(ox, 0); ctx.lineTo(kneeX, kneeY); ctx.stroke();
+        // Lower leg
+        ctx.strokeStyle = highlight; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(kneeX, kneeY); ctx.lineTo(footX, footY); ctx.stroke();
+
+        // Knee joint
+        ctx.fillStyle = '#525252';
+        ctx.beginPath(); ctx.arc(kneeX, kneeY, 4, 0, Math.PI * 2); ctx.fill();
+
+        // Foot
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.roundRect(footX - 10, footY - 3, 20, 6, 3);
+        ctx.fill();
+      }
+
+      drawLeg(-7, robot.hipL, robot.kneeL, '#c2410c', '#ea580c');
+      drawLeg(7, robot.hipR, robot.kneeR, '#9a3412', '#c2410c');
+
+      ctx.restore();
+
+      // Balance meter
+      const meterX = 20, meterY = 20, meterW = 120, meterH = 12;
+      ctx.fillStyle = '#171717'; ctx.fillRect(meterX, meterY, meterW, meterH);
+      ctx.strokeStyle = '#262626'; ctx.strokeRect(meterX, meterY, meterW, meterH);
+      // Center marker
+      ctx.fillStyle = '#404040'; ctx.fillRect(meterX + meterW/2, meterY, 1, meterH);
+
+      const balanced = Math.max(0, Math.min(1, 0.5 + robot.angle * 2));
+      const barColor = Math.abs(robot.angle) < 0.1 ? '#10b981' : Math.abs(robot.angle) < 0.3 ? '#eab308' : '#ef4444';
+      ctx.fillStyle = barColor;
+      ctx.fillRect(meterX + balanced * meterW - 3, meterY, 6, meterH);
+      ctx.fillStyle = '#525252'; ctx.font = '9px Manrope';
+      ctx.fillText('Balance', meterX, meterY - 4);
 
       // Fallen overlay
       if (robot.fallen) {
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
         ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#ef4444';
-        ctx.font = '600 24px Manrope, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('FALLEN — Click Reset', W / 2, H / 2);
+        ctx.fillStyle = '#ef4444'; ctx.font = '600 20px Manrope'; ctx.textAlign = 'center';
+        ctx.fillText('FALLEN! Press R to reset', W / 2, H / 2 - 30);
+        ctx.font = '14px Manrope'; ctx.fillStyle = '#a3a3a3';
+        ctx.fillText(`You walked ${((robot.x - W * 0.3) / 50).toFixed(1)}m in ${stepCount} steps`, W / 2, H / 2);
         ctx.textAlign = 'start';
       }
     }
 
-    function loop() {
-      requestAnimationFrame(loop);
-      update();
-      draw();
-    }
-
+    function loop() { requestAnimationFrame(loop); update(); draw(); }
+    bestDist = 0;
     reset();
     loop();
   </script>
