@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neural Network Trainer — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .25rem} h1 span{color:#a855f7}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.75rem;text-align:center;max-width:520px}
+    .canvases{display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin:.5rem}
+    canvas{border:1px solid #262626;border-radius:12px}
+    .controls{display:flex;gap:.75rem;margin:1rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.4rem 1rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#a855f7;color:#a855f7}
+    button.primary{background:#a855f7;border-color:#a855f7;color:#fff}
+    select{padding:.35rem .6rem;border-radius:6px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.82rem;font-family:inherit}
+    label{font-size:.82rem;color:#a3a3a3;display:flex;align-items:center;gap:.4rem}
+    input[type=range]{width:70px;accent-color:#a855f7}
+    .val{color:#a855f7;font-weight:600;min-width:2rem}
+    .stats{font-size:.78rem;color:#525252;margin:.5rem;display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center}
+    .stats span{color:#a3a3a3}
+    a{color:#525252;text-decoration:none}
+  </style>
+</head>
+<body>
+  <h1>Neural Network <span>Trainer</span></h1>
+  <p class="sub">Train a neural network to classify 2D points. Click to place data, watch the decision boundary form in real time. For understanding how robots learn.</p>
+
+  <div class="canvases">
+    <canvas id="data" width="400" height="400"></canvas>
+    <canvas id="loss" width="350" height="400"></canvas>
+  </div>
+
+  <div class="controls">
+    <select id="dataset">
+      <option value="circles">Circles</option>
+      <option value="spiral">Spiral</option>
+      <option value="xor">XOR</option>
+      <option value="clusters">Clusters</option>
+      <option value="custom">Custom (click)</option>
+    </select>
+    <label>LR <input type="range" id="lr" min="-3" max="0" step=".1" value="-1"><span class="val" id="lr-v">0.10</span></label>
+    <label>Hidden <input type="range" id="hidden" min="2" max="16" value="8"><span class="val" id="hidden-v">8</span></label>
+    <button class="primary" id="btn-train">Train</button>
+    <button id="btn-stop">Stop</button>
+    <button id="btn-reset">Reset</button>
+  </div>
+  <div class="stats">
+    <div>Epoch: <span id="epoch">0</span></div>
+    <div>Loss: <span id="loss-val">-</span></div>
+    <div>Accuracy: <span id="acc">-</span>%</div>
+    <div>Points: <span id="pts">0</span></div>
+    <div><a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
+  </div>
+
+  <script>
+    const dataCanvas = document.getElementById('data');
+    const lossCanvas = document.getElementById('loss');
+    const dCtx = dataCanvas.getContext('2d');
+    const lCtx = lossCanvas.getContext('2d');
+    const DW = dataCanvas.width, DH = dataCanvas.height;
+
+    let points = [], training = false, epoch = 0, lossHistory = [], net = null;
+    let currentClass = 0;
+
+    // Simple 2-layer neural network
+    function createNet(inputSize, hiddenSize, outputSize) {
+      const rand = () => (Math.random() - 0.5) * 2;
+      const w1 = Array.from({length: hiddenSize}, () => Array.from({length: inputSize}, rand));
+      const b1 = Array(hiddenSize).fill(0);
+      const w2 = Array.from({length: outputSize}, () => Array.from({length: hiddenSize}, rand));
+      const b2 = Array(outputSize).fill(0);
+      return { w1, b1, w2, b2 };
+    }
+
+    function sigmoid(x) { return 1 / (1 + Math.exp(-Math.max(-500, Math.min(500, x)))); }
+
+    function forward(net, x) {
+      const hidden = net.w1.map((row, i) => sigmoid(row[0]*x[0] + row[1]*x[1] + net.b1[i]));
+      const output = net.w2.map((row, i) => sigmoid(row.reduce((s, w, j) => s + w * hidden[j], 0) + net.b2[i]));
+      return { hidden, output };
+    }
+
+    function trainStep(lr) {
+      let totalLoss = 0;
+      for (const p of points) {
+        const { hidden, output } = forward(net, [p.x, p.y]);
+        const target = p.cls;
+        const error = output[0] - target;
+        totalLoss += error * error;
+
+        // Backprop
+        const dOut = error * output[0] * (1 - output[0]);
+        for (let j = 0; j < net.w2[0].length; j++) {
+          const dHidden = dOut * net.w2[0][j] * hidden[j] * (1 - hidden[j]);
+          net.w1[j][0] -= lr * dHidden * p.x;
+          net.w1[j][1] -= lr * dHidden * p.y;
+          net.b1[j] -= lr * dHidden;
+          net.w2[0][j] -= lr * dOut * hidden[j];
+        }
+        net.b2[0] -= lr * dOut;
+      }
+      return totalLoss / points.length;
+    }
+
+    // Datasets
+    function genCircles(n) {
+      points = [];
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2, r = Math.random() * 0.3;
+        points.push({ x: 0.5 + Math.cos(a)*r, y: 0.5 + Math.sin(a)*r, cls: 0 });
+      }
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2, r = 0.35 + Math.random() * 0.15;
+        points.push({ x: 0.5 + Math.cos(a)*r, y: 0.5 + Math.sin(a)*r, cls: 1 });
+      }
+    }
+
+    function genSpiral(n) {
+      points = [];
+      for (let i = 0; i < n; i++) {
+        const t = i / n * 3 * Math.PI;
+        const r = t / (3 * Math.PI) * 0.4;
+        points.push({ x: 0.5 + Math.cos(t)*r + (Math.random()-.5)*.04, y: 0.5 + Math.sin(t)*r + (Math.random()-.5)*.04, cls: 0 });
+        points.push({ x: 0.5 - Math.cos(t)*r + (Math.random()-.5)*.04, y: 0.5 - Math.sin(t)*r + (Math.random()-.5)*.04, cls: 1 });
+      }
+    }
+
+    function genXOR(n) {
+      points = [];
+      for (let i = 0; i < n; i++) {
+        const x = Math.random(), y = Math.random();
+        points.push({ x, y, cls: (x > 0.5) !== (y > 0.5) ? 1 : 0 });
+      }
+    }
+
+    function genClusters(n) {
+      points = [];
+      const centers = [[0.3, 0.3], [0.7, 0.7], [0.3, 0.7], [0.7, 0.3]];
+      for (let i = 0; i < n * 2; i++) {
+        const ci = i % 4;
+        const cls = ci < 2 ? 0 : 1;
+        points.push({ x: centers[ci][0] + (Math.random()-.5)*.2, y: centers[ci][1] + (Math.random()-.5)*.2, cls });
+      }
+    }
+
+    function loadDataset() {
+      const ds = document.getElementById('dataset').value;
+      if (ds === 'circles') genCircles(50);
+      else if (ds === 'spiral') genSpiral(40);
+      else if (ds === 'xor') genXOR(100);
+      else if (ds === 'clusters') genClusters(50);
+      else points = [];
+      resetTraining();
+    }
+
+    function resetTraining() {
+      training = false; epoch = 0; lossHistory = [];
+      const h = +document.getElementById('hidden').value;
+      net = createNet(2, h, 1);
+      document.getElementById('epoch').textContent = '0';
+      document.getElementById('loss-val').textContent = '-';
+      document.getElementById('acc').textContent = '-';
+      document.getElementById('pts').textContent = points.length;
+    }
+
+    document.getElementById('dataset').addEventListener('change', loadDataset);
+    document.getElementById('hidden').addEventListener('input', function() {
+      document.getElementById('hidden-v').textContent = this.value;
+      resetTraining();
+    });
+    document.getElementById('lr').addEventListener('input', function() {
+      document.getElementById('lr-v').textContent = Math.pow(10, +this.value).toFixed(3);
+    });
+
+    // Click to add points (custom mode)
+    dataCanvas.addEventListener('click', (e) => {
+      const r = dataCanvas.getBoundingClientRect();
+      const x = (e.clientX - r.left) / DW, y = (e.clientY - r.top) / DH;
+      points.push({ x, y, cls: currentClass });
+      currentClass = 1 - currentClass;
+      document.getElementById('pts').textContent = points.length;
+    });
+
+    document.getElementById('btn-train').addEventListener('click', () => { training = true; });
+    document.getElementById('btn-stop').addEventListener('click', () => { training = false; });
+    document.getElementById('btn-reset').addEventListener('click', () => { loadDataset(); });
+
+    function drawData() {
+      dCtx.fillStyle = '#0a0a0a';
+      dCtx.fillRect(0, 0, DW, DH);
+
+      // Decision boundary heatmap
+      if (net) {
+        const res = 4;
+        for (let px = 0; px < DW; px += res) {
+          for (let py = 0; py < DH; py += res) {
+            const { output } = forward(net, [px/DW, py/DH]);
+            const v = output[0];
+            const r = Math.round(v * 249);
+            const b = Math.round((1-v) * 168);
+            dCtx.fillStyle = `rgba(${r}, ${Math.round(v*115)}, ${b}, 0.15)`;
+            dCtx.fillRect(px, py, res, res);
+          }
+        }
+      }
+
+      // Grid
+      dCtx.strokeStyle = '#1a1a1a'; dCtx.lineWidth = 0.5;
+      for (let x = 0; x < DW; x += DW/10) { dCtx.beginPath(); dCtx.moveTo(x,0); dCtx.lineTo(x,DH); dCtx.stroke(); }
+      for (let y = 0; y < DH; y += DH/10) { dCtx.beginPath(); dCtx.moveTo(0,y); dCtx.lineTo(DW,y); dCtx.stroke(); }
+
+      // Points
+      for (const p of points) {
+        dCtx.fillStyle = p.cls === 0 ? '#f97316' : '#3b82f6';
+        dCtx.strokeStyle = '#fff';
+        dCtx.lineWidth = 1;
+        dCtx.beginPath();
+        dCtx.arc(p.x * DW, p.y * DH, 4, 0, Math.PI * 2);
+        dCtx.fill(); dCtx.stroke();
+      }
+
+      // Decision boundary contour (0.5 line)
+      if (net) {
+        dCtx.strokeStyle = '#fafafa'; dCtx.lineWidth = 1.5; dCtx.setLineDash([4, 4]);
+        for (let px = 0; px < DW - 4; px += 4) {
+          for (let py = 0; py < DH - 4; py += 4) {
+            const v00 = forward(net, [px/DW, py/DH]).output[0];
+            const v10 = forward(net, [(px+4)/DW, py/DH]).output[0];
+            const v01 = forward(net, [px/DW, (py+4)/DH]).output[0];
+            if ((v00 < 0.5) !== (v10 < 0.5) || (v00 < 0.5) !== (v01 < 0.5)) {
+              dCtx.beginPath(); dCtx.arc(px+2, py+2, 1, 0, Math.PI*2); dCtx.stroke();
+            }
+          }
+        }
+        dCtx.setLineDash([]);
+      }
+    }
+
+    function drawLoss() {
+      const LW = lossCanvas.width, LH = lossCanvas.height;
+      lCtx.fillStyle = '#0a0a0a';
+      lCtx.fillRect(0, 0, LW, LH);
+
+      // Axes
+      lCtx.strokeStyle = '#262626'; lCtx.lineWidth = 1;
+      lCtx.beginPath(); lCtx.moveTo(40, 10); lCtx.lineTo(40, LH-30); lCtx.lineTo(LW-10, LH-30); lCtx.stroke();
+
+      lCtx.fillStyle = '#525252'; lCtx.font = '10px Manrope';
+      lCtx.fillText('Loss', 5, 20);
+      lCtx.fillText('Epoch', LW/2, LH-10);
+
+      if (lossHistory.length < 2) return;
+
+      const maxLoss = Math.max(...lossHistory.slice(0, 20), 0.5);
+      const plotW = LW - 50, plotH = LH - 50;
+
+      // Loss line
+      lCtx.beginPath();
+      for (let i = 0; i < lossHistory.length; i++) {
+        const x = 40 + (i / Math.max(1, lossHistory.length - 1)) * plotW;
+        const y = 10 + (1 - lossHistory[i] / maxLoss) * plotH;
+        if (i === 0) lCtx.moveTo(x, y); else lCtx.lineTo(x, y);
+      }
+      lCtx.strokeStyle = '#a855f7'; lCtx.lineWidth = 2; lCtx.stroke();
+
+      // Current loss marker
+      if (lossHistory.length > 0) {
+        const lastLoss = lossHistory[lossHistory.length - 1];
+        const lx = 40 + plotW;
+        const ly = 10 + (1 - lastLoss / maxLoss) * plotH;
+        lCtx.fillStyle = '#a855f7';
+        lCtx.beginPath(); lCtx.arc(lx, ly, 4, 0, Math.PI*2); lCtx.fill();
+        lCtx.fillStyle = '#a3a3a3'; lCtx.font = '11px Manrope';
+        lCtx.fillText(lastLoss.toFixed(4), lx - 40, ly - 8);
+      }
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+
+      if (training && points.length > 0) {
+        const lr = Math.pow(10, +document.getElementById('lr').value);
+        for (let i = 0; i < 10; i++) {
+          const loss = trainStep(lr);
+          epoch++;
+          if (epoch % 10 === 0) lossHistory.push(loss);
+        }
+        if (lossHistory.length > 500) lossHistory = lossHistory.slice(-500);
+
+        // Accuracy
+        let correct = 0;
+        for (const p of points) {
+          const pred = forward(net, [p.x, p.y]).output[0] > 0.5 ? 1 : 0;
+          if (pred === p.cls) correct++;
+        }
+
+        document.getElementById('epoch').textContent = epoch;
+        document.getElementById('loss-val').textContent = lossHistory.length > 0 ? lossHistory[lossHistory.length-1].toFixed(4) : '-';
+        document.getElementById('acc').textContent = Math.round(correct / points.length * 100);
+      }
+
+      drawData();
+      drawLoss();
+    }
+
+    loadDataset();
+    loop();
+  </script>
+</body>
+</html>

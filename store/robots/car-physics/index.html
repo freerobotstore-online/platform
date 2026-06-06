@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Car Physics — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;overflow:hidden}
+    canvas{display:block;width:100vw;height:100vh}
+    #hud{position:fixed;top:1rem;left:1rem;font-size:.78rem;color:#525252;line-height:1.7;z-index:10}
+    #hud span{color:#f97316;font-weight:600}
+    #dash{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);display:flex;gap:2rem;z-index:10;background:rgba(23,23,23,.9);border:1px solid #262626;border-radius:14px;padding:.75rem 1.5rem;backdrop-filter:blur(8px)}
+    .gauge{text-align:center}
+    .gauge-val{font-size:1.5rem;font-weight:700;color:#f97316}
+    .gauge-label{font-size:.68rem;color:#525252;text-transform:uppercase;letter-spacing:.05em}
+    #controls{position:fixed;top:1rem;right:1rem;font-size:.7rem;color:#404040;z-index:10;text-align:right;line-height:1.8}
+    .key{display:inline-block;padding:.1rem .3rem;border-radius:3px;border:1px solid #404040;background:#1f1f1f;font-size:.65rem;font-family:monospace;color:#737373;min-width:1.2rem;text-align:center}
+    .btns{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);display:flex;gap:.5rem;z-index:10}
+    button{padding:.35rem .8rem;border-radius:6px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    a{color:#404040;text-decoration:none;position:fixed;bottom:.5rem;right:.5rem;font-size:.68rem;z-index:10}
+  </style>
+</head>
+<body>
+  <canvas id="sim"></canvas>
+  <div id="hud"><span>Car Physics</span> — Ackermann Steering<br>Tire friction model + weight transfer</div>
+  <div id="controls">
+    <span class="key">W</span><span class="key">S</span> Throttle/Brake<br>
+    <span class="key">A</span><span class="key">D</span> Steer<br>
+    <span class="key">Space</span> Handbrake<br>
+    <span class="key">R</span> Reset
+  </div>
+  <div id="dash">
+    <div class="gauge"><div class="gauge-val" id="speed">0</div><div class="gauge-label">km/h</div></div>
+    <div class="gauge"><div class="gauge-val" id="rpm">0</div><div class="gauge-label">RPM</div></div>
+    <div class="gauge"><div class="gauge-val" id="gear">1</div><div class="gauge-label">Gear</div></div>
+    <div class="gauge"><div class="gauge-val" id="steer-val">0°</div><div class="gauge-label">Steer</div></div>
+  </div>
+  <div class="btns">
+    <button id="btn-track">Track Mode</button>
+    <button id="btn-drift">Drift Mode</button>
+    <button id="btn-reset">Reset</button>
+  </div>
+  <a href="https://freerobotstore.pages.dev">FreeRobotStore</a>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+    function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+    resize(); addEventListener('resize', resize);
+
+    // Car state
+    let car = { x: 0, y: 0, angle: 0, speed: 0, steer: 0, angVel: 0, drifting: false };
+    let driftMode = false, trackMode = false;
+    const trails = [];
+    const cones = [];
+
+    function resetCar() {
+      car = { x: 0, y: 0, angle: -Math.PI/2, speed: 0, steer: 0, angVel: 0, drifting: false };
+      trails.length = 0;
+    }
+
+    function generateTrack() {
+      cones.length = 0;
+      // Oval track
+      for (let i = 0; i < 40; i++) {
+        const a = (i / 40) * Math.PI * 2;
+        const rx = 300, ry = 180;
+        cones.push({ x: Math.cos(a) * (rx - 30), y: Math.sin(a) * (ry - 30) });
+        cones.push({ x: Math.cos(a) * (rx + 30), y: Math.sin(a) * (ry + 30) });
+      }
+    }
+
+    const keys = {};
+    addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(e.key===' ')e.preventDefault(); });
+    addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+    document.getElementById('btn-reset').addEventListener('click', resetCar);
+    document.getElementById('btn-drift').addEventListener('click', () => { driftMode = !driftMode; });
+    document.getElementById('btn-track').addEventListener('click', () => { trackMode = !trackMode; if(trackMode) generateTrack(); else cones.length = 0; });
+
+    function update() {
+      if (keys.r) resetCar();
+
+      // Input
+      const throttle = keys.w || keys.arrowup ? 1 : keys.s || keys.arrowdown ? -0.6 : 0;
+      const steerInput = (keys.a || keys.arrowleft ? -1 : 0) + (keys.d || keys.arrowright ? 1 : 0);
+      const handbrake = keys[' '];
+
+      // Steering (smooth)
+      const maxSteer = 0.6;
+      car.steer += (steerInput * maxSteer - car.steer) * 0.15;
+
+      // Engine
+      const maxSpeed = driftMode ? 8 : 12;
+      const accel = throttle * (driftMode ? 0.3 : 0.2);
+      car.speed += accel;
+
+      // Braking
+      if (throttle < 0 && car.speed > 0) car.speed += throttle * 0.3;
+
+      // Friction
+      const friction = handbrake ? 0.92 : driftMode ? 0.97 : 0.985;
+      car.speed *= friction;
+      car.speed = Math.max(-3, Math.min(maxSpeed, car.speed));
+
+      // Ackermann-ish steering
+      const wheelbase = 40;
+      const turnRadius = car.speed !== 0 ? wheelbase / Math.tan(car.steer) : Infinity;
+      const driftFactor = handbrake ? 0.7 : driftMode ? 0.85 : 0.98;
+
+      car.angVel = car.speed / turnRadius * driftFactor;
+      car.angVel *= handbrake ? 0.95 : 0.97;
+      car.angle += car.angVel;
+
+      // Detect drift
+      car.drifting = Math.abs(car.angVel) > 0.02 && Math.abs(car.speed) > 2;
+
+      // Movement
+      car.x += Math.cos(car.angle) * car.speed;
+      car.y += Math.sin(car.angle) * car.speed;
+
+      // Tire trails
+      if (Math.abs(car.speed) > 0.5) {
+        const cos = Math.cos(car.angle), sin = Math.sin(car.angle);
+        const perpX = -sin, perpY = cos;
+        trails.push(
+          { x: car.x - cos*18 + perpX*10, y: car.y - sin*18 + perpY*10, age: 0, drift: car.drifting },
+          { x: car.x - cos*18 - perpX*10, y: car.y - sin*18 - perpY*10, age: 0, drift: car.drifting }
+        );
+      }
+      // Age trails
+      for (let i = trails.length - 1; i >= 0; i--) {
+        trails[i].age++;
+        if (trails[i].age > 200) trails.splice(i, 1);
+      }
+
+      // Gear
+      const absSpd = Math.abs(car.speed);
+      const gear = absSpd < 2 ? 1 : absSpd < 4 ? 2 : absSpd < 7 ? 3 : absSpd < 10 ? 4 : 5;
+
+      // HUD
+      document.getElementById('speed').textContent = Math.round(absSpd * 12);
+      document.getElementById('rpm').textContent = Math.round(2000 + (absSpd % 3) * 2500);
+      document.getElementById('gear').textContent = car.speed < 0 ? 'R' : gear;
+      document.getElementById('steer-val').textContent = Math.round(car.steer * 180 / Math.PI) + '°';
+    }
+
+    function draw() {
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.save();
+      ctx.translate(W/2 - car.x, H/2 - car.y);
+
+      // Grid
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1;
+      const gs = 80;
+      const ox = Math.floor((car.x - W) / gs) * gs;
+      const oy = Math.floor((car.y - H) / gs) * gs;
+      for (let x = ox; x < car.x + W; x += gs) { ctx.beginPath(); ctx.moveTo(x, car.y - H); ctx.lineTo(x, car.y + H); ctx.stroke(); }
+      for (let y = oy; y < car.y + H; y += gs) { ctx.beginPath(); ctx.moveTo(car.x - W, y); ctx.lineTo(car.x + W, y); ctx.stroke(); }
+
+      // Cones
+      for (const c of cones) {
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath(); ctx.moveTo(c.x, c.y - 6); ctx.lineTo(c.x - 4, c.y + 4); ctx.lineTo(c.x + 4, c.y + 4); ctx.closePath(); ctx.fill();
+      }
+
+      // Tire trails
+      for (const t of trails) {
+        const alpha = Math.max(0, 1 - t.age / 200) * (t.drift ? 0.3 : 0.08);
+        ctx.fillStyle = t.drift ? `rgba(249,115,22,${alpha})` : `rgba(80,80,80,${alpha})`;
+        ctx.fillRect(t.x - 1.5, t.y - 1.5, 3, 3);
+      }
+
+      // Car
+      ctx.save();
+      ctx.translate(car.x, car.y);
+      ctx.rotate(car.angle);
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-20, -9, 42, 18);
+
+      // Body
+      ctx.fillStyle = car.drifting ? '#ef4444' : '#f97316';
+      ctx.fillRect(-18, -8, 38, 16);
+
+      // Windshield
+      ctx.fillStyle = '#1e3a5f';
+      ctx.fillRect(5, -6, 10, 12);
+
+      // Headlights
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillRect(19, -6, 3, 4);
+      ctx.fillRect(19, 2, 3, 4);
+
+      // Taillights
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(-19, -7, 3, 3);
+      ctx.fillRect(-19, 4, 3, 3);
+
+      // Wheels
+      ctx.fillStyle = '#333';
+      // Front (steered)
+      ctx.save(); ctx.translate(12, -10); ctx.rotate(car.steer);
+      ctx.fillRect(-4, -2, 8, 4); ctx.restore();
+      ctx.save(); ctx.translate(12, 10); ctx.rotate(car.steer);
+      ctx.fillRect(-4, -2, 8, 4); ctx.restore();
+      // Rear
+      ctx.fillRect(-14, -12, 8, 4);
+      ctx.fillRect(-14, 8, 8, 4);
+
+      ctx.restore();
+
+      // Speed lines when fast
+      if (Math.abs(car.speed) > 5) {
+        ctx.strokeStyle = 'rgba(249,115,22,0.15)'; ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+          const ox = car.x - Math.cos(car.angle) * (30 + i * 15) + (Math.random() - 0.5) * 20;
+          const oy = car.y - Math.sin(car.angle) * (30 + i * 15) + (Math.random() - 0.5) * 20;
+          ctx.beginPath(); ctx.moveTo(ox, oy);
+          ctx.lineTo(ox - Math.cos(car.angle) * 20, oy - Math.sin(car.angle) * 20);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+
+      // Drift indicator
+      if (car.drifting) {
+        ctx.fillStyle = '#ef4444'; ctx.font = '600 14px Manrope';
+        ctx.fillText('DRIFT!', W/2 - 25, 60);
+      }
+    }
+
+    function loop() { requestAnimationFrame(loop); update(); draw(); }
+    resetCar();
+    loop();
+  </script>
+</body>
+</html>
