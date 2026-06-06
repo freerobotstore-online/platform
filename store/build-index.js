@@ -103,7 +103,7 @@ function generateCard(agent) {
     : '';
 
   return `        <div class="agent-card" data-category="${agent.category}" data-store-type="${agent.storeType || 'library'}">
-          <a href="/agents/${agent.id}/" class="agent-card-body">
+          <a href="/robots/${agent.id}/" class="agent-card-body">
             <div class="agent-icon" style="background:${agent.iconBg}${fontStyle}">${iconContent}</div>
             <div class="agent-body">
               <span class="agent-name">${escapeHtml(agent.name)}</span>
@@ -114,7 +114,7 @@ function generateCard(agent) {
               </div>
             </div>
           </a>
-          <a href="/a/${agent.id}/" class="agent-cta">
+          <a href="/robots/${agent.id}/" class="agent-cta">
             <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
             Open
           </a>
@@ -163,9 +163,9 @@ html = html.replace(
 // --- Update tab bar ---
 const tabBarHtml = `<div class="tabs">
           <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">${tabCounts.all}</span></button>
-          <button class="tab" onclick="switchTab('library')">Libraries <span class="tab-count">${tabCounts.library}</span></button>
+          <button class="tab" onclick="switchTab('firmware')">Firmware <span class="tab-count">${tabCounts.firmware}</span></button>
           <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">${tabCounts.model}</span></button>
-          <button class="tab" onclick="switchTab('agent')">Agents <span class="tab-count">${tabCounts.agent}</span></button>
+          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">${tabCounts.behavior}</span></button>
         </div>`;
 
 // Replace existing tabs div or insert before toolbar
@@ -443,4 +443,4 @@ html = html.replace(/\n{3,}/g, '\n\n');
 html = html.replace(/\n\s+\n/g, '\n\n');
 html = html.trimEnd() + '\n';
 fs.writeFileSync(indexPath, html, 'utf-8');
-console.log(`Updated index.html with ${agents.length} agent cards, tabs (${tabCounts.library} libraries, ${tabCounts.model} models, ${tabCounts.agent} agents), ${categories.length} category filters, and API Keys section.`);
+console.log(`Updated index.html with ${agents.length} agent cards, tabs (${tabCounts.firmware} libraries, ${tabCounts.model} models, ${tabCounts.behavior} agents), ${categories.length} category filters, and API Keys section.`);

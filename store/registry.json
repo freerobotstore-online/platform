@@ -3,56 +3,29 @@
     {
       "id": "bouncing-ball",
       "name": "Bouncing Ball",
-      "description": "Interactive 3D physics simulation — drop balls and watch them bounce off surfaces with realistic rigid-body physics",
+      "description": "Interactive 3D physics simulation with Rapier.js — drop balls, change gravity, orbit camera",
       "storeType": "behavior",
       "category": "simulation",
       "icon": "🏀",
       "iconBg": "#f97316"
     },
     {
-      "id": "motor-controller",
-      "name": "DC Motor Controller",
-      "description": "PID-controlled DC motor driver for Arduino — speed control, direction, and encoder feedback",
-      "storeType": "firmware",
-      "category": "actuators",
-      "icon": "⚙️",
-      "iconBg": "#3b82f6"
-    },
-    {
-      "id": "object-detector",
-      "name": "Object Detector",
-      "description": "Real-time object detection running in your browser via WebGPU — identify 80 common objects from webcam feed",
-      "storeType": "model",
-      "category": "perception",
-      "icon": "👁️",
-      "iconBg": "#10b981"
-    },
-    {
       "id": "line-follower",
       "name": "Line Follower",
-      "description": "PID-based line following algorithm with interactive 2D simulation — tune parameters in real time",
+      "description": "PID-controlled robot following a track — draw your own path, tune Kp/Ki/Kd in real time",
       "storeType": "behavior",
       "category": "navigation",
       "icon": "🛤️",
       "iconBg": "#f97316"
     },
     {
-      "id": "servo-sweep",
-      "name": "Servo Sweep",
-      "description": "Smooth multi-servo control library for Arduino — coordinate up to 16 servos with easing functions",
+      "id": "motor-controller",
+      "name": "DC Motor Controller",
+      "description": "PID-controlled DC motor driver for Arduino — speed control, direction, encoder feedback",
       "storeType": "firmware",
       "category": "actuators",
-      "icon": "🦾",
+      "icon": "⚙️",
       "iconBg": "#3b82f6"
-    },
-    {
-      "id": "depth-estimator",
-      "name": "Depth Estimator",
-      "description": "Monocular depth estimation in the browser — estimate distance from a single camera image using ONNX model",
-      "storeType": "model",
-      "category": "perception",
-      "icon": "📐",
-      "iconBg": "#10b981"
     }
   ]
 }

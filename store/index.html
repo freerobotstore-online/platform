@@ -13,7 +13,7 @@
   <meta property="og:image" content="https://freerobotstore.online/icon-512.png">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="manifest" href="/manifest.json">
+  <!-- manifest removed -->
   <meta name="theme-color" content="#f97316">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"FreeRobotStore","url":"https://freerobotstore.online","description":"Robot firmware, models, and interactive simulations"}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -121,11 +121,10 @@
         </span>
       </a>
       <nav>
-        <a href="/">Robots</a>
-        <a href="/about/">About</a>
-        <a href="/get-started/">Get Started</a>
-        <a href="/skills.md">Docs</a>
-        <a href="https://prorobotstore.online" class="pro">Pro</a>
+        <a href="/">All</a>
+        <a href="/robots/bouncing-ball/">Bouncing Ball</a>
+        <a href="/robots/line-follower/">Line Follower</a>
+        <a href="/robots/motor-controller/">Motor Controller</a>
       </nav>
       <div id="auth-ui" style="margin-left:0.5rem;display:flex;align-items:center">
         <a href="/v1/auth/github" id="auth-login" style="display:none;padding:0.35rem 0.85rem;border-radius:8px;border:1px solid var(--line);color:var(--muted);font-size:0.82rem;font-weight:600;text-decoration:none;transition:border-color 0.15s,color 0.15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--ink)'" onmouseout="this.style.borderColor='var(--line)';this.style.color='var(--muted)'">Sign in</a>
@@ -176,41 +175,58 @@
 
     <section>
       <div class="tabs">
-          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">6</span></button>
-          <button class="tab" onclick="switchTab('library')">Libraries <span class="tab-count">undefined</span></button>
-          <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">2</span></button>
-          <button class="tab" onclick="switchTab('agent')">Agents <span class="tab-count">undefined</span></button>
+          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">3</span></button>
+          <button class="tab" onclick="switchTab('firmware')">Firmware <span class="tab-count">1</span></button>
+          <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">0</span></button>
+          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">2</span></button>
         </div>
 
         <div class="toolbar">
         <button class="filter-btn active" onclick="filterCategory('all')">All</button>
         <button class="filter-btn" onclick="filterCategory('simulation')">Simulation</button>
-        <button class="filter-btn" onclick="filterCategory('actuators')">Actuators</button>
-        <button class="filter-btn" onclick="filterCategory('perception')">Perception</button>
         <button class="filter-btn" onclick="filterCategory('navigation')">Navigation</button>
-        <span class="agent-count" id="agentCount">6 agents</span>
+        <button class="filter-btn" onclick="filterCategory('actuators')">Actuators</button>
+        <span class="agent-count" id="agentCount">3 agents</span>
       </div>
             <div class="agents-grid" id="agentsGrid">
         <div class="agent-card" data-category="simulation" data-store-type="behavior">
-          <a href="/agents/bouncing-ball/" class="agent-card-body">
+          <a href="/robots/bouncing-ball/" class="agent-card-body">
             <div class="agent-icon" style="background:#f97316">🏀</div>
             <div class="agent-body">
               <span class="agent-name">Bouncing Ball</span>
-              <span class="agent-desc">Interactive 3D physics simulation — drop balls and watch the...</span>
+              <span class="agent-desc">Interactive 3D physics simulation with Rapier.js — drop ball...</span>
               <div class="agent-meta">
                 <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
                 <span class="tag"></span>
               </div>
             </div>
           </a>
-          <a href="/a/bouncing-ball/" class="agent-cta">
+          <a href="/robots/bouncing-ball/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="navigation" data-store-type="behavior">
+          <a href="/robots/line-follower/" class="agent-card-body">
+            <div class="agent-icon" style="background:#f97316">🛤️</div>
+            <div class="agent-body">
+              <span class="agent-name">Line Follower</span>
+              <span class="agent-desc">PID-controlled robot following a track — draw your own path,...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/line-follower/" class="agent-cta">
             <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
             Open
           </a>
         </div>
 
         <div class="agent-card" data-category="actuators" data-store-type="firmware">
-          <a href="/agents/motor-controller/" class="agent-card-body">
+          <a href="/robots/motor-controller/" class="agent-card-body">
             <div class="agent-icon" style="background:#3b82f6">⚙️</div>
             <div class="agent-body">
               <span class="agent-name">DC Motor Controller</span>
@@ -221,79 +237,7 @@
               </div>
             </div>
           </a>
-          <a href="/a/motor-controller/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="perception" data-store-type="model">
-          <a href="/agents/object-detector/" class="agent-card-body">
-            <div class="agent-icon" style="background:#10b981">👁️</div>
-            <div class="agent-body">
-              <span class="agent-name">Object Detector</span>
-              <span class="agent-desc">Real-time object detection running in your browser via WebGP...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/a/object-detector/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="navigation" data-store-type="behavior">
-          <a href="/agents/line-follower/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🛤️</div>
-            <div class="agent-body">
-              <span class="agent-name">Line Follower</span>
-              <span class="agent-desc">PID-based line following algorithm with interactive 2D simul...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/a/line-follower/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="actuators" data-store-type="firmware">
-          <a href="/agents/servo-sweep/" class="agent-card-body">
-            <div class="agent-icon" style="background:#3b82f6">🦾</div>
-            <div class="agent-body">
-              <span class="agent-name">Servo Sweep</span>
-              <span class="agent-desc">Smooth multi-servo control library for Arduino — coordinate ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(59,130,246,0.15);color:#60a5fa">Firmware</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/a/servo-sweep/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="perception" data-store-type="model">
-          <a href="/agents/depth-estimator/" class="agent-card-body">
-            <div class="agent-icon" style="background:#10b981">📐</div>
-            <div class="agent-body">
-              <span class="agent-name">Depth Estimator</span>
-              <span class="agent-desc">Monocular depth estimation in the browser — estimate distanc...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/a/depth-estimator/" class="agent-cta">
+          <a href="/robots/motor-controller/" class="agent-cta">
             <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
             Open
           </a>
