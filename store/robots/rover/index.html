@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mars Rover — FreeRobotStore</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    h1 { font-size: 1.3rem; font-weight: 700; margin: 1.5rem 0 0.25rem; } h1 span { color: #f97316; }
+    .sub { color: #737373; font-size: 0.85rem; margin-bottom: 0.75rem; text-align: center; max-width: 500px; }
+    canvas { border: 1px solid #262626; border-radius: 12px; }
+    .controls { display: flex; gap: 1rem; margin: 1rem 0; flex-wrap: wrap; justify-content: center; }
+    .key-group { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+    .key { display: inline-block; padding: 0.3rem 0.6rem; border-radius: 6px; border: 1px solid #404040; background: #1f1f1f; font-size: 0.78rem; font-family: monospace; color: #a3a3a3; min-width: 2rem; text-align: center; cursor: pointer; user-select: none; }
+    .key:hover, .key.active { border-color: #f97316; color: #f97316; }
+    .key-row { display: flex; gap: 0.25rem; }
+    .stats { font-size: 0.78rem; color: #525252; margin: 0.5rem; display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
+    .stats span { color: #a3a3a3; }
+    button { padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; }
+    button:hover { border-color: #f97316; color: #f97316; }
+    a { color: #525252; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>Mars <span>Rover</span></h1>
+  <p class="sub">Drive a 6-wheeled rover across Mars terrain. Arrow keys or WASD to drive. Avoid rocks, collect samples, navigate craters.</p>
+
+  <canvas id="sim" width="800" height="500"></canvas>
+
+  <div class="controls">
+    <div class="key-group">
+      <div class="key-row"><span class="key" id="k-w">W</span></div>
+      <div class="key-row"><span class="key" id="k-a">A</span><span class="key" id="k-s">S</span><span class="key" id="k-d">D</span></div>
+    </div>
+    <button id="btn-reset">Reset</button>
+    <button id="btn-terrain">New Terrain</button>
+    <button id="btn-auto">Auto-explore</button>
+  </div>
+
+  <div class="stats">
+    <div>Speed: <span id="spd">0.0</span> m/s</div>
+    <div>Heading: <span id="hdg">0</span>&deg;</div>
+    <div>Samples: <span id="samples">0</span></div>
+    <div>Distance: <span id="dist">0</span>m</div>
+    <div>Wheels: <span id="wheels">6/6</span></div>
+    <div><a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    let rover, terrain, samples, totalDist, sampleCount, autoExplore;
+
+    function generateTerrain() {
+      const t = { rocks: [], craters: [], samples: [] };
+      for (let i = 0; i < 40; i++) {
+        t.rocks.push({ x: (Math.random() - 0.5) * 3000, y: (Math.random() - 0.5) * 3000, r: 5 + Math.random() * 15 });
+      }
+      for (let i = 0; i < 8; i++) {
+        t.craters.push({ x: (Math.random() - 0.5) * 2000, y: (Math.random() - 0.5) * 2000, r: 30 + Math.random() * 60 });
+      }
+      for (let i = 0; i < 12; i++) {
+        t.samples.push({ x: (Math.random() - 0.5) * 2500, y: (Math.random() - 0.5) * 2500, collected: false });
+      }
+      return t;
+    }
+
+    function resetRover() {
+      rover = { x: 0, y: 0, angle: 0, speed: 0, steer: 0, wheels: 6 };
+      totalDist = 0; sampleCount = 0; autoExplore = false;
+      document.getElementById('samples').textContent = '0';
+      document.getElementById('dist').textContent = '0';
+      document.getElementById('wheels').textContent = '6/6';
+    }
+
+    function init() {
+      terrain = generateTerrain();
+      resetRover();
+    }
+
+    const keys = {};
+    window.addEventListener('keydown', e => {
+      keys[e.key.toLowerCase()] = true;
+      const keyMap = { w: 'k-w', arrowup: 'k-w', a: 'k-a', arrowleft: 'k-a', s: 'k-s', arrowdown: 'k-s', d: 'k-d', arrowright: 'k-d' };
+      const el = document.getElementById(keyMap[e.key.toLowerCase()]);
+      if (el) el.classList.add('active');
+    });
+    window.addEventListener('keyup', e => {
+      keys[e.key.toLowerCase()] = false;
+      document.querySelectorAll('.key').forEach(k => k.classList.remove('active'));
+    });
+
+    // Touch/click controls
+    for (const [id, key] of [['k-w', 'w'], ['k-a', 'a'], ['k-s', 's'], ['k-d', 'd']]) {
+      const el = document.getElementById(id);
+      el.addEventListener('mousedown', () => { keys[key] = true; el.classList.add('active'); });
+      el.addEventListener('mouseup', () => { keys[key] = false; el.classList.remove('active'); });
+      el.addEventListener('touchstart', e => { e.preventDefault(); keys[key] = true; el.classList.add('active'); });
+      el.addEventListener('touchend', e => { e.preventDefault(); keys[key] = false; el.classList.remove('active'); });
+    }
+
+    document.getElementById('btn-reset').addEventListener('click', resetRover);
+    document.getElementById('btn-terrain').addEventListener('click', init);
+    document.getElementById('btn-auto').addEventListener('click', () => { autoExplore = !autoExplore; });
+
+    function update() {
+      // Input
+      const accel = (keys.w || keys.arrowup) ? 0.15 : (keys.s || keys.arrowdown) ? -0.1 : 0;
+      const turn = (keys.a || keys.arrowleft) ? -0.03 : (keys.d || keys.arrowright) ? 0.03 : 0;
+
+      // Auto-explore: find nearest uncollected sample and drive toward it
+      if (autoExplore) {
+        let nearest = null, nearDist = Infinity;
+        for (const s of terrain.samples) {
+          if (s.collected) continue;
+          const d = Math.hypot(s.x - rover.x, s.y - rover.y);
+          if (d < nearDist) { nearDist = d; nearest = s; }
+        }
+        if (nearest) {
+          const targetAngle = Math.atan2(nearest.y - rover.y, nearest.x - rover.x);
+          let diff = targetAngle - rover.angle;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          rover.steer = Math.max(-0.03, Math.min(0.03, diff * 0.1));
+          rover.speed += 0.1;
+        }
+      }
+
+      rover.speed += accel;
+      rover.speed *= 0.97; // friction
+      rover.speed = Math.max(-2, Math.min(4, rover.speed));
+      rover.steer = turn || rover.steer;
+      rover.steer *= 0.9;
+
+      rover.angle += rover.steer * (rover.speed / 2);
+      rover.x += Math.cos(rover.angle) * rover.speed;
+      rover.y += Math.sin(rover.angle) * rover.speed;
+      totalDist += Math.abs(rover.speed);
+
+      // Rock collisions
+      for (const rock of terrain.rocks) {
+        const d = Math.hypot(rock.x - rover.x, rock.y - rover.y);
+        if (d < rock.r + 15) {
+          const pushAngle = Math.atan2(rover.y - rock.y, rover.x - rock.x);
+          rover.x += Math.cos(pushAngle) * 2;
+          rover.y += Math.sin(pushAngle) * 2;
+          rover.speed *= -0.3;
+        }
+      }
+
+      // Sample collection
+      for (const s of terrain.samples) {
+        if (s.collected) continue;
+        if (Math.hypot(s.x - rover.x, s.y - rover.y) < 20) {
+          s.collected = true;
+          sampleCount++;
+          document.getElementById('samples').textContent = sampleCount;
+        }
+      }
+
+      document.getElementById('spd').textContent = Math.abs(rover.speed).toFixed(1);
+      document.getElementById('hdg').textContent = Math.round(rover.angle * 180 / Math.PI) % 360;
+      document.getElementById('dist').textContent = Math.round(totalDist / 5);
+    }
+
+    function draw() {
+      ctx.fillStyle = '#1a1008'; // Mars-ish background
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.save();
+      ctx.translate(W / 2 - rover.x * 0.8, H / 2 - rover.y * 0.8);
+      ctx.scale(0.8, 0.8);
+
+      // Mars surface texture (dots)
+      ctx.fillStyle = '#2a1a0a';
+      for (let i = 0; i < 200; i++) {
+        const sx = ((i * 137.5) % 3000) - 1500;
+        const sy = ((i * 211.3) % 3000) - 1500;
+        ctx.beginPath(); ctx.arc(sx, sy, 1, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Craters
+      for (const c of terrain.craters) {
+        ctx.strokeStyle = '#3d2a15'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = 'rgba(10, 5, 0, 0.3)';
+        ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Rocks
+      for (const rock of terrain.rocks) {
+        ctx.fillStyle = '#4a3520';
+        ctx.beginPath(); ctx.arc(rock.x, rock.y, rock.r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#5a4530';
+        ctx.beginPath(); ctx.arc(rock.x - rock.r * 0.2, rock.y - rock.r * 0.2, rock.r * 0.6, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Samples
+      for (const s of terrain.samples) {
+        if (s.collected) continue;
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y - 8);
+        ctx.lineTo(s.x + 7, s.y + 4);
+        ctx.lineTo(s.x - 7, s.y + 4);
+        ctx.closePath();
+        ctx.fill();
+        // Glow
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
+        ctx.beginPath(); ctx.arc(s.x, s.y, 15, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Rover trail
+      // (simplified — just current position marker ring)
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.1)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(rover.x, rover.y, 25, 0, Math.PI * 2); ctx.stroke();
+
+      // Rover
+      ctx.save();
+      ctx.translate(rover.x, rover.y);
+      ctx.rotate(rover.angle);
+
+      // Body
+      ctx.fillStyle = '#f97316';
+      ctx.fillRect(-18, -12, 36, 24);
+
+      // Solar panel
+      ctx.fillStyle = '#1f3a5f';
+      ctx.fillRect(-14, -9, 28, 18);
+      // Panel lines
+      ctx.strokeStyle = '#2a4a6f'; ctx.lineWidth = 0.5;
+      for (let i = -12; i < 14; i += 4) {
+        ctx.beginPath(); ctx.moveTo(i, -9); ctx.lineTo(i, 9); ctx.stroke();
+      }
+
+      // Wheels (3 per side)
+      ctx.fillStyle = '#333';
+      for (const wy of [-14, 0, 14]) {
+        ctx.fillRect(wy - 3, -16, 6, 4);  // left
+        ctx.fillRect(wy - 3, 12, 6, 4);   // right
+      }
+
+      // Camera mast
+      ctx.fillStyle = '#737373';
+      ctx.fillRect(-2, -3, 4, -12);
+      ctx.fillStyle = '#a3a3a3';
+      ctx.beginPath(); ctx.arc(0, -15, 4, 0, Math.PI * 2); ctx.fill();
+      // Camera lens
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath(); ctx.arc(3, -15, 2, 0, Math.PI * 2); ctx.fill();
+
+      // Direction indicator
+      ctx.fillStyle = '#fb923c';
+      ctx.beginPath();
+      ctx.moveTo(20, 0);
+      ctx.lineTo(14, -4);
+      ctx.lineTo(14, 4);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+
+      // Radar circles around rover
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.05)'; ctx.lineWidth = 1;
+      for (let r = 100; r < 500; r += 100) {
+        ctx.beginPath(); ctx.arc(rover.x, rover.y, r, 0, Math.PI * 2); ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // HUD compass
+      ctx.save();
+      ctx.translate(W - 50, 50);
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI * 2); ctx.stroke();
+      ctx.rotate(-rover.angle);
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(-5, -10); ctx.lineTo(5, -10); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#525252';
+      ctx.beginPath(); ctx.moveTo(0, 20); ctx.lineTo(-5, 10); ctx.lineTo(5, 10); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = '#525252'; ctx.font = '10px Manrope'; ctx.fillText('N', W - 53, 22);
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      update();
+      draw();
+    }
+
+    init();
+    loop();
+  </script>
+</body>
+</html>

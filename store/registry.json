@@ -1,27 +1,36 @@
 {
   "robots": [
     {
-      "id": "bouncing-ball",
-      "name": "Bouncing Ball",
-      "description": "Interactive 3D physics simulation with Rapier.js — drop balls, change gravity (Earth/Moon/Mars/Jupiter/Zero-G), orbit camera",
-      "storeType": "behavior",
-      "category": "simulation",
-      "icon": "🏀",
-      "iconBg": "#f97316"
-    },
-    {
       "id": "robot-arm",
       "name": "Robot Arm",
-      "description": "3-DOF robot arm simulator — control joints with sliders, watch forward kinematics, run pick-and-place demo",
+      "description": "5-DOF robot arm — keyboard & slider control, pick-and-place demo, wave, scan presets. Add objects to the scene.",
       "storeType": "behavior",
       "category": "manipulation",
       "icon": "🦾",
       "iconBg": "#f97316"
     },
     {
+      "id": "walker",
+      "name": "Walking Robot",
+      "description": "Bipedal robot learning to walk — adjust stride, speed, hip offset, knee bend. Push to disturb balance.",
+      "storeType": "behavior",
+      "category": "locomotion",
+      "icon": "🚶",
+      "iconBg": "#f97316"
+    },
+    {
+      "id": "rover",
+      "name": "Mars Rover",
+      "description": "Drive a 6-wheeled rover across Mars terrain — WASD controls, collect samples, avoid rocks and craters. Auto-explore mode.",
+      "storeType": "behavior",
+      "category": "locomotion",
+      "icon": "🔴",
+      "iconBg": "#f97316"
+    },
+    {
       "id": "maze-solver",
       "name": "Maze Solver",
-      "description": "Robot navigates random mazes using Wall Following, A*, or BFS — compare algorithms side by side",
+      "description": "Robot navigates random mazes — compare Wall Following vs A* vs BFS algorithms side by side.",
       "storeType": "behavior",
       "category": "navigation",
       "icon": "🧩",
@@ -30,16 +39,25 @@
     {
       "id": "pendulum",
       "name": "Inverted Pendulum",
-      "description": "Classic control systems demo — PID controller balances a pendulum on a cart, tune gains, add disturbances",
+      "description": "Classic control systems demo — PID controller balances a pendulum on a cart. Tune gains, push to disturb.",
       "storeType": "behavior",
       "category": "control",
       "icon": "⚖️",
       "iconBg": "#f97316"
     },
     {
+      "id": "bouncing-ball",
+      "name": "Bouncing Ball",
+      "description": "3D physics sim — Rapier.js rigid bodies, 5 gravity modes (Earth to Zero-G), orbit camera.",
+      "storeType": "behavior",
+      "category": "simulation",
+      "icon": "🏀",
+      "iconBg": "#f97316"
+    },
+    {
       "id": "line-follower",
       "name": "Line Follower",
-      "description": "PID-controlled robot following a track — draw your own path, tune Kp/Ki/Kd in real time",
+      "description": "PID-controlled robot following a track — draw your own path, tune Kp/Ki/Kd in real time.",
       "storeType": "behavior",
       "category": "navigation",
       "icon": "🛤️",
@@ -48,7 +66,7 @@
     {
       "id": "object-detector",
       "name": "Object Detector",
-      "description": "Real-time object detection in your browser — DETR model identifies 80 objects from webcam via Transformers.js",
+      "description": "Real-time DETR object detection from webcam — 80 object classes, Transformers.js, WebGPU.",
       "storeType": "model",
       "category": "perception",
       "icon": "👁️",
@@ -57,7 +75,7 @@
     {
       "id": "depth-camera",
       "name": "Depth Camera",
-      "description": "Monocular depth estimation — neural network estimates distance from a single camera image, 3 colormaps",
+      "description": "Monocular depth estimation — Depth Anything model estimates distance from single camera, 3 colormaps.",
       "storeType": "model",
       "category": "perception",
       "icon": "📐",
@@ -66,7 +84,7 @@
     {
       "id": "motor-controller",
       "name": "DC Motor Controller",
-      "description": "PID-controlled DC motor driver for Arduino — speed control, direction, encoder feedback with wiring guide",
+      "description": "PID-controlled DC motor driver for Arduino — speed control, direction, encoder feedback with wiring guide.",
       "storeType": "firmware",
       "category": "actuators",
       "icon": "⚙️",

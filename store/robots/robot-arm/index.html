@@ -11,48 +11,75 @@
     canvas { display: block; }
     #panel {
       position: absolute; right: 1rem; top: 1rem; background: rgba(23,23,23,0.95);
-      border: 1px solid #262626; border-radius: 14px; padding: 1.25rem; width: 240px;
-      z-index: 10; backdrop-filter: blur(8px);
+      border: 1px solid #262626; border-radius: 14px; padding: 1.25rem; width: 260px;
+      z-index: 10; backdrop-filter: blur(8px); max-height: calc(100vh - 2rem); overflow-y: auto;
     }
-    #panel h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; }
-    .joint { margin-bottom: 0.75rem; }
-    .joint label { display: flex; justify-content: space-between; font-size: 0.78rem; color: #a3a3a3; margin-bottom: 0.2rem; }
+    #panel h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; }
+    #panel h3 { font-size: 0.78rem; font-weight: 600; color: #737373; margin: 0.75rem 0 0.35rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .joint { margin-bottom: 0.5rem; }
+    .joint label { display: flex; justify-content: space-between; font-size: 0.78rem; color: #a3a3a3; margin-bottom: 0.15rem; }
     .joint label span { color: #f97316; font-weight: 600; }
-    input[type=range] { width: 100%; accent-color: #f97316; }
-    #info { position: absolute; top: 1rem; left: 1rem; font-size: 0.78rem; color: #525252; z-index: 10; line-height: 1.6; }
+    input[type=range] { width: 100%; accent-color: #f97316; height: 4px; }
+    .key { display: inline-block; padding: 0.1rem 0.35rem; border-radius: 4px; border: 1px solid #404040; background: #1f1f1f; font-size: 0.68rem; font-family: monospace; color: #a3a3a3; min-width: 1.2rem; text-align: center; }
+    .keybind { display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: #525252; margin: 0.15rem 0; }
+    #info { position: absolute; top: 1rem; left: 1rem; font-size: 0.78rem; color: #525252; z-index: 10; line-height: 1.7; }
     #info span { color: #f97316; font-weight: 600; }
-    button { padding: 0.4rem 0.85rem; border-radius: 8px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; width: 100%; margin-top: 0.5rem; }
+    #info .mode { color: #10b981; }
+    .btns { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    button { padding: 0.35rem 0.7rem; border-radius: 6px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.72rem; font-weight: 600; cursor: pointer; font-family: inherit; }
     button:hover { border-color: #f97316; color: #f97316; }
+    button.active { background: #f97316; border-color: #f97316; color: white; }
+    .pos { font-size: 0.72rem; color: #525252; margin-top: 0.5rem; line-height: 1.5; }
+    .pos span { color: #a3a3a3; }
     a { color: #525252; text-decoration: none; position: absolute; bottom: 1rem; right: 1rem; font-size: 0.72rem; z-index: 10; }
   </style>
 </head>
 <body>
   <div id="app">
     <div id="info">
-      <span>Robot Arm</span> — 3-DOF Simulator<br>
-      Drag sliders to control joints<br>
-      Forward kinematics visualization
+      <span>Robot Arm</span> — 5-DOF Simulator<br>
+      Mode: <span class="mode" id="mode-label">Keyboard</span><br>
+      <span id="status-text">Use Q/A, W/S, E/D, R/F, T/G to control joints</span>
     </div>
     <div id="panel">
       <h2>Joint Control</h2>
-      <div class="joint">
-        <label>Base Rotation <span id="j0-val">0</span>&deg;</label>
-        <input type="range" id="j0" min="-180" max="180" value="0">
+      <div class="joint"><label>J0 Base <span id="j0-val">0</span>&deg;</label><input type="range" id="j0" min="-180" max="180" value="0" step="1"></div>
+      <div class="joint"><label>J1 Shoulder <span id="j1-val">-30</span>&deg;</label><input type="range" id="j1" min="-90" max="90" value="-30" step="1"></div>
+      <div class="joint"><label>J2 Elbow <span id="j2-val">60</span>&deg;</label><input type="range" id="j2" min="-135" max="135" value="60" step="1"></div>
+      <div class="joint"><label>J3 Wrist Pitch <span id="j3-val">0</span>&deg;</label><input type="range" id="j3" min="-90" max="90" value="0" step="1"></div>
+      <div class="joint"><label>J4 Wrist Roll <span id="j4-val">0</span>&deg;</label><input type="range" id="j4" min="-180" max="180" value="0" step="1"></div>
+      <div class="joint"><label>Gripper <span id="grip-val">Open</span></label><input type="range" id="grip" min="0" max="100" value="0" step="1"></div>
+
+      <h3>Keyboard</h3>
+      <div class="keybind"><span>Base rotate</span><div><span class="key">Q</span> <span class="key">A</span></div></div>
+      <div class="keybind"><span>Shoulder</span><div><span class="key">W</span> <span class="key">S</span></div></div>
+      <div class="keybind"><span>Elbow</span><div><span class="key">E</span> <span class="key">D</span></div></div>
+      <div class="keybind"><span>Wrist pitch</span><div><span class="key">R</span> <span class="key">F</span></div></div>
+      <div class="keybind"><span>Wrist roll</span><div><span class="key">T</span> <span class="key">G</span></div></div>
+      <div class="keybind"><span>Gripper</span><div><span class="key">Space</span></div></div>
+      <div class="keybind"><span>Camera orbit</span><div><span class="key">Mouse drag</span></div></div>
+      <div class="keybind"><span>Zoom</span><div><span class="key">Scroll</span></div></div>
+
+      <h3>Presets</h3>
+      <div class="btns">
+        <button id="btn-home">Home</button>
+        <button id="btn-pick">Pick Demo</button>
+        <button id="btn-wave">Wave</button>
+        <button id="btn-scan">Scan</button>
+        <button id="btn-random">Random</button>
       </div>
-      <div class="joint">
-        <label>Shoulder <span id="j1-val">-30</span>&deg;</label>
-        <input type="range" id="j1" min="-90" max="90" value="-30">
+
+      <h3>Objects</h3>
+      <div class="btns">
+        <button id="btn-add-cube">+ Cube</button>
+        <button id="btn-add-sphere">+ Sphere</button>
+        <button id="btn-clear-obj">Clear</button>
       </div>
-      <div class="joint">
-        <label>Elbow <span id="j2-val">60</span>&deg;</label>
-        <input type="range" id="j2" min="-135" max="135" value="60">
+
+      <div class="pos">
+        End effector:<br>
+        X: <span id="ee-x">0.00</span> Y: <span id="ee-y">0.00</span> Z: <span id="ee-z">0.00</span>
       </div>
-      <div class="joint">
-        <label>Gripper <span id="grip-val">Open</span></label>
-        <input type="range" id="grip" min="0" max="1" step="1" value="0">
-      </div>
-      <button id="btn-home">Home Position</button>
-      <button id="btn-pick">Pick Demo</button>
     </div>
     <a href="https://freerobotstore.pages.dev">FreeRobotStore</a>
   </div>
@@ -60,206 +87,296 @@
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 
+    // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0a0a);
+    scene.fog = new THREE.Fog(0x0a0a0a, 25, 45);
 
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(6, 4, 8);
-    camera.lookAt(0, 2, 0);
+    let camAngle = 0.8, camHeight = 4.5, camDist = 10, camTarget = new THREE.Vector3(0, 1.5, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.getElementById('app').prepend(renderer.domElement);
 
     // Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const dir = new THREE.DirectionalLight(0xffffff, 1);
-    dir.position.set(5, 8, 5); dir.castShadow = true; scene.add(dir);
-    scene.add(new THREE.PointLight(0xf97316, 0.4, 15).translateY(6));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    dirLight.position.set(6, 10, 8); dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(2048, 2048);
+    dirLight.shadow.camera.near = 0.5; dirLight.shadow.camera.far = 30;
+    dirLight.shadow.camera.left = -8; dirLight.shadow.camera.right = 8;
+    dirLight.shadow.camera.top = 8; dirLight.shadow.camera.bottom = -8;
+    scene.add(dirLight);
+    scene.add(new THREE.PointLight(0xf97316, 0.3, 20).translateY(8));
 
-    // Ground
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(20, 20),
-      new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.9 })
-    );
+    // Ground + grid
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-    const grid = new THREE.GridHelper(20, 20, 0x262626, 0x1a1a1a);
-    grid.position.y = 0.005; scene.add(grid);
+    scene.add(new THREE.GridHelper(30, 30, 0x1f1f1f, 0x171717));
 
     // Materials
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.6 });
-    const armMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3, metalness: 0.4 });
-    const jointMat = new THREE.MeshStandardMaterial({ color: 0x525252, roughness: 0.5, metalness: 0.7 });
-    const gripMat = new THREE.MeshStandardMaterial({ color: 0xa3a3a3, roughness: 0.4, metalness: 0.5 });
-    const targetMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.3 });
+    const mBase = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.4, metalness: 0.7 });
+    const mArm = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3, metalness: 0.4 });
+    const mJoint = new THREE.MeshStandardMaterial({ color: 0x404040, roughness: 0.5, metalness: 0.8 });
+    const mGrip = new THREE.MeshStandardMaterial({ color: 0x737373, roughness: 0.4, metalness: 0.5 });
 
-    // Robot arm hierarchy
-    // Base
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 0.3, 32), baseMat);
-    base.position.y = 0.15; base.castShadow = true; scene.add(base);
+    // Robot arm hierarchy: base -> turntable -> shoulder -> upperArm -> elbow -> forearm -> wristPitch -> wristRoll -> gripper
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.25, 32), mBase);
+    base.position.y = 0.125; base.castShadow = true; scene.add(base);
 
-    // Turntable (rotates around Y)
-    const turntable = new THREE.Group();
-    turntable.position.y = 0.3;
-    base.add(turntable);
+    const turntable = new THREE.Group(); turntable.position.y = 0.25; base.add(turntable);
+    turntable.add(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.15, 16), mJoint));
 
-    // Joint 0 visual
-    const j0Visual = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.2, 16), jointMat);
-    turntable.add(j0Visual);
+    const shoulder = new THREE.Group(); shoulder.position.y = 0.075; turntable.add(shoulder);
+    shoulder.add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), mJoint));
 
-    // Upper arm
-    const shoulder = new THREE.Group();
-    shoulder.position.y = 0.1;
-    turntable.add(shoulder);
+    const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 1.8, 12), mArm);
+    upperArm.position.y = 0.9; upperArm.castShadow = true; shoulder.add(upperArm);
 
-    const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2, 0.2), armMat);
-    upperArm.position.y = 1; upperArm.castShadow = true;
-    shoulder.add(upperArm);
+    const elbow = new THREE.Group(); elbow.position.y = 1.8; shoulder.add(elbow);
+    elbow.add(new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), mJoint));
 
-    const j1Visual = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 16), jointMat);
-    j1Visual.castShadow = true;
-    shoulder.add(j1Visual);
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 1.4, 12), mArm);
+    forearm.position.y = 0.7; forearm.castShadow = true; elbow.add(forearm);
 
-    // Forearm
-    const elbow = new THREE.Group();
-    elbow.position.y = 2;
-    shoulder.add(elbow);
+    const wristPitch = new THREE.Group(); wristPitch.position.y = 1.4; elbow.add(wristPitch);
+    wristPitch.add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 12), mJoint));
 
-    const j2Visual = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), jointMat);
-    j2Visual.castShadow = true;
-    elbow.add(j2Visual);
-
-    const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.5, 0.15), armMat);
-    forearm.position.y = 0.75; forearm.castShadow = true;
-    elbow.add(forearm);
+    const wristRoll = new THREE.Group(); wristRoll.position.y = 0.05; wristPitch.add(wristRoll);
 
     // Gripper
-    const wrist = new THREE.Group();
-    wrist.position.y = 1.5;
-    elbow.add(wrist);
+    const gripBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.08, 0.15), mJoint);
+    wristRoll.add(gripBase);
 
-    const gripBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.2), jointMat);
-    wrist.add(gripBase);
+    const fingerL = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.25, 0.06), mGrip);
+    fingerL.position.set(-0.1, -0.12, 0); fingerL.castShadow = true; wristRoll.add(fingerL);
+    const fingerR = fingerL.clone(); fingerR.position.x = 0.1; wristRoll.add(fingerR);
 
-    const fingerL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.08), gripMat);
-    fingerL.position.set(-0.12, -0.15, 0); fingerL.castShadow = true;
-    wrist.add(fingerL);
-
-    const fingerR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.3, 0.08), gripMat);
-    fingerR.position.set(0.12, -0.15, 0); fingerR.castShadow = true;
-    wrist.add(fingerR);
-
-    // End effector marker
-    const endEffector = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
-    wrist.add(endEffector);
-    endEffector.position.y = -0.3;
-
-    // Target object
-    const target = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), targetMat);
-    target.position.set(1.5, 0.15, 1); target.castShadow = true; scene.add(target);
+    // End effector point
+    const eePt = new THREE.Object3D(); eePt.position.y = -0.25; wristRoll.add(eePt);
 
     // Trail
-    const trailPoints = [];
+    const trailPts = [];
     const trailGeo = new THREE.BufferGeometry();
-    const trailMat2 = new THREE.LineBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.3 });
-    const trail = new THREE.Line(trailGeo, trailMat2);
-    scene.add(trail);
+    const trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.25 }));
+    scene.add(trailLine);
+
+    // Scene objects (cubes/spheres to pick up)
+    const sceneObjects = [];
+    const objColors = [0x10b981, 0x3b82f6, 0xa855f7, 0xeab308, 0xec4899, 0x06b6d4];
+
+    function addObject(type) {
+      const color = objColors[sceneObjects.length % objColors.length];
+      const size = 0.2 + Math.random() * 0.15;
+      const geo = type === 'cube' ? new THREE.BoxGeometry(size, size, size) : new THREE.SphereGeometry(size / 2, 16, 16);
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.3 }));
+      mesh.position.set((Math.random() - 0.5) * 4, size / 2, (Math.random() - 0.5) * 4 + 1);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      scene.add(mesh);
+      sceneObjects.push(mesh);
+    }
+
+    // Drop 3 initial objects
+    for (let i = 0; i < 3; i++) addObject(i % 2 === 0 ? 'cube' : 'sphere');
 
     // Sliders
-    const j0Slider = document.getElementById('j0');
-    const j1Slider = document.getElementById('j1');
-    const j2Slider = document.getElementById('j2');
-    const gripSlider = document.getElementById('grip');
+    const sliders = ['j0', 'j1', 'j2', 'j3', 'j4', 'grip'].map(id => document.getElementById(id));
+    const valEls = ['j0-val', 'j1-val', 'j2-val', 'j3-val', 'j4-val', 'grip-val'].map(id => document.getElementById(id));
+
+    function getJoints() {
+      return sliders.map(s => parseFloat(s.value));
+    }
+
+    function setJoints(vals) {
+      vals.forEach((v, i) => { sliders[i].value = v; });
+      updateArm();
+    }
 
     function updateArm() {
-      const j0 = parseFloat(j0Slider.value);
-      const j1 = parseFloat(j1Slider.value);
-      const j2 = parseFloat(j2Slider.value);
-      const grip = parseFloat(gripSlider.value);
-
-      document.getElementById('j0-val').textContent = j0;
-      document.getElementById('j1-val').textContent = j1;
-      document.getElementById('j2-val').textContent = j2;
-      document.getElementById('grip-val').textContent = grip > 0.5 ? 'Closed' : 'Open';
+      const [j0, j1, j2, j3, j4, grip] = getJoints();
+      valEls[0].textContent = j0;
+      valEls[1].textContent = j1;
+      valEls[2].textContent = j2;
+      valEls[3].textContent = j3;
+      valEls[4].textContent = j4;
+      valEls[5].textContent = grip > 50 ? 'Closed' : 'Open';
 
       turntable.rotation.y = THREE.MathUtils.degToRad(j0);
       shoulder.rotation.z = THREE.MathUtils.degToRad(j1);
       elbow.rotation.z = THREE.MathUtils.degToRad(j2);
+      wristPitch.rotation.z = THREE.MathUtils.degToRad(j3);
+      wristRoll.rotation.y = THREE.MathUtils.degToRad(j4);
 
-      const spread = grip > 0.5 ? 0.02 : 0.12;
+      const spread = THREE.MathUtils.lerp(0.1, 0.02, grip / 100);
       fingerL.position.x = -spread;
       fingerR.position.x = spread;
 
-      // Trail
-      const worldPos = new THREE.Vector3();
-      endEffector.getWorldPosition(worldPos);
-      trailPoints.push(worldPos.clone());
-      if (trailPoints.length > 200) trailPoints.shift();
-      trailGeo.setFromPoints(trailPoints);
+      // End effector position
+      const wp = new THREE.Vector3();
+      eePt.getWorldPosition(wp);
+      document.getElementById('ee-x').textContent = wp.x.toFixed(2);
+      document.getElementById('ee-y').textContent = wp.y.toFixed(2);
+      document.getElementById('ee-z').textContent = wp.z.toFixed(2);
+
+      trailPts.push(wp.clone());
+      if (trailPts.length > 300) trailPts.shift();
+      trailGeo.setFromPoints(trailPts);
     }
 
-    for (const s of [j0Slider, j1Slider, j2Slider, gripSlider]) {
-      s.addEventListener('input', updateArm);
-    }
+    sliders.forEach(s => s.addEventListener('input', updateArm));
 
-    document.getElementById('btn-home').addEventListener('click', () => {
-      j0Slider.value = 0; j1Slider.value = -30; j2Slider.value = 60; gripSlider.value = 0;
-      trailPoints.length = 0;
-      updateArm();
-    });
+    // Keyboard control
+    const keys = {};
+    const keyMap = [
+      ['q', 'a', 'j0', 2],  // base
+      ['w', 's', 'j1', 1.5],  // shoulder
+      ['e', 'd', 'j2', 2],  // elbow
+      ['r', 'f', 'j3', 2],  // wrist pitch
+      ['t', 'g', 'j4', 3],  // wrist roll
+    ];
 
-    // Pick demo animation
-    let animating = false;
-    document.getElementById('btn-pick').addEventListener('click', () => {
-      if (animating) return;
-      animating = true;
-      trailPoints.length = 0;
-      const steps = [
-        { j0: 45, j1: 0, j2: 0, grip: 0, dur: 800 },
-        { j0: 45, j1: 30, j2: 90, grip: 0, dur: 600 },
-        { j0: 45, j1: 30, j2: 90, grip: 1, dur: 300 },
-        { j0: 45, j1: -20, j2: 40, grip: 1, dur: 600 },
-        { j0: -45, j1: -20, j2: 40, grip: 1, dur: 800 },
-        { j0: -45, j1: 30, j2: 90, grip: 1, dur: 600 },
-        { j0: -45, j1: 30, j2: 90, grip: 0, dur: 300 },
-        { j0: 0, j1: -30, j2: 60, grip: 0, dur: 800 },
-      ];
-
-      let i = 0;
-      function playStep() {
-        if (i >= steps.length) { animating = false; return; }
-        const s = steps[i];
-        const startVals = { j0: +j0Slider.value, j1: +j1Slider.value, j2: +j2Slider.value, grip: +gripSlider.value };
-        const start = performance.now();
-        function tick(now) {
-          const t = Math.min(1, (now - start) / s.dur);
-          const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-          j0Slider.value = startVals.j0 + (s.j0 - startVals.j0) * ease;
-          j1Slider.value = startVals.j1 + (s.j1 - startVals.j1) * ease;
-          j2Slider.value = startVals.j2 + (s.j2 - startVals.j2) * ease;
-          gripSlider.value = startVals.grip + (s.grip - startVals.grip) * ease;
-          updateArm();
-          if (t < 1) requestAnimationFrame(tick);
-          else { i++; setTimeout(playStep, 100); }
-        }
-        requestAnimationFrame(tick);
+    window.addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.key === ' ') {
+        e.preventDefault();
+        const grip = document.getElementById('grip');
+        grip.value = parseFloat(grip.value) > 50 ? 0 : 100;
+        updateArm();
       }
-      playStep();
     });
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
-    // Camera orbit
-    let drag = false, px = 0, py = 0, angle = 0.9, height = 4, dist = 10;
+    function processKeys() {
+      keyMap.forEach(([pos, neg, id, speed]) => {
+        const el = document.getElementById(id);
+        if (keys[pos]) el.value = Math.min(parseFloat(el.max), parseFloat(el.value) + speed);
+        if (keys[neg]) el.value = Math.max(parseFloat(el.min), parseFloat(el.value) - speed);
+      });
+      if (Object.values(keys).some(v => v)) updateArm();
+    }
+
+    // Camera: drag to orbit, scroll to zoom
+    let drag = false, px = 0, py = 0;
     renderer.domElement.addEventListener('mousedown', e => { drag = true; px = e.clientX; py = e.clientY; });
     window.addEventListener('mousemove', e => {
       if (!drag) return;
-      angle += (e.clientX - px) * 0.005;
-      height = Math.max(1, Math.min(12, height - (e.clientY - py) * 0.04));
+      camAngle += (e.clientX - px) * 0.005;
+      camHeight = Math.max(0.5, Math.min(15, camHeight - (e.clientY - py) * 0.03));
       px = e.clientX; py = e.clientY;
     });
     window.addEventListener('mouseup', () => { drag = false; });
+    renderer.domElement.addEventListener('wheel', e => {
+      e.preventDefault();
+      camDist = Math.max(3, Math.min(25, camDist + e.deltaY * 0.01));
+    }, { passive: false });
 
+    // Touch support
+    let touchId = null, touchX = 0, touchY = 0;
+    renderer.domElement.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) { touchId = e.touches[0].identifier; touchX = e.touches[0].clientX; touchY = e.touches[0].clientY; }
+    });
+    renderer.domElement.addEventListener('touchmove', e => {
+      e.preventDefault();
+      const t = [...e.changedTouches].find(t => t.identifier === touchId);
+      if (!t) return;
+      camAngle += (t.clientX - touchX) * 0.005;
+      camHeight = Math.max(0.5, Math.min(15, camHeight - (t.clientY - touchY) * 0.03));
+      touchX = t.clientX; touchY = t.clientY;
+    }, { passive: false });
+
+    // Presets
+    document.getElementById('btn-home').addEventListener('click', () => { trailPts.length = 0; setJoints([0, -30, 60, 0, 0, 0]); });
+
+    function animateSequence(steps, onDone) {
+      let i = 0;
+      function play() {
+        if (i >= steps.length) { if (onDone) onDone(); return; }
+        const s = steps[i];
+        const start = getJoints();
+        const t0 = performance.now();
+        function tick() {
+          const t = Math.min(1, (performance.now() - t0) / (s.dur || 500));
+          const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+          setJoints(start.map((v, j) => v + ((s.joints[j] ?? v) - v) * ease));
+          if (t < 1) requestAnimationFrame(tick);
+          else { i++; setTimeout(play, s.pause || 50); }
+        }
+        requestAnimationFrame(tick);
+      }
+      play();
+    }
+
+    document.getElementById('btn-pick').addEventListener('click', () => {
+      trailPts.length = 0;
+      animateSequence([
+        { joints: [0, -30, 60, 0, 0, 0], dur: 400 },
+        { joints: [40, 10, 80, 30, 0, 0], dur: 600 },
+        { joints: [40, 30, 100, 45, 0, 0], dur: 500 },
+        { joints: [40, 30, 100, 45, 0, 100], dur: 200 },
+        { joints: [40, -10, 50, 0, 0, 100], dur: 500 },
+        { joints: [-40, -10, 50, 0, 0, 100], dur: 700 },
+        { joints: [-40, 30, 100, 45, 0, 100], dur: 500 },
+        { joints: [-40, 30, 100, 45, 0, 0], dur: 200, pause: 200 },
+        { joints: [0, -30, 60, 0, 0, 0], dur: 600 },
+      ]);
+    });
+
+    document.getElementById('btn-wave').addEventListener('click', () => {
+      trailPts.length = 0;
+      animateSequence([
+        { joints: [0, -60, 20, 0, 0, 100], dur: 400 },
+        { joints: [0, -60, 20, 40, 0, 100], dur: 250 },
+        { joints: [0, -60, 20, -40, 0, 100], dur: 300 },
+        { joints: [0, -60, 20, 40, 0, 100], dur: 300 },
+        { joints: [0, -60, 20, -40, 0, 100], dur: 300 },
+        { joints: [0, -60, 20, 40, 0, 100], dur: 300 },
+        { joints: [0, -30, 60, 0, 0, 0], dur: 500 },
+      ]);
+    });
+
+    document.getElementById('btn-scan').addEventListener('click', () => {
+      trailPts.length = 0;
+      animateSequence([
+        { joints: [-90, -20, 40, 20, 0, 0], dur: 600 },
+        { joints: [-90, 10, 70, 40, 0, 0], dur: 500 },
+        { joints: [0, 10, 70, 40, 0, 0], dur: 800 },
+        { joints: [90, 10, 70, 40, 0, 0], dur: 800 },
+        { joints: [90, -20, 40, 20, 0, 0], dur: 500 },
+        { joints: [0, -30, 60, 0, 0, 0], dur: 600 },
+      ]);
+    });
+
+    document.getElementById('btn-random').addEventListener('click', () => {
+      trailPts.length = 0;
+      const rj = () => [
+        Math.random() * 360 - 180,
+        Math.random() * 180 - 90,
+        Math.random() * 270 - 135,
+        Math.random() * 180 - 90,
+        Math.random() * 360 - 180,
+        Math.random() > 0.5 ? 100 : 0,
+      ];
+      animateSequence([
+        { joints: rj(), dur: 600 },
+        { joints: rj(), dur: 600 },
+        { joints: rj(), dur: 600 },
+        { joints: rj(), dur: 600 },
+        { joints: [0, -30, 60, 0, 0, 0], dur: 500 },
+      ]);
+    });
+
+    document.getElementById('btn-add-cube').addEventListener('click', () => addObject('cube'));
+    document.getElementById('btn-add-sphere').addEventListener('click', () => addObject('sphere'));
+    document.getElementById('btn-clear-obj').addEventListener('click', () => {
+      sceneObjects.forEach(m => { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+      sceneObjects.length = 0;
+    });
+
+    // Resize
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -268,10 +385,16 @@
 
     updateArm();
 
+    // Main loop
     function animate() {
       requestAnimationFrame(animate);
-      camera.position.set(Math.sin(angle) * dist, height, Math.cos(angle) * dist);
-      camera.lookAt(0, 2, 0);
+      processKeys();
+      camera.position.set(
+        camTarget.x + Math.sin(camAngle) * camDist,
+        camTarget.y + camHeight,
+        camTarget.z + Math.cos(camAngle) * camDist
+      );
+      camera.lookAt(camTarget);
       renderer.render(scene, camera);
     }
     animate();
