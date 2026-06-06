@@ -34,43 +34,30 @@ agents.forEach(a => {
 
 // --- Type label + style mapping ---
 function getTypeTag(agent) {
-  if (agent.evolution) {
-    // Evolved agent — show accuracy% or example count as second tag
-    const secondTag = agent.evolution.accuracy
-      ? `${agent.evolution.accuracy}%`
-      : `${agent.evolution.examples} examples`;
-    return {
-      label: 'Evolved',
-      style: 'background:rgba(217,119,6,0.15);color:#fbbf24',
-      secondTag,
-    };
-  }
-
-  switch (agent.type) {
-    case 'heuristic':
+  switch (agent.storeType) {
+    case 'firmware':
       return {
-        label: 'Heuristic',
-        style: 'background:rgba(217,119,6,0.15);color:#fbbf24',
-        secondTag: agent.modelSize || '0MB',
+        label: 'Firmware',
+        style: 'background:rgba(59,130,246,0.15);color:#60a5fa',
+        secondTag: '',
       };
     case 'model':
       return {
         label: 'Model',
-        style: 'background:rgba(59,130,246,0.15);color:#60a5fa',
-        secondTag: agent.modelSize || '0MB',
+        style: 'background:rgba(16,185,129,0.15);color:#34d399',
+        secondTag: agent.modelSize || '',
       };
-    case 'built-in-ai':
+    case 'behavior':
       return {
-        label: 'Built-in AI',
-        style: 'background:rgba(5,150,105,0.2);color:#34d399',
-        secondTag: agent.modelSize || '0MB',
+        label: 'Behavior',
+        style: 'background:rgba(249,115,22,0.15);color:#fb923c',
+        secondTag: '',
       };
     default:
-      // developer-tools and any other types
       return {
-        label: agent.type.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' '),
-        style: 'background:rgba(124,58,237,0.15);color:#a78bfa',
-        secondTag: agent.modelSize || '0MB',
+        label: agent.storeType || 'Unknown',
+        style: 'background:rgba(163,163,163,0.15);color:#a3a3a3',
+        secondTag: '',
       };
   }
 }
