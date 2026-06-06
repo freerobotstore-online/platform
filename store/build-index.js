@@ -24,10 +24,10 @@ html = html.replace(/<script>\s*\(function\(\)\s*\{\s*\/\/ Handle login callback
 html = html.replace(/\s*<!-- API_KEYS_SECTION -->[\s\S]*?<\/section>/g, '');
 html = html.replace(/\s*<section class="container"[^>]*>[\s\S]*?Bring Your Own API Key[\s\S]*?<\/section>/g, '');
 
-const agents = registry.agents;
+const agents = registry.robots || registry.agents || [];
 
 // --- Compute tab counts ---
-const tabCounts = { all: agents.length, library: 0, model: 0, agent: 0 };
+const tabCounts = { all: agents.length, firmware: 0, model: 0, behavior: 0 };
 agents.forEach(a => {
   if (a.storeType && tabCounts[a.storeType] !== undefined) tabCounts[a.storeType]++;
 });
