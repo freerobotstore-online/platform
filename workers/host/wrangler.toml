@@ -30,5 +30,5 @@ new_classes = ["MirrorRoom"]
 [[d1_databases]]
 binding = "DB"
 database_name = "frs"
-database_id = "2f5cd397-8566-4e45-a76c-84553b701c02"
+database_id = "8a017de8-b5f3-41d4-8577-236635713011"
 migrations_dir = "migrations"

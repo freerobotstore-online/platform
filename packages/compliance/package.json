@@ -12,10 +12,10 @@
       "import": "./dist/index.js"
     }
   },
-  "homepage": "https://github.com/FreeRobotStore/platform#readme",
+  "homepage": "https://github.com/freerobotstore-online/platform#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/FreeRobotStore/platform.git",
+    "url": "git+https://github.com/freerobotstore-online/platform.git",
     "directory": "packages/compliance"
   },
   "keywords": [
