@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motion Planning — Robotics Institute</title>
+  <meta name="description" content="Comprehensive guide to robot motion planning: configuration space, graph search, RRT, PRM, trajectory optimization, and real-time replanning.">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--accent:#f97316;--paper:#0a0a0a;--ink:#fafafa;--muted:#737373;--panel:#141414;--line:#262626}
+    body{font-family:'Manrope',system-ui,sans-serif;background:var(--paper);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+    .container{max-width:900px;margin:0 auto;padding:0 1.5rem}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    header{border-bottom:1px solid var(--line);padding:.75rem 0}
+    header .container{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--ink)}
+    .brand-emoji{font-size:1.5rem}
+    .brand-text{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+    .brand-tag{font-size:.68rem;color:var(--muted)}
+    nav{display:flex;gap:1rem;font-size:.82rem;font-weight:600;margin-left:auto;flex-wrap:wrap}
+    nav a{color:var(--muted)}nav a:hover{color:var(--ink)}nav a.active{color:var(--accent)}
+    .hero{text-align:center;padding:2.5rem 0 1.5rem;border-bottom:1px solid var(--line)}
+    .hero h1{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;margin-bottom:.5rem}
+    .hero h1 em{color:var(--accent);font-style:normal}
+    .hero p{color:var(--muted);max-width:600px;margin:0 auto;font-size:.95rem}
+    .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.25rem;margin:1.5rem 0}
+    .toc h3{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--accent)}
+    .toc ul{list-style:none;padding:0;columns:2}
+    .toc li{margin:.2rem 0}.toc a{color:#a3a3a3;font-size:.82rem}.toc a:hover{color:var(--ink)}
+    .section{margin-bottom:2rem;padding-top:1rem}
+    .section h2{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.35rem;border-bottom:1px solid var(--line)}
+    .section h3{font-size:.95rem;font-weight:700;margin:1rem 0 .35rem;color:#e5e5e5}
+    .section p,.section li{color:#a3a3a3;font-size:.88rem}
+    ul{padding-left:1.25rem;margin:.35rem 0}
+    li{margin-bottom:.3rem}
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.6rem;margin:.5rem 0}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.85rem;transition:border-color .15s}
+    .card:hover{border-color:var(--accent)}
+    .card h4{font-size:.85rem;font-weight:700;margin-bottom:.2rem}
+    .card h4 a{color:var(--ink)}.card p{font-size:.75rem;color:var(--muted);margin:0;line-height:1.5}
+    .card .meta{font-size:.65rem;color:#525252;margin-top:.25rem}
+    code{font-family:'Courier New',monospace;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:.1rem .35rem;font-size:.82rem;color:var(--accent)}
+    pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:.75rem 0;overflow-x:auto;font-size:.8rem;line-height:1.6;color:#a3a3a3}
+    pre code{background:none;border:none;padding:0;color:inherit}
+    .formula{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem;margin:.5rem 0;font-family:'Courier New',monospace;font-size:.82rem;color:#e5e5e5;text-align:center;line-height:1.8}
+    table{width:100%;border-collapse:collapse;margin:.75rem 0;font-size:.82rem}
+    th,td{border:1px solid var(--line);padding:.5rem .75rem;text-align:left}
+    th{background:var(--panel);color:var(--ink);font-weight:700}
+    td{color:#a3a3a3}
+    footer{border-top:1px solid var(--line);padding:1.5rem 0;text-align:center;font-size:.75rem;color:#525252}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/institute/" class="brand">
+        <span class="brand-emoji">🦾</span>
+        <span><span class="brand-text">Robotics Institute</span><br><span class="brand-tag">Powered by <a href="https://zensical.org" style="color:#525252">Zensical</a></span></span>
+      </a>
+      <nav>
+        <a href="/institute/">Overview</a>
+        <a href="/institute/kinematics.html">Kinematics</a>
+        <a href="/institute/control.html">Control</a>
+        <a href="/institute/perception.html">Perception</a>
+        <a href="/institute/planning.html" class="active">Planning</a>
+        <a href="/institute/learning.html">Learning</a>
+        <a href="/">Simulations</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <section class="hero">
+      <h1>Motion <em>Planning</em></h1>
+      <p>Finding collision-free paths through complex environments. From graph search to sampling-based algorithms to trajectory optimization — the algorithms that give robots autonomy.</p>
+    </section>
+
+    <nav class="toc">
+      <h3>Contents</h3>
+      <ul>
+        <li><a href="#intro">What is Motion Planning?</a></li>
+        <li><a href="#cspace">Configuration Space</a></li>
+        <li><a href="#completeness">Completeness & Optimality</a></li>
+        <li><a href="#graph">Graph Search Methods</a></li>
+        <li><a href="#potential">Potential Fields</a></li>
+        <li><a href="#sampling">Sampling-Based Planning</a></li>
+        <li><a href="#rrt">RRT and Variants</a></li>
+        <li><a href="#prm">PRM and Roadmaps</a></li>
+        <li><a href="#trajectory">Trajectory Optimization</a></li>
+        <li><a href="#realtime">Real-Time Replanning</a></li>
+        <li><a href="#applications">Applications</a></li>
+        <li><a href="#references">References</a></li>
+      </ul>
+    </nav>
+
+    <!-- Introduction -->
+    <section class="section" id="intro">
+      <h2>What is Motion Planning?</h2>
+      <p>Motion planning is the problem of finding a feasible (and ideally optimal) path or trajectory for a robot from a start configuration to a goal configuration, avoiding collisions with obstacles and respecting kinematic and dynamic constraints. It is also known as the "piano mover's problem" — coined by Schwartz and Sharir (1983) — because it generalizes to moving any rigid body through a cluttered environment.</p>
+
+      <h3>Path vs Trajectory</h3>
+      <ul>
+        <li><strong>Path</strong> — a geometric curve in configuration space from start to goal. No time parameterization. Answers "where" but not "when" or "how fast."</li>
+        <li><strong>Trajectory</strong> — a path with a time schedule: q(t) for t in [0, T]. Specifies positions, velocities, and accelerations at each time step. Required for control execution.</li>
+      </ul>
+
+      <h3>Inputs to the Planning Problem</h3>
+      <ul>
+        <li><strong>Robot model</strong> — geometry (shape, link lengths), kinematics (joint types, limits), and optionally dynamics (inertia, motor limits).</li>
+        <li><strong>Environment model</strong> — obstacles represented as geometric primitives (boxes, cylinders, meshes), occupancy grids, or signed distance fields.</li>
+        <li><strong>Start configuration</strong> — the robot's current joint angles/position.</li>
+        <li><strong>Goal specification</strong> — a target configuration, a target end-effector pose (with IK), or a goal region.</li>
+        <li><strong>Constraints</strong> — joint limits, velocity limits, torque limits, obstacle clearance, task constraints (e.g., keep a cup upright).</li>
+      </ul>
+
+      <h3>Computational Complexity</h3>
+      <p>The general motion planning problem is PSPACE-hard (Reif, 1979). For a robot with n DOFs, the configuration space is n-dimensional. The obstacle region in C-space (C-obstacle) has complex geometry that is expensive to compute explicitly. This complexity motivates the use of sampling-based methods that avoid explicit C-obstacle computation.</p>
+    </section>
+
+    <!-- Configuration Space -->
+    <section class="section" id="cspace">
+      <h2>Configuration Space</h2>
+      <p>The configuration space (C-space), introduced by Tomas Lozano-Perez (1983), is the space of all possible configurations of the robot. Each point in C-space represents a complete specification of the robot's position — typically the vector of joint angles for a manipulator or (x, y, theta) for a planar mobile robot.</p>
+
+      <h3>C-Space Decomposition</h3>
+      <ul>
+        <li><strong>C-free</strong> — the set of configurations where the robot does not collide with any obstacle or itself. This is where the robot can safely exist.</li>
+        <li><strong>C-obstacle</strong> — the set of configurations where the robot collides with an obstacle. This is the forbidden region.</li>
+        <li><strong>C-space boundary</strong> — configurations where the robot is in contact with an obstacle (touching but not penetrating).</li>
+      </ul>
+
+      <h3>Examples</h3>
+      <table>
+        <tr><th>Robot</th><th>C-Space</th><th>Dimension</th></tr>
+        <tr><td>Point robot in 2D</td><td>R^2</td><td>2</td></tr>
+        <tr><td>Rigid body in 2D</td><td>R^2 x SO(1) = SE(2)</td><td>3</td></tr>
+        <tr><td>Rigid body in 3D</td><td>R^3 x SO(3) = SE(3)</td><td>6</td></tr>
+        <tr><td>2-link planar arm</td><td>T^2 (torus)</td><td>2</td></tr>
+        <tr><td>6-DOF industrial arm</td><td>T^6</td><td>6</td></tr>
+        <tr><td>7-DOF arm (KUKA iiwa)</td><td>T^7</td><td>7</td></tr>
+        <tr><td>Humanoid (30 DOF)</td><td>SE(3) x T^24</td><td>30</td></tr>
+      </table>
+
+      <h3>Collision Checking</h3>
+      <p>The most computationally expensive part of motion planning. Given a configuration q, determine whether the robot at q intersects any obstacle. Methods:</p>
+      <ul>
+        <li><strong>Primitive-based</strong> — represent robot and obstacles as geometric primitives (spheres, capsules, boxes). GJK algorithm (Gilbert, Johnson, Keerthi, 1988) computes the minimum distance between convex shapes. EPA (Expanding Polytope Algorithm) refines penetration depth.</li>
+        <li><strong>Mesh-based</strong> — triangulated meshes for complex geometry. FCL (Flexible Collision Library, Pan et al., 2012) uses bounding volume hierarchies (BVH) with OBB or RSS bounding volumes. Used in MoveIt and Drake.</li>
+        <li><strong>Signed distance fields</strong> — precompute the distance to the nearest obstacle at every point in space. Collision check = lookup the distance value at the robot's geometry. Fast for static environments.</li>
+      </ul>
+    </section>
+
+    <!-- Completeness -->
+    <section class="section" id="completeness">
+      <h2>Completeness & Optimality</h2>
+      <p>Different planning algorithms offer different guarantees:</p>
+
+      <h3>Completeness</h3>
+      <ul>
+        <li><strong>Complete</strong> — guaranteed to find a solution if one exists, and report failure if none exists, in finite time. Cell decomposition and visibility graph methods are complete for polygonal environments. Impractical for high-dimensional C-spaces.</li>
+        <li><strong>Resolution-complete</strong> — complete up to a chosen resolution. Grid-based search is resolution-complete: it will find a path if one exists that passes through grid cells, but may miss paths in narrow passages between grid points.</li>
+        <li><strong>Probabilistically complete</strong> — the probability of finding a solution (if one exists) approaches 1 as planning time goes to infinity. RRT and PRM are probabilistically complete. In practice, this means they will find a solution given enough time, but cannot definitively report "no solution."</li>
+      </ul>
+
+      <h3>Optimality</h3>
+      <ul>
+        <li><strong>Optimal</strong> — finds the shortest/cheapest path. A* with an admissible heuristic is optimal. Dijkstra's algorithm is optimal.</li>
+        <li><strong>Asymptotically optimal</strong> — the solution converges to the optimal path as the number of samples grows. RRT* (Karaman & Frazzoli, 2011) and PRM* are asymptotically optimal. Basic RRT is NOT optimal.</li>
+        <li><strong>Bounded suboptimal</strong> — guarantees the solution cost is within a factor of the optimal. Anytime algorithms (ARA*, Anytime RRT*) provide progressively better solutions.</li>
+      </ul>
+    </section>
+
+    <!-- Graph Search -->
+    <section class="section" id="graph">
+      <h2>Graph Search Methods</h2>
+      <p>Discretize C-space into a graph (grid, lattice, or visibility graph), then search for the shortest path.</p>
+
+      <h3>Breadth-First Search (BFS)</h3>
+      <p>Explores all nodes at the current depth before moving to the next depth level. Guaranteed to find the shortest path in an unweighted graph. Time and space complexity: O(V + E). Used for simple grid-based planning when all movements have equal cost.</p>
+
+      <h3>Dijkstra's Algorithm</h3>
+      <p>Finds the shortest path in a weighted graph. Maintains a priority queue of nodes ordered by distance from the start. Explores the nearest unexplored node at each step. Optimal but explores in all directions uniformly — inefficient when the goal location is known. Time complexity: O((V + E) log V) with a binary heap.</p>
+
+      <h3>A* Search</h3>
+      <p>The most important search algorithm in robotics. Combines Dijkstra's actual cost g(n) with a heuristic estimate h(n) of the remaining cost to the goal:</p>
+      <div class="formula">
+        f(n) = g(n) + h(n)
+      </div>
+      <p>A* expands the node with the lowest f(n). If h(n) is admissible (never overestimates the true cost) and consistent (satisfies the triangle inequality), A* is optimal and explores the minimum number of nodes among admissible algorithms. Published by Hart, Nilsson, and Raphael (1968) at SRI International.</p>
+
+      <h3>Common Heuristics</h3>
+      <ul>
+        <li><strong>Euclidean distance</strong> — straight-line distance to goal. Admissible in continuous space.</li>
+        <li><strong>Manhattan distance</strong> — sum of absolute differences in each dimension. Admissible for 4-connected grids.</li>
+        <li><strong>Diagonal distance</strong> — accounts for diagonal movement. Admissible for 8-connected grids.</li>
+        <li><strong>Dubins/Reeds-Shepp</strong> — for car-like robots, the minimum-length path respecting the turning radius. Used in autonomous driving path planning.</li>
+      </ul>
+
+      <h3>Weighted A*</h3>
+      <p>Use f(n) = g(n) + w * h(n) with w > 1. This inflates the heuristic, making the search more greedy (faster) at the cost of optimality. The solution cost is at most w times the optimal cost. In practice, w = 1.5-3 gives a good speed/quality trade-off.</p>
+
+      <h3>D* and D* Lite</h3>
+      <p>Incremental search algorithms for dynamic environments. When the environment changes (new obstacle detected), D* Lite (Koenig & Likhachev, 2002) efficiently repairs the existing search tree rather than replanning from scratch. Used in Mars rovers (Spirit and Opportunity used a variant of D*) and autonomous vehicles.</p>
+
+      <h3>Lattice-Based Planning</h3>
+      <p>Discretize the C-space into a state lattice: a regular graph where edges correspond to dynamically feasible motion primitives (precomputed short trajectories that respect the robot's dynamics). Pivonka and Kelly (2005) introduced lattice planners for field robots. Used in the DARPA Urban Challenge (CMU's Boss) and many autonomous driving systems. Graph search (A* or ARA*) on the lattice guarantees feasible, dynamically consistent paths.</p>
+    </section>
+
+    <!-- Potential Fields -->
+    <section class="section" id="potential">
+      <h2>Potential Fields</h2>
+      <p>Artificial potential field methods, introduced by Oussama Khatib (1986), treat the robot as a particle in a potential field. The goal generates an attractive potential that pulls the robot toward it; obstacles generate repulsive potentials that push the robot away. The robot follows the negative gradient of the total potential.</p>
+
+      <div class="formula">
+        U(q) = U_att(q) + U_rep(q)<br>
+        F(q) = -gradient(U(q))
+      </div>
+
+      <h3>Attractive Potential</h3>
+      <p>Typically a quadratic function of distance to the goal: U_att(q) = 0.5 * k_att * ||q - q_goal||^2. The gradient is a constant force toward the goal. For large distances, a conic (linear) potential prevents excessive force.</p>
+
+      <h3>Repulsive Potential</h3>
+      <p>Active only within a threshold distance d_0 from obstacles: U_rep(q) = 0.5 * k_rep * (1/d(q) - 1/d_0)^2 when d(q) < d_0, and 0 otherwise. The force grows rapidly as the robot approaches an obstacle, creating a repulsive "force field."</p>
+
+      <h3>Local Minima Problem</h3>
+      <p>The fatal flaw of potential fields: the robot can get trapped in local minima where attractive and repulsive forces balance. Classic example: a U-shaped obstacle between the robot and goal. Solutions:</p>
+      <ul>
+        <li><strong>Navigation functions</strong> (Rimon & Koditschek, 1992) — specially designed potential functions with exactly one minimum (the goal). Guaranteed to work in certain environment classes but hard to construct in general.</li>
+        <li><strong>Random walks</strong> — add random noise to escape local minima. Not guaranteed to work.</li>
+        <li><strong>Hybrid approaches</strong> — use potential fields for reactive obstacle avoidance but a global planner (A*, RRT) for overall path planning.</li>
+      </ul>
+
+      <h3>Practical Use</h3>
+      <p>Despite the local minima problem, potential fields are widely used as a reactive layer for real-time obstacle avoidance, especially in mobile robotics. The Vector Field Histogram (VFH, Borenstein & Koren, 1991) and its successor VFH+ are practical implementations used in ROS's navigation stack.</p>
+    </section>
+
+    <!-- Sampling-Based Planning -->
+    <section class="section" id="sampling">
+      <h2>Sampling-Based Planning</h2>
+      <p>Instead of explicitly constructing C-free (computationally intractable for high-DOF robots), sampling-based methods probe C-space by randomly sampling configurations and checking them for collisions. This approach scales to high-dimensional C-spaces where grid-based methods are infeasible.</p>
+
+      <h3>Why Sampling Works</h3>
+      <ul>
+        <li>Collision checking for a single configuration is fast (milliseconds). Building a complete C-obstacle representation is not.</li>
+        <li>Random sampling covers the space uniformly over time (probabilistic completeness).</li>
+        <li>No explicit discretization — works in continuous C-spaces of any dimension.</li>
+        <li>The curse of dimensionality that kills grid-based methods is manageable: sampling-based methods scale much better to 6+ DOF.</li>
+      </ul>
+
+      <h3>Sampling Strategies</h3>
+      <ul>
+        <li><strong>Uniform random</strong> — sample uniformly in C-space. Simple and probabilistically complete but wastes samples in large empty regions.</li>
+        <li><strong>Goal-biased</strong> — with probability p_goal (typically 0.05-0.1), sample the goal configuration instead of random. Dramatically speeds up convergence.</li>
+        <li><strong>Gaussian sampling</strong> — sample near obstacle surfaces (where narrow passages are). Sample a pair of points; if one is in collision and the other is free, keep the free one. Boor et al. (1999).</li>
+        <li><strong>Bridge sampling</strong> — find points in narrow passages by sampling pairs where both are in collision and the midpoint is free. Hsu et al. (2003).</li>
+        <li><strong>Informed sampling</strong> — after finding an initial solution, restrict sampling to the prolate hyperellipsoid that could improve the solution. Used in Informed RRT* (Gammell et al., 2014).</li>
+      </ul>
+    </section>
+
+    <!-- RRT -->
+    <section class="section" id="rrt">
+      <h2>RRT and Variants</h2>
+      <p>The Rapidly-exploring Random Tree (RRT), introduced by Steven LaValle (1998), is the most influential sampling-based planning algorithm. It incrementally builds a tree rooted at the start configuration, expanding toward random samples to explore C-free.</p>
+
+      <h3>Basic RRT Algorithm</h3>
+      <pre><code>function RRT(q_start, q_goal, max_iter):
+    T.init(q_start)
+    for i = 1 to max_iter:
+        q_rand = random_config()        // uniform random in C-space
+        q_near = nearest(T, q_rand)     // nearest node in tree
+        q_new = steer(q_near, q_rand, step_size)  // extend toward q_rand
+        if collision_free(q_near, q_new):
+            T.add_node(q_new)
+            T.add_edge(q_near, q_new)
+            if distance(q_new, q_goal) < threshold:
+                return extract_path(T, q_start, q_new)
+    return FAILURE</code></pre>
+
+      <h3>Key Properties</h3>
+      <ul>
+        <li><strong>Voronoi bias</strong> — nodes with larger Voronoi regions (less explored areas) are more likely to be selected as q_near, causing the tree to grow preferentially toward unexplored space.</li>
+        <li><strong>Probabilistically complete</strong> — as iterations go to infinity, the probability of finding a path (if one exists) goes to 1.</li>
+        <li><strong>Not optimal</strong> — the first path found is typically far from the shortest path. The tree's random growth produces jagged, suboptimal paths.</li>
+        <li><strong>Fast in high dimensions</strong> — scales well to 6-30+ DOF because it only requires point sampling and local collision checking.</li>
+      </ul>
+
+      <h3>RRT-Connect</h3>
+      <p>Kuffner & LaValle (2000) introduced bidirectional RRT: grow two trees, one from start and one from goal, and try to connect them. The CONNECT heuristic extends the tree greedily (multiple steps) toward the other tree's nearest node rather than taking a single step. RRT-Connect is typically 10-100x faster than basic RRT and is the default planner in MoveIt (the ROS manipulation planning framework).</p>
+
+      <h3>RRT* (Asymptotically Optimal)</h3>
+      <p>Karaman & Frazzoli (IJRR 2011) proved that basic RRT converges to a suboptimal path with probability 1. They introduced RRT*, which adds two operations to make the algorithm asymptotically optimal:</p>
+      <ul>
+        <li><strong>Near neighbors</strong> — instead of connecting q_new to only q_near, consider all nodes within a radius r_n = gamma * (log(n)/n)^{1/d} (where d is the C-space dimension).</li>
+        <li><strong>Rewiring</strong> — if connecting through q_new gives a shorter path to any near neighbor, update the tree.</li>
+      </ul>
+      <p>RRT* converges to the optimal path as the number of samples increases, but convergence is slow. In practice, it produces significantly better paths than RRT given enough time.</p>
+
+      <h3>Other RRT Variants</h3>
+      <table>
+        <tr><th>Variant</th><th>Key Idea</th><th>Reference</th></tr>
+        <tr><td>Informed RRT*</td><td>Restrict sampling to ellipsoidal region after initial solution</td><td>Gammell et al. (2014)</td></tr>
+        <tr><td>BIT* (Batch Informed Trees)</td><td>Combines RRT* and PRM*; processes samples in batches</td><td>Gammell et al. (2015)</td></tr>
+        <tr><td>AIT* (Adaptively Informed Trees)</td><td>Adapts between RRT*-like and FMT*-like processing</td><td>Strub & Gammell (2020)</td></tr>
+        <tr><td>Kinodynamic RRT</td><td>Accounts for dynamic constraints (velocity, acceleration limits)</td><td>LaValle & Kuffner (2001)</td></tr>
+        <tr><td>RRT-X</td><td>Rewiring for dynamic environments; repairs tree when obstacles move</td><td>Otte & Frazzoli (2016)</td></tr>
+      </table>
+    </section>
+
+    <!-- PRM -->
+    <section class="section" id="prm">
+      <h2>PRM and Roadmaps</h2>
+      <p>The Probabilistic Roadmap Method (PRM), introduced by Kavraki, Svestka, Latombe, and Overmars (1996), takes a different approach: build a reusable graph (roadmap) of C-free in a preprocessing phase, then query it for any start-goal pair.</p>
+
+      <h3>Two-Phase Approach</h3>
+      <p><strong>Construction phase (offline):</strong></p>
+      <ul>
+        <li>Sample N random configurations in C-space.</li>
+        <li>For each sample, check if it is collision-free. Discard colliding samples.</li>
+        <li>For each free sample, attempt to connect it to its k nearest neighbors with straight-line paths. Check each edge for collisions.</li>
+        <li>Result: a graph (roadmap) embedded in C-free.</li>
+      </ul>
+      <p><strong>Query phase (online):</strong></p>
+      <ul>
+        <li>Connect the start and goal configurations to the nearest roadmap nodes.</li>
+        <li>Search the roadmap graph (Dijkstra or A*) for the shortest path.</li>
+        <li>Multiple queries can reuse the same roadmap — amortizing construction cost.</li>
+      </ul>
+
+      <h3>PRM Strengths and Weaknesses</h3>
+      <ul>
+        <li><strong>Strength:</strong> Multi-query — build once, query many times. Ideal for fixed environments with repeated planning (industrial workcells).</li>
+        <li><strong>Strength:</strong> Captures the connectivity of C-free — can detect if start and goal are in different connected components.</li>
+        <li><strong>Weakness:</strong> Narrow passages — if samples don't fall in a narrow corridor, the roadmap won't contain paths through it. Addressed by Gaussian and bridge sampling strategies.</li>
+        <li><strong>Weakness:</strong> Construction cost — building a dense roadmap in high dimensions is expensive. Not suitable for single-query problems or dynamic environments.</li>
+      </ul>
+
+      <h3>Visibility PRM</h3>
+      <p>Simeon et al. (2000) proposed keeping only "guard" and "connector" nodes: a new sample becomes a guard if it sees no existing guards, or a connector if it connects two guards. This produces a much sparser roadmap with the same coverage.</p>
+
+      <h3>Lazy PRM</h3>
+      <p>Bohlin & Kavraki (2000): delay collision checking of edges until they are needed for a query. Assume all edges are valid, find the shortest path, then check edges along that path for collisions. If a collision is found, remove the edge and replan. Saves enormous computation when most edges are never used.</p>
+    </section>
+
+    <!-- Trajectory Optimization -->
+    <section class="section" id="trajectory">
+      <h2>Trajectory Optimization</h2>
+      <p>Instead of searching through discrete samples or graph nodes, trajectory optimization treats motion planning as a continuous optimization problem: find the trajectory q(t) that minimizes a cost functional subject to constraints.</p>
+
+      <h3>General Formulation</h3>
+      <div class="formula">
+        Minimize: integral(L(q(t), q'(t), u(t)) dt) + Phi(q(T))<br>
+        Subject to: q''(t) = f(q, q', u)  (dynamics)<br>
+                    g(q(t)) >= 0           (obstacle avoidance)<br>
+                    q(0) = q_start, q(T) = q_goal  (boundary conditions)<br>
+                    joint limits, velocity limits, torque limits
+      </div>
+
+      <h3>CHOMP (Covariant Hamiltonian Optimization for Motion Planning)</h3>
+      <p>Ratliff et al. (2009, CMU) proposed CHOMP: represent the trajectory as a sequence of waypoints and optimize using functional gradient descent. The cost combines a smoothness term (penalizes acceleration) and an obstacle cost (based on signed distance to obstacles). CHOMP uses precomputed signed distance fields for fast gradient computation. Available in MoveIt.</p>
+
+      <h3>STOMP (Stochastic Trajectory Optimization for Motion Planning)</h3>
+      <p>Kalakrishnan et al. (2011, USC) introduced STOMP: generate noisy trajectory samples around the current trajectory, evaluate their costs, and update the trajectory as a cost-weighted average. Unlike CHOMP, STOMP does not require gradient information — it works with arbitrary cost functions (useful when the cost is non-differentiable). Also available in MoveIt.</p>
+
+      <h3>TrajOpt</h3>
+      <p>Schulman et al. (2014, UC Berkeley) formulated motion planning as sequential convex optimization. Obstacle avoidance is a constraint (not a cost term), using signed distances and their linear approximations. Supports continuous-time collision checking (swept volumes). Fast convergence. Used in planning for manipulation and autonomous driving.</p>
+
+      <h3>Direct Collocation and Direct Transcription</h3>
+      <p>Transcribe the continuous-time optimal control problem into a finite-dimensional nonlinear program (NLP) by discretizing the trajectory into N time steps. Decision variables: states and controls at each knot point. Dynamics are enforced as equality constraints (collocation = using polynomial interpolation between knot points). Solved with NLP solvers (IPOPT, SNOPT). This is the standard approach in Drake (MIT) for kinodynamic planning.</p>
+
+      <h3>Trajectory Optimization vs Sampling-Based Planning</h3>
+      <table>
+        <tr><th>Aspect</th><th>Sampling-Based (RRT/PRM)</th><th>Trajectory Optimization</th></tr>
+        <tr><td>Completeness</td><td>Probabilistically complete</td><td>Local optimizer — needs good initialization</td></tr>
+        <tr><td>Optimality</td><td>RRT* is asymptotically optimal</td><td>Finds local optimum</td></tr>
+        <tr><td>Narrow passages</td><td>Handles well (eventually)</td><td>May fail if initialization is on wrong side</td></tr>
+        <tr><td>Solution quality</td><td>Jagged without smoothing</td><td>Smooth by construction</td></tr>
+        <tr><td>Speed</td><td>Fast first solution, slow to optimize</td><td>Fast if initialized well</td></tr>
+        <tr><td>Dynamic constraints</td><td>Hard to incorporate</td><td>Natural via constrained optimization</td></tr>
+      </table>
+      <p>In practice, the best systems combine both: use RRT/PRM for an initial feasible path, then refine with trajectory optimization for smoothness and dynamic feasibility.</p>
+    </section>
+
+    <!-- Real-Time Replanning -->
+    <section class="section" id="realtime">
+      <h2>Real-Time Replanning</h2>
+      <p>Static planning assumes a known, fixed environment. Real robots operate in dynamic environments where obstacles move, new obstacles appear, and the environment is only partially known. Real-time replanning adapts the plan as new information arrives.</p>
+
+      <h3>Approaches</h3>
+      <ul>
+        <li><strong>Replan from scratch</strong> — when the environment changes, discard the old plan and plan anew. Simple but wasteful. Only works if the planner is fast enough (< 100ms for reactive behavior).</li>
+        <li><strong>Incremental search</strong> — repair the existing plan rather than rebuilding. D* Lite (Koenig & Likhachev, 2002) efficiently updates a graph search when edge costs change. Used when obstacle information updates incrementally.</li>
+        <li><strong>Anytime planning</strong> — find an initial feasible solution quickly, then improve it over time. ARA* (Likhachev et al., 2003) starts with an inflated heuristic for speed, then reduces inflation for quality. Returns the best solution found within the time budget.</li>
+        <li><strong>Elastic bands / elastic strips</strong> — maintain a path that deforms in real-time to avoid moving obstacles. TEB (Timed Elastic Band) is used in ROS's local planner for mobile robots. Quinlan & Khatib (1993) introduced elastic strips for manipulators.</li>
+        <li><strong>MPPI (Model Predictive Path Integral)</strong> — a sampling-based MPC approach. At each step, sample many trajectory rollouts, weight them by cost, and compute the weighted average as the optimal action. GPU-parallelizable. Used in aggressive autonomous driving (Williams et al., 2017, Georgia Tech) and legged locomotion.</li>
+      </ul>
+
+      <h3>Dynamic Obstacle Handling</h3>
+      <ul>
+        <li><strong>Velocity obstacles</strong> (Fiorini & Shiller, 1998) — represent moving obstacles in velocity space. The set of robot velocities that would lead to collision within a time horizon. ORCA (Optimal Reciprocal Collision Avoidance, van den Berg et al., 2011) extends this for multi-robot systems.</li>
+        <li><strong>Predicted trajectories</strong> — estimate future obstacle positions using constant-velocity, constant-acceleration, or learned motion models. Plan in space-time (x, y, t) to avoid predicted positions.</li>
+        <li><strong>Safety guarantees</strong> — Hamilton-Jacobi reachability analysis computes the set of states from which the robot can always avoid collision, regardless of obstacle behavior. Conservative but provably safe.</li>
+      </ul>
+
+      <h3>Planning Frequency Hierarchy</h3>
+      <ul>
+        <li><strong>Global planner (1-10 Hz)</strong> — plans the overall path from start to goal. A*, PRM, or RRT on a global map.</li>
+        <li><strong>Local planner (10-50 Hz)</strong> — follows the global path while reacting to local obstacles. DWA (Dynamic Window Approach), TEB, or potential fields.</li>
+        <li><strong>Reactive controller (100-1000 Hz)</strong> — low-level obstacle avoidance reflex. Emergency stop, potential fields, or simple distance thresholds.</li>
+      </ul>
+    </section>
+
+    <!-- Applications -->
+    <section class="section" id="applications">
+      <h2>Applications</h2>
+      <div class="cards">
+        <div class="card">
+          <h4>Robotic Manipulation</h4>
+          <p>MoveIt (ROS) uses RRT-Connect, PRM, CHOMP, and STOMP for arm motion planning in cluttered environments. Pick-and-place, assembly, and bin picking all require collision-free arm trajectories planned in joint space or Cartesian space.</p>
+          <div class="meta">MoveIt 2 | Open-source | 5k+ GitHub stars</div>
+        </div>
+        <div class="card">
+          <h4>Autonomous Driving</h4>
+          <p>Self-driving cars plan in structured environments (lanes, intersections). Lattice planners, optimization-based planners (CasADi), and RL-based planners generate trajectories that respect traffic rules, comfort, and safety. Waymo, Cruise, and Motional all use trajectory optimization variants.</p>
+          <div class="meta">Structured environments | Real-time | Safety-critical</div>
+        </div>
+        <div class="card">
+          <h4>Drone Navigation</h4>
+          <p>UAV planning requires fast 3D path planning with dynamic constraints. Minimum-snap trajectory optimization (Mellinger & Kumar, 2011) produces smooth polynomial trajectories for quadrotors. EGO-Planner (Zhou et al., 2020) enables aggressive autonomous flight through unknown environments.</p>
+          <div class="meta">3D planning | Dynamic obstacles | 30+ Hz replanning</div>
+        </div>
+        <div class="card">
+          <h4>Multi-Robot Coordination</h4>
+          <p>Planning for multiple robots simultaneously. Conflict-Based Search (CBS, Sharon et al., 2015) finds optimal collision-free paths for teams of agents. Priority-based planning assigns robot priorities and plans sequentially. Used in Amazon warehouse robots (Kiva/Amazon Robotics) coordinating hundreds of agents.</p>
+          <div class="meta">MAPF | Warehouse logistics | Combinatorial complexity</div>
+        </div>
+        <div class="card">
+          <h4>Surgical Robotics</h4>
+          <p>Motion planning for surgical robots must avoid sensitive anatomy, pass through small incisions (remote center of motion constraint), and handle deformable tissue. Special-purpose planners for needle steering, catheter navigation, and instrument insertion.</p>
+          <div class="meta">Constrained planning | Sub-mm accuracy</div>
+        </div>
+        <div class="card">
+          <h4>Legged Locomotion</h4>
+          <p>Footstep planning and whole-body motion planning for humanoids and quadrupeds. The footstep planning problem is a discrete search over contact locations. Whole-body planning then generates dynamically feasible trajectories between contacts. Mixed-integer programming and graph search on contact sequences.</p>
+          <div class="meta">Contact planning | Dynamic feasibility | Real-time</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- References -->
+    <section class="section" id="references">
+      <h2>References & Further Reading</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="http://lavalle.pl/planning/">LaValle: Planning Algorithms (2006)</a></h4>
+          <p>THE definitive textbook on motion planning. Covers C-space, combinatorial planning, sampling-based planning, differential constraints, and decision-theoretic planning. Free online.</p>
+          <div class="meta">Cambridge University Press | Free PDF</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://doi.org/10.1177/0278364911406761">Karaman & Frazzoli: Sampling-based Algorithms for Optimal Motion Planning (2011)</a></h4>
+          <p>Introduced RRT* and PRM*. Proved that basic RRT almost surely converges to a suboptimal path. The paper that made asymptotic optimality a standard requirement.</p>
+          <div class="meta">IJRR | 5000+ citations</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.cs.cmu.edu/~motionplanning/papers/sbp_papers/PRM/prmbasic_01.pdf">Kavraki et al: Probabilistic Roadmaps for Path Planning (1996)</a></h4>
+          <p>The original PRM paper. Demonstrated that sampling-based planning scales to high-dimensional C-spaces where deterministic methods fail.</p>
+          <div class="meta">IEEE T-RO | 6000+ citations</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/ros-planning/moveit2">MoveIt 2</a></h4>
+          <p>The most widely used open-source motion planning framework for robot arms. Integrates OMPL (sampling-based planners), CHOMP, STOMP, and Pilz industrial trajectory generator.</p>
+          <div class="meta">ROS 2 | C++ / Python | BSD</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/ompl/ompl">OMPL (Open Motion Planning Library)</a></h4>
+          <p>Library of sampling-based planners: RRT, RRT*, RRT-Connect, PRM, PRM*, BIT*, EST, KPIECE, and more. Backend for MoveIt. Created at Rice University (Kavraki Lab).</p>
+          <div class="meta">C++ / Python | Rice University | BSD</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://doi.org/10.1177/0278364913488805">Schulman et al: Finding Locally Optimal, Collision-Free Trajectories with Sequential Convex Optimization (2014)</a></h4>
+          <p>TrajOpt paper. Sequential convex optimization for motion planning with continuous-time collision checking. Fast and practical for manipulation planning.</p>
+          <div class="meta">IJRR | UC Berkeley</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="container">
+      <a href="/">FreeRobotStore</a> · <a href="/institute/">Institute</a> · <a href="/institute/planning.html">Planning</a> · Built with <a href="https://zensical.org">Zensical</a>
+    </div>
+  </footer>
+</body>
+</html>

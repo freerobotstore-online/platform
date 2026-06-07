@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Control Systems — Robotics Institute</title>
+  <meta name="description" content="Comprehensive guide to robot control: PID, state-space, LQR, MPC, impedance control, computed torque, and practical tuning methods.">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--accent:#f97316;--paper:#0a0a0a;--ink:#fafafa;--muted:#737373;--panel:#141414;--line:#262626}
+    body{font-family:'Manrope',system-ui,sans-serif;background:var(--paper);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+    .container{max-width:900px;margin:0 auto;padding:0 1.5rem}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    header{border-bottom:1px solid var(--line);padding:.75rem 0}
+    header .container{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--ink)}
+    .brand-emoji{font-size:1.5rem}
+    .brand-text{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+    .brand-tag{font-size:.68rem;color:var(--muted)}
+    nav{display:flex;gap:1rem;font-size:.82rem;font-weight:600;margin-left:auto;flex-wrap:wrap}
+    nav a{color:var(--muted)}nav a:hover{color:var(--ink)}nav a.active{color:var(--accent)}
+    .hero{text-align:center;padding:2.5rem 0 1.5rem;border-bottom:1px solid var(--line)}
+    .hero h1{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;margin-bottom:.5rem}
+    .hero h1 em{color:var(--accent);font-style:normal}
+    .hero p{color:var(--muted);max-width:600px;margin:0 auto;font-size:.95rem}
+    .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.25rem;margin:1.5rem 0}
+    .toc h3{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--accent)}
+    .toc ul{list-style:none;padding:0;columns:2}
+    .toc li{margin:.2rem 0}.toc a{color:#a3a3a3;font-size:.82rem}.toc a:hover{color:var(--ink)}
+    .section{margin-bottom:2rem;padding-top:1rem}
+    .section h2{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.35rem;border-bottom:1px solid var(--line)}
+    .section h3{font-size:.95rem;font-weight:700;margin:1rem 0 .35rem;color:#e5e5e5}
+    .section p,.section li{color:#a3a3a3;font-size:.88rem}
+    ul{padding-left:1.25rem;margin:.35rem 0}
+    li{margin-bottom:.3rem}
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.6rem;margin:.5rem 0}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.85rem;transition:border-color .15s}
+    .card:hover{border-color:var(--accent)}
+    .card h4{font-size:.85rem;font-weight:700;margin-bottom:.2rem}
+    .card h4 a{color:var(--ink)}.card p{font-size:.75rem;color:var(--muted);margin:0;line-height:1.5}
+    .card .meta{font-size:.65rem;color:#525252;margin-top:.25rem}
+    code{font-family:'Courier New',monospace;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:.1rem .35rem;font-size:.82rem;color:var(--accent)}
+    pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:.75rem 0;overflow-x:auto;font-size:.8rem;line-height:1.6;color:#a3a3a3}
+    pre code{background:none;border:none;padding:0;color:inherit}
+    .formula{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem;margin:.5rem 0;font-family:'Courier New',monospace;font-size:.82rem;color:#e5e5e5;text-align:center;line-height:1.8}
+    table{width:100%;border-collapse:collapse;margin:.75rem 0;font-size:.82rem}
+    th,td{border:1px solid var(--line);padding:.5rem .75rem;text-align:left}
+    th{background:var(--panel);color:var(--ink);font-weight:700}
+    td{color:#a3a3a3}
+    footer{border-top:1px solid var(--line);padding:1.5rem 0;text-align:center;font-size:.75rem;color:#525252}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/institute/" class="brand">
+        <span class="brand-emoji">🦾</span>
+        <span><span class="brand-text">Robotics Institute</span><br><span class="brand-tag">Powered by <a href="https://zensical.org" style="color:#525252">Zensical</a></span></span>
+      </a>
+      <nav>
+        <a href="/institute/">Overview</a>
+        <a href="/institute/kinematics.html">Kinematics</a>
+        <a href="/institute/control.html" class="active">Control</a>
+        <a href="/institute/perception.html">Perception</a>
+        <a href="/institute/planning.html">Planning</a>
+        <a href="/institute/learning.html">Learning</a>
+        <a href="/">Simulations</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <section class="hero">
+      <h1>Robot <em>Control Systems</em></h1>
+      <p>How robots follow trajectories, respond to disturbances, and interact safely with the physical world. From classical PID to modern optimal and adaptive control.</p>
+    </section>
+
+    <nav class="toc">
+      <h3>Contents</h3>
+      <ul>
+        <li><a href="#intro">What is Robot Control?</a></li>
+        <li><a href="#feedback">Feedback Control Fundamentals</a></li>
+        <li><a href="#pid">PID Control</a></li>
+        <li><a href="#tuning">Tuning Methods</a></li>
+        <li><a href="#statespace">State-Space Control</a></li>
+        <li><a href="#lqr">LQR — Linear Quadratic Regulator</a></li>
+        <li><a href="#computed-torque">Computed Torque Control</a></li>
+        <li><a href="#mpc">Model Predictive Control</a></li>
+        <li><a href="#impedance">Impedance & Admittance Control</a></li>
+        <li><a href="#adaptive">Adaptive Control</a></li>
+        <li><a href="#practical">Practical Tips</a></li>
+        <li><a href="#references">References</a></li>
+      </ul>
+    </nav>
+
+    <!-- Introduction -->
+    <section class="section" id="intro">
+      <h2>What is Robot Control?</h2>
+      <p>Robot control is the science of commanding a robot to perform desired motions while handling real-world disturbances: gravity, friction, payload changes, sensor noise, and model uncertainty. A controller computes the actuator commands (motor voltages, torques, or pressures) needed to track a desired trajectory or maintain a desired force/position relationship.</p>
+
+      <h3>The Control Problem</h3>
+      <p>Given a desired trajectory q_d(t) (joint positions over time), the controller must compute torques tau(t) so that the actual joint positions q(t) track q_d(t) as closely as possible. The tracking error e(t) = q_d(t) - q(t) should converge to zero quickly, without oscillation, and stay bounded even under disturbances.</p>
+
+      <h3>Control Architecture Levels</h3>
+      <ul>
+        <li><strong>Joint-level control</strong> — each joint has its own controller (typically PID). The innermost loop, running at 1-10 kHz. Treats each joint independently.</li>
+        <li><strong>Task-space control</strong> — controls the end-effector position/force directly, converting to joint commands via the Jacobian. Runs at 100 Hz - 1 kHz.</li>
+        <li><strong>Motion planning level</strong> — generates the desired trajectory. Runs at 10-100 Hz. Covered in the <a href="/institute/planning.html">Planning</a> page.</li>
+        <li><strong>Task/mission level</strong> — decides what the robot should do next. Runs at 1-10 Hz or event-driven.</li>
+      </ul>
+
+      <h3>Open-Loop vs Closed-Loop</h3>
+      <ul>
+        <li><strong>Open-loop (feedforward)</strong> — compute torques from a model of the robot dynamics, without measuring the actual state. Fast but brittle: any model error or disturbance causes drift.</li>
+        <li><strong>Closed-loop (feedback)</strong> — measure the actual state (via encoders, IMUs, etc.) and compute corrections. Robust to model errors and disturbances. Essential for real robots.</li>
+        <li><strong>Feedforward + feedback</strong> — the standard approach. Feedforward handles the predictable dynamics (gravity, inertia); feedback corrects residual errors.</li>
+      </ul>
+    </section>
+
+    <!-- Feedback Fundamentals -->
+    <section class="section" id="feedback">
+      <h2>Feedback Control Fundamentals</h2>
+
+      <h3>The Feedback Loop</h3>
+      <p>A standard feedback controller has: a reference signal r(t) (desired value), a plant (the robot), a sensor measuring the output y(t), and a controller C that computes the control signal u(t) based on the error e(t) = r(t) - y(t). The closed-loop transfer function is G_cl = C*G / (1 + C*G), where G is the plant transfer function.</p>
+
+      <h3>Stability</h3>
+      <p>A system is stable if, for any bounded input, the output remains bounded (BIBO stability). For linear systems, stability is determined by the poles of the closed-loop transfer function: all poles must have negative real parts (in the left half of the s-plane for continuous time, inside the unit circle for discrete time). Key analysis tools:</p>
+      <ul>
+        <li><strong>Routh-Hurwitz criterion</strong> — algebraic test for stability without computing poles directly.</li>
+        <li><strong>Nyquist criterion</strong> — graphical method using the frequency response. Counts encirclements of the critical point (-1, 0).</li>
+        <li><strong>Bode plots</strong> — plot gain and phase vs frequency. Gain margin and phase margin quantify how close the system is to instability. Typical targets: gain margin > 6 dB, phase margin > 45 degrees.</li>
+        <li><strong>Root locus</strong> — plot of closed-loop poles as controller gain varies. Shows how stability changes with gain.</li>
+      </ul>
+
+      <h3>Performance Specifications</h3>
+      <ul>
+        <li><strong>Rise time</strong> — time to go from 10% to 90% of the final value. Faster = more aggressive control.</li>
+        <li><strong>Overshoot</strong> — how much the response exceeds the setpoint. Typically want < 5% for industrial robots.</li>
+        <li><strong>Settling time</strong> — time to stay within 2% (or 5%) of the final value. Determines cycle time.</li>
+        <li><strong>Steady-state error</strong> — the persistent offset after transients decay. Integral action eliminates it for step inputs.</li>
+      </ul>
+    </section>
+
+    <!-- PID Control -->
+    <section class="section" id="pid">
+      <h2>PID Control</h2>
+      <p>The Proportional-Integral-Derivative (PID) controller is the most widely used control algorithm in the world. Over 95% of industrial control loops use some form of PID. It computes the control signal as a weighted sum of three terms based on the tracking error.</p>
+
+      <div class="formula">
+        u(t) = Kp * e(t) + Ki * integral(e(t) dt) + Kd * de(t)/dt
+      </div>
+
+      <h3>Proportional (P) Term</h3>
+      <p>The P term produces a control signal proportional to the current error: u_P = Kp * e(t). Higher Kp means faster response but can cause oscillation and instability. P-only control always has steady-state error for a constant disturbance (it needs a non-zero error to produce a non-zero output). In a robot joint, this is like a spring pulling toward the desired angle — stiffer spring (higher Kp) = faster but more oscillatory.</p>
+
+      <h3>Integral (I) Term</h3>
+      <p>The I term accumulates past errors: u_I = Ki * integral(e(t) dt). It eliminates steady-state error by building up a correction signal even for small persistent errors. Essential for compensating gravity in robot arms: without I, a joint under gravity load will sag to a position where the P term balances gravity, leaving a static error. The downside: too much Ki causes overshoot and slow oscillation ("integral windup").</p>
+
+      <h3>Derivative (D) Term</h3>
+      <p>The D term responds to the rate of change of error: u_D = Kd * de(t)/dt. It provides damping, anticipating the error trend and braking before the setpoint is reached. In robot control, this is viscous damping — it opposes rapid joint motion. Essential for stability with high Kp. The practical challenge: differentiating a noisy signal amplifies noise. Real implementations use a filtered derivative (low-pass filter on the D term) or differentiate the measurement rather than the error.</p>
+
+      <h3>Effect of Each Gain</h3>
+      <table>
+        <tr><th>Gain</th><th>Rise Time</th><th>Overshoot</th><th>Settling Time</th><th>Steady-State Error</th></tr>
+        <tr><td>Increase Kp</td><td>Decreases</td><td>Increases</td><td>Small change</td><td>Decreases</td></tr>
+        <tr><td>Increase Ki</td><td>Decreases</td><td>Increases</td><td>Increases</td><td>Eliminates</td></tr>
+        <tr><td>Increase Kd</td><td>Small change</td><td>Decreases</td><td>Decreases</td><td>No effect</td></tr>
+      </table>
+
+      <h3>PD Control for Robot Joints</h3>
+      <p>For a robot joint with gravity compensation, PD control is often sufficient. The equation of motion for a single joint is: I*q'' + b*q' + mgl*sin(q) = tau. A PD controller with gravity feedforward gives:</p>
+      <div class="formula">
+        tau = Kp*(q_d - q) + Kd*(q_d' - q') + mgl*sin(q_d)
+      </div>
+      <p>The gravity term handles the static load; the PD terms handle trajectory tracking. This is Lyapunov-stable: the error converges to zero if the desired trajectory is constant (regulation), though tracking errors persist for time-varying trajectories.</p>
+
+      <h3>Practical PID Implementation</h3>
+      <pre><code>// Discrete PID controller (runs every dt seconds)
+error = setpoint - measurement;
+integral += error * dt;
+integral = clamp(integral, -max_integral, max_integral);  // anti-windup
+derivative = (error - prev_error) / dt;
+derivative = alpha * derivative + (1-alpha) * prev_derivative;  // filter
+output = Kp * error + Ki * integral + Kd * derivative;
+output = clamp(output, -max_output, max_output);  // actuator saturation
+prev_error = error;
+prev_derivative = derivative;</code></pre>
+    </section>
+
+    <!-- Tuning Methods -->
+    <section class="section" id="tuning">
+      <h2>Tuning Methods</h2>
+      <p>Choosing Kp, Ki, and Kd values is an art informed by theory. Several systematic methods exist.</p>
+
+      <h3>Ziegler-Nichols Method (1942)</h3>
+      <p>The classic tuning method, developed by John G. Ziegler and Nathaniel B. Nichols at Taylor Instruments. Two variants:</p>
+
+      <p><strong>Oscillation method (closed-loop):</strong></p>
+      <ul>
+        <li>Set Ki = 0, Kd = 0. Increase Kp until the system oscillates with constant amplitude (marginal stability).</li>
+        <li>Record the ultimate gain Ku and the oscillation period Tu.</li>
+        <li>Apply the Ziegler-Nichols formulas:</li>
+      </ul>
+      <table>
+        <tr><th>Controller</th><th>Kp</th><th>Ki</th><th>Kd</th></tr>
+        <tr><td>P only</td><td>0.5 * Ku</td><td>0</td><td>0</td></tr>
+        <tr><td>PI</td><td>0.45 * Ku</td><td>0.54 * Ku / Tu</td><td>0</td></tr>
+        <tr><td>PID</td><td>0.6 * Ku</td><td>1.2 * Ku / Tu</td><td>0.075 * Ku * Tu</td></tr>
+      </table>
+      <p>This method produces an aggressive controller (quarter-decay ratio: ~25% overshoot). It is a starting point, not a final tuning. Real robots need refinement based on actual performance.</p>
+
+      <p><strong>Step response method (open-loop):</strong></p>
+      <ul>
+        <li>Apply a step input to the open-loop system and record the response.</li>
+        <li>Measure the delay time L (time before the response starts rising) and the time constant T (time to reach 63.2% of the final value).</li>
+        <li>Kp = 1.2*T/(K*L), Ti = 2*L, Td = 0.5*L, where K is the process gain.</li>
+      </ul>
+
+      <h3>Cohen-Coon Method</h3>
+      <p>A refinement of Ziegler-Nichols for processes with large dead time (L/T > 0.25). Uses the same step response measurements but different formulas that give less aggressive tuning.</p>
+
+      <h3>Tyreus-Luyben Method</h3>
+      <p>Uses the ultimate gain Ku and period Tu like Ziegler-Nichols but with more conservative formulas: Kp = Ku/3.2, Ti = 2.2*Tu, Td = Tu/6.3. Produces less overshoot, commonly used in process control.</p>
+
+      <h3>Frequency Domain Methods</h3>
+      <p>Design the controller by shaping the open-loop frequency response (Bode plot). Place the crossover frequency at the desired bandwidth, ensure adequate gain and phase margins. Loop shaping is the method of choice for sophisticated single-loop controllers and is taught in every graduate control course.</p>
+
+      <h3>Auto-Tuning</h3>
+      <p>Modern industrial controllers (Siemens, ABB, Beckhoff) include auto-tuning: the controller automatically performs a relay test (oscillation method variant), identifies the process dynamics, and computes PID gains. Relay auto-tuning (introduced by Karl Astrom and Tore Hagglund in 1984) uses a relay (bang-bang) controller to induce oscillation at the ultimate frequency, which is safer than increasing gain to marginal stability.</p>
+    </section>
+
+    <!-- State-Space Control -->
+    <section class="section" id="statespace">
+      <h2>State-Space Control</h2>
+      <p>State-space representation describes a system using first-order differential equations. It is more general than transfer functions (handles MIMO systems, nonlinear systems, and time-varying systems) and is the foundation for modern control.</p>
+
+      <div class="formula">
+        x_dot = A*x + B*u  (state equation)<br>
+        y = C*x + D*u      (output equation)
+      </div>
+
+      <p>where x is the state vector (dimension n), u is the input vector, y is the output vector, A is the system matrix (nxn), B is the input matrix, C is the output matrix, D is the feedthrough matrix (often zero).</p>
+
+      <h3>For a Robot Joint</h3>
+      <p>A single revolute joint with motor inertia I, viscous friction b, and no gravity:</p>
+      <div class="formula">
+        x = [q, q_dot]^T<br>
+        A = [0, 1; 0, -b/I], B = [0; 1/I], C = [1, 0], D = 0
+      </div>
+
+      <h3>Full-State Feedback</h3>
+      <p>If all states are measurable, we can use u = -K*x + r, where K is a gain matrix. The closed-loop system becomes x_dot = (A - B*K)*x + B*r. The eigenvalues of (A - B*K) determine stability and performance. Pole placement: choose desired eigenvalues (closed-loop poles) and compute K using Ackermann's formula or the place() function in MATLAB/Python.</p>
+
+      <h3>Observability and State Estimation</h3>
+      <p>If not all states are directly measurable (e.g., velocity from position-only sensors), a state observer (Luenberger observer) estimates the full state from partial measurements:</p>
+      <div class="formula">
+        x_hat_dot = A*x_hat + B*u + L*(y - C*x_hat)
+      </div>
+      <p>The observer gain L is designed so that the estimation error converges quickly (observer poles faster than controller poles by a factor of 2-5x). The separation principle guarantees that observer and controller can be designed independently for linear systems.</p>
+
+      <h3>Controllability and Observability</h3>
+      <ul>
+        <li>A system is <strong>controllable</strong> if rank([B, AB, A^2*B, ..., A^{n-1}*B]) = n. Meaning: the input can drive the state to any desired value.</li>
+        <li>A system is <strong>observable</strong> if rank([C; CA; CA^2; ...; CA^{n-1}]) = n. Meaning: the full state can be determined from the output.</li>
+        <li>A robot joint with position encoder is observable (position measured, velocity estimated). A flexible joint (with spring between motor and link) needs both motor and link position to be fully observable.</li>
+      </ul>
+    </section>
+
+    <!-- LQR -->
+    <section class="section" id="lqr">
+      <h2>LQR — Linear Quadratic Regulator</h2>
+      <p>LQR is the most elegant result in optimal control: it finds the state-feedback gain K that minimizes a quadratic cost function, balancing tracking performance against control effort.</p>
+
+      <div class="formula">
+        Minimize J = integral(x^T*Q*x + u^T*R*u) dt from 0 to infinity<br>
+        Subject to: x_dot = A*x + B*u
+      </div>
+
+      <p>Q (positive semi-definite) penalizes state deviations; R (positive definite) penalizes control effort. Large Q/R ratio = aggressive tracking. Small Q/R ratio = energy-efficient but slower.</p>
+
+      <h3>Solution</h3>
+      <p>The optimal gain is K = R^{-1} * B^T * P, where P is the unique positive-definite solution of the algebraic Riccati equation:</p>
+      <div class="formula">
+        A^T*P + P*A - P*B*R^{-1}*B^T*P + Q = 0
+      </div>
+      <p>This is solved numerically by MATLAB's <code>lqr(A,B,Q,R)</code> or Python's <code>scipy.linalg.solve_continuous_are()</code>. The resulting closed-loop system is guaranteed stable (assuming controllability).</p>
+
+      <h3>LQR for Robotics</h3>
+      <ul>
+        <li><strong>Balancing robots</strong> — LQR is the standard controller for inverted pendulum/segway-type robots. The state is [angle, angle_rate, position, velocity]; Q and R are tuned to balance stabilization (keep upright) vs position tracking.</li>
+        <li><strong>Quadrotor stabilization</strong> — inner-loop attitude control often uses LQR. The linearized dynamics around hover give a clean state-space model.</li>
+        <li><strong>Legged locomotion</strong> — linearize around a nominal trajectory, apply time-varying LQR (LTV-LQR) to stabilize walking gaits. Used in MIT Mini Cheetah and Agility Digit.</li>
+      </ul>
+
+      <h3>LQR Limitations</h3>
+      <ul>
+        <li>Assumes linear dynamics — must linearize nonlinear robot dynamics around an operating point.</li>
+        <li>Does not handle constraints (joint limits, torque limits) — the optimal control may request impossible torques.</li>
+        <li>Full-state feedback required — need an observer if not all states are measured.</li>
+        <li>Infinite-horizon formulation — no finite-time guarantees (use finite-horizon LQR or MPC for time-limited tasks).</li>
+      </ul>
+    </section>
+
+    <!-- Computed Torque -->
+    <section class="section" id="computed-torque">
+      <h2>Computed Torque Control</h2>
+      <p>Also called inverse dynamics control or feedback linearization. This model-based approach uses knowledge of the robot dynamics to cancel nonlinear terms, then applies linear control on the linearized system.</p>
+
+      <h3>Robot Dynamics</h3>
+      <p>The equations of motion for an n-DOF robot manipulator (Euler-Lagrange formulation):</p>
+      <div class="formula">
+        M(q)*q'' + C(q, q')*q' + g(q) = tau
+      </div>
+      <p>where M(q) is the inertia matrix (nxn, symmetric, positive definite), C(q,q') contains Coriolis and centrifugal terms, g(q) is the gravity vector, and tau is the vector of joint torques.</p>
+
+      <h3>Control Law</h3>
+      <div class="formula">
+        tau = M(q) * (q_d'' + Kd*(q_d' - q') + Kp*(q_d - q)) + C(q,q')*q' + g(q)
+      </div>
+      <p>Substituting into the dynamics equation, the nonlinear terms cancel exactly (assuming perfect model), leaving:</p>
+      <div class="formula">
+        e'' + Kd*e' + Kp*e = 0
+      </div>
+      <p>This is a linear, decoupled second-order system for each joint. Choose Kp and Kd to place poles as desired (e.g., critically damped: Kd = 2*sqrt(Kp)).</p>
+
+      <h3>Requirements and Limitations</h3>
+      <ul>
+        <li>Requires an <strong>accurate dynamic model</strong> — inertia parameters, center of mass locations, and friction models must be identified. Errors in M, C, g cause imperfect cancellation and residual tracking errors.</li>
+        <li>Computationally expensive — computing M(q), C(q,q'), g(q) at 1 kHz requires efficient recursive algorithms (Newton-Euler).</li>
+        <li>Sensitive to <strong>payload changes</strong> — picking up an object changes M and g. Adaptive variants estimate payload online.</li>
+        <li>Does not handle <strong>actuator limits</strong> — the computed torque may exceed motor capabilities.</li>
+      </ul>
+
+      <h3>Robust Computed Torque</h3>
+      <p>Adding a robust term to handle model uncertainty: tau = M_hat * (q_d'' + Kd*e' + Kp*e) + C_hat*q' + g_hat + u_robust, where u_robust is a sliding-mode or H-infinity term that bounds the effect of model errors. Spong (1992) and Slotine & Li (1991) provide thorough treatments.</p>
+    </section>
+
+    <!-- MPC -->
+    <section class="section" id="mpc">
+      <h2>Model Predictive Control (MPC)</h2>
+      <p>MPC (also called receding-horizon control) is the most powerful framework for robot control when constraints matter. At each time step, it solves a finite-horizon optimal control problem online, applies the first control action, then re-solves at the next step.</p>
+
+      <h3>Formulation</h3>
+      <div class="formula">
+        Minimize: sum_{k=0}^{N-1} [x_k^T*Q*x_k + u_k^T*R*u_k] + x_N^T*Q_f*x_N<br>
+        Subject to: x_{k+1} = f(x_k, u_k)  (dynamics)<br>
+                    u_min <= u_k <= u_max    (actuator limits)<br>
+                    x_min <= x_k <= x_max    (state constraints)<br>
+                    h(x_k) <= 0              (obstacle avoidance, etc.)
+      </div>
+
+      <h3>Why MPC for Robotics?</h3>
+      <ul>
+        <li><strong>Constraint handling</strong> — joint limits, torque limits, velocity limits, and collision avoidance are naturally incorporated as inequality constraints.</li>
+        <li><strong>Preview capability</strong> — the controller "looks ahead" N steps and plans accordingly. Can anticipate upcoming reference changes or obstacles.</li>
+        <li><strong>Nonlinear dynamics</strong> — nonlinear MPC (NMPC) uses the full nonlinear model directly, no linearization needed.</li>
+        <li><strong>Multi-objective</strong> — the cost function can balance tracking, energy, smoothness, and other objectives.</li>
+      </ul>
+
+      <h3>Computational Cost</h3>
+      <p>Linear MPC (with quadratic cost and linear constraints) reduces to a Quadratic Program (QP), solvable in milliseconds with solvers like OSQP, qpOASES, or ECOS. Nonlinear MPC requires solving a Nonlinear Program (NLP) at each step — much harder but feasible for moderate-dimensional systems using CasADi, ACADOS, or Crocoddyl.</p>
+
+      <h3>MPC in Practice</h3>
+      <ul>
+        <li><strong>MIT Mini Cheetah</strong> — uses convex MPC for locomotion at 30 Hz. The robot model is simplified to a single rigid body with contact forces as decision variables. Solves a QP per step. Published by Kim et al. (2019).</li>
+        <li><strong>Agility Digit</strong> — uses nonlinear MPC for whole-body locomotion planning. CasADi-based solver running on the robot's onboard computer.</li>
+        <li><strong>ANYmal (ETH Zurich / ANYbotics)</strong> — NMPC with automatic differentiation for quadrupedal locomotion over rough terrain.</li>
+        <li><strong>Autonomous driving</strong> — MPC controls steering and throttle to follow a planned path while respecting lane boundaries, speed limits, and vehicle dynamics constraints.</li>
+      </ul>
+
+      <h3>Key MPC Software</h3>
+      <table>
+        <tr><th>Library</th><th>Language</th><th>Specialty</th></tr>
+        <tr><td><a href="https://github.com/acados/acados">ACADOS</a></td><td>C / Python</td><td>Fast NMPC, code generation for embedded</td></tr>
+        <tr><td><a href="https://github.com/casadi/casadi">CasADi</a></td><td>C++ / Python / MATLAB</td><td>Symbolic framework for NLP formulation</td></tr>
+        <tr><td><a href="https://github.com/loco-3d/crocoddyl">Crocoddyl</a></td><td>C++ / Python</td><td>Contact-aware optimal control for legged robots</td></tr>
+        <tr><td><a href="https://github.com/osqp/osqp">OSQP</a></td><td>C / Python</td><td>Fast QP solver for linear MPC</td></tr>
+      </table>
+    </section>
+
+    <!-- Impedance Control -->
+    <section class="section" id="impedance">
+      <h2>Impedance & Admittance Control</h2>
+      <p>Traditional position control commands the robot to a position and resists any deviation. But for contact tasks (assembly, polishing, human-robot interaction), the robot must comply with external forces rather than fight them. Impedance and admittance control define the dynamic relationship between force and displacement.</p>
+
+      <h3>Impedance Control</h3>
+      <p>The robot behaves as a mass-spring-damper system: when pushed, it deflects proportionally. The desired impedance relationship is:</p>
+      <div class="formula">
+        F_ext = M_d * (x'' - x_d'') + B_d * (x' - x_d') + K_d * (x - x_d)
+      </div>
+      <p>where M_d, B_d, K_d are the desired inertia, damping, and stiffness (chosen by the designer), and x_d is the reference trajectory. The controller computes joint torques to realize this dynamic relationship.</p>
+      <ul>
+        <li>High K_d = stiff behavior (good for free motion, position tracking)</li>
+        <li>Low K_d = compliant behavior (good for contact, safe interaction)</li>
+        <li>B_d provides damping to prevent oscillation at contact transitions</li>
+        <li>M_d shapes the apparent inertia — lower M_d makes the robot feel lighter</li>
+      </ul>
+
+      <h3>Admittance Control</h3>
+      <p>The inverse approach: measure external forces (via force/torque sensor) and compute position corrections. The admittance relationship is x - x_d = (1/Z) * F_ext, where Z is the impedance. Used when the inner loop is a stiff position controller (typical for industrial robots) and adding compliance on top.</p>
+
+      <h3>When to Use Which</h3>
+      <table>
+        <tr><th>Aspect</th><th>Impedance Control</th><th>Admittance Control</th></tr>
+        <tr><td>Inner loop</td><td>Torque control</td><td>Position control</td></tr>
+        <tr><td>Sensor needed</td><td>Position/velocity</td><td>Force/torque sensor</td></tr>
+        <tr><td>Best for</td><td>Torque-controlled robots (KUKA iiwa, Franka Emika)</td><td>Position-controlled robots (UR, FANUC)</td></tr>
+        <tr><td>Free motion</td><td>Good tracking</td><td>Excellent tracking</td></tr>
+        <tr><td>Contact</td><td>Naturally compliant</td><td>Requires good force sensing</td></tr>
+      </table>
+
+      <h3>Applications</h3>
+      <ul>
+        <li><strong>Peg-in-hole assembly</strong> — compliance allows the peg to align with the hole despite position uncertainty. Classic problem from Whitney (1982).</li>
+        <li><strong>Surface finishing</strong> — maintain constant contact force while following a surface contour. Impedance control adjusts position to regulate force.</li>
+        <li><strong>Human-robot collaboration</strong> — the robot yields when a human pushes it (low impedance in the direction of human intent). ISO 15066 specifies force/pressure limits for collaborative robots.</li>
+        <li><strong>Prosthetics</strong> — impedance control of powered prosthetic joints creates natural-feeling limb behavior. Adjust stiffness and damping based on gait phase.</li>
+      </ul>
+    </section>
+
+    <!-- Adaptive Control -->
+    <section class="section" id="adaptive">
+      <h2>Adaptive Control</h2>
+      <p>Adaptive control adjusts controller parameters in real-time to compensate for unknown or changing system dynamics. Essential when the robot picks up unknown payloads, wears out over time, or operates in varying conditions.</p>
+
+      <h3>Model Reference Adaptive Control (MRAC)</h3>
+      <p>Define a reference model that specifies the desired closed-loop behavior. The adaptive law adjusts controller gains so that the actual system tracks the reference model. Lyapunov-based design ensures stability. Used in aerospace (first practical application: X-15 flight control, 1960s).</p>
+
+      <h3>Adaptive Computed Torque</h3>
+      <p>The robot dynamics are linear in the dynamic parameters (masses, inertias, center of mass locations, friction coefficients): M(q)*q'' + C(q,q')*q' + g(q) = Y(q,q',q'')*theta, where Y is the regressor matrix and theta is the parameter vector. An adaptive law updates theta_hat based on tracking error:</p>
+      <div class="formula">
+        theta_hat_dot = -Gamma * Y^T * s
+      </div>
+      <p>where Gamma is a positive-definite adaptation gain matrix and s is a filtered tracking error. This guarantees convergence of the tracking error to zero even with unknown parameters. The result from Slotine and Li (1987) is one of the most important in adaptive robotics.</p>
+
+      <h3>Challenges</h3>
+      <ul>
+        <li><strong>Parameter drift</strong> — without persistent excitation, parameters may drift to incorrect values while tracking error stays zero.</li>
+        <li><strong>Unmodeled dynamics</strong> — high-frequency dynamics (flexibility, backlash) can destabilize adaptive controllers.</li>
+        <li><strong>Robustness modifications</strong> — sigma-modification, e-modification, and dead zones prevent parameter drift and improve robustness.</li>
+      </ul>
+    </section>
+
+    <!-- Practical Tips -->
+    <section class="section" id="practical">
+      <h2>Practical Tuning Tips</h2>
+
+      <h3>General Guidelines</h3>
+      <ul>
+        <li><strong>Start with Kd alone</strong> — apply velocity damping first. The robot should resist motion without oscillating. This stabilizes the system before adding position tracking.</li>
+        <li><strong>Add Kp gradually</strong> — increase proportional gain until the system responds quickly but does not overshoot excessively. A good starting ratio: Kd/Kp = 0.1 * (settling time you want).</li>
+        <li><strong>Add Ki only if needed</strong> — integral action is required for zero steady-state error under constant loads (gravity). Start with Ki very small; it integrates fast.</li>
+        <li><strong>Anti-windup is mandatory</strong> — always clamp the integral term. When the actuator saturates, the integral keeps growing without effect, causing massive overshoot when the error changes sign.</li>
+        <li><strong>Filter the derivative</strong> — never differentiate a raw encoder signal. Use a first-order low-pass filter with cutoff at 5-10x the control bandwidth.</li>
+        <li><strong>Sample rate matters</strong> — PID should run at 10-20x the desired closed-loop bandwidth. For a 50 Hz bandwidth, run the controller at 500-1000 Hz.</li>
+      </ul>
+
+      <h3>Common Pitfalls</h3>
+      <ul>
+        <li><strong>Tuning on the bench vs under load</strong> — a robot arm tuned with no payload will oscillate when it picks up a heavy object. Always tune under representative load conditions.</li>
+        <li><strong>Ignoring friction</strong> — static friction (stiction) causes limit cycles around the setpoint. Dither, integral action, or friction compensation can help.</li>
+        <li><strong>Ignoring backlash</strong> — gear backlash creates a dead zone in the control loop. The system oscillates between the backlash limits. Use harmonic drives or direct-drive actuators for precision applications.</li>
+        <li><strong>Not checking actuator saturation</strong> — if the controller requests more torque than the motor can deliver, the closed-loop behavior changes completely. Always monitor commanded vs actual torque.</li>
+      </ul>
+
+      <h3>Frequency Response Testing</h3>
+      <p>Inject a chirp signal (sine sweep from 0.1 Hz to 100 Hz) and measure the response. Plot gain and phase vs frequency. This gives the actual closed-loop bandwidth, identifies resonances (flexible modes), and validates that gain and phase margins are adequate. Every serious robot commissioning includes this step.</p>
+    </section>
+
+    <!-- References -->
+    <section class="section" id="references">
+      <h2>References & Further Reading</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="https://www.springer.com/gp/book/9783540382195">Siciliano et al: Robotics — Modelling, Planning and Control (2009)</a></h4>
+          <p>Chapters 8-12 cover joint-space control, task-space control, force control, and impedance control. The most complete treatment in one textbook.</p>
+          <div class="meta">Springer | Graduate level</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://mitpress.mit.edu/9780262691277/applied-nonlinear-control/">Slotine & Li: Applied Nonlinear Control (1991)</a></h4>
+          <p>The definitive reference for sliding mode control and adaptive control of robot manipulators. Chapter 9 covers adaptive robot control specifically.</p>
+          <div class="meta">Prentice Hall | Classic reference</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://doi.org/10.1109/MCS.2017.2743039">Di Carlo et al: Dynamic Locomotion in the MIT Cheetah 3 (2018)</a></h4>
+          <p>Details the model predictive control approach for quadrupedal locomotion. Convex MPC with simplified dynamics model running at 30 Hz.</p>
+          <div class="meta">IEEE Control Systems Magazine</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://doi.org/10.1115/1.3139652">Ziegler & Nichols: Optimum Settings for Automatic Controllers (1942)</a></h4>
+          <p>The original paper introducing the Ziegler-Nichols tuning rules. Published in Transactions of the ASME. One of the most cited papers in control engineering.</p>
+          <div class="meta">ASME | Foundational paper</div>
+        </div>
+        <div class="card">
+          <h4><a href="http://www.modernrobotics.org/">Lynch & Park: Modern Robotics (2017)</a></h4>
+          <p>Chapter 11 covers robot control: PID, computed torque, motion/force control. Free PDF and companion Coursera course. Good blend of theory and practice.</p>
+          <div class="meta">Cambridge University Press | Free PDF</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://see.stanford.edu/Course/CS223A">Stanford CS223A: Introduction to Robotics</a></h4>
+          <p>Oussama Khatib's lectures on robot control, including operational space control (task-space dynamics control). The operational space formulation unifies motion and force control.</p>
+          <div class="meta">Stanford Engineering Everywhere | Free</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="container">
+      <a href="/">FreeRobotStore</a> · <a href="/institute/">Institute</a> · <a href="/institute/control.html">Control</a> · Built with <a href="https://zensical.org">Zensical</a>
+    </div>
+  </footer>
+</body>
+</html>

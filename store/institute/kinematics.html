@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Kinematics — Robotics Institute</title>
+  <meta name="description" content="Comprehensive guide to robot kinematics: forward kinematics, inverse kinematics, DH parameters, Jacobians, workspace analysis, and singularities.">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--accent:#f97316;--paper:#0a0a0a;--ink:#fafafa;--muted:#737373;--panel:#141414;--line:#262626}
+    body{font-family:'Manrope',system-ui,sans-serif;background:var(--paper);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+    .container{max-width:900px;margin:0 auto;padding:0 1.5rem}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    header{border-bottom:1px solid var(--line);padding:.75rem 0}
+    header .container{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--ink)}
+    .brand-emoji{font-size:1.5rem}
+    .brand-text{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+    .brand-tag{font-size:.68rem;color:var(--muted)}
+    nav{display:flex;gap:1rem;font-size:.82rem;font-weight:600;margin-left:auto;flex-wrap:wrap}
+    nav a{color:var(--muted)}nav a:hover{color:var(--ink)}nav a.active{color:var(--accent)}
+    .hero{text-align:center;padding:2.5rem 0 1.5rem;border-bottom:1px solid var(--line)}
+    .hero h1{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;margin-bottom:.5rem}
+    .hero h1 em{color:var(--accent);font-style:normal}
+    .hero p{color:var(--muted);max-width:600px;margin:0 auto;font-size:.95rem}
+    .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.25rem;margin:1.5rem 0}
+    .toc h3{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--accent)}
+    .toc ul{list-style:none;padding:0;columns:2}
+    .toc li{margin:.2rem 0}.toc a{color:#a3a3a3;font-size:.82rem}.toc a:hover{color:var(--ink)}
+    .section{margin-bottom:2rem;padding-top:1rem}
+    .section h2{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.35rem;border-bottom:1px solid var(--line)}
+    .section h3{font-size:.95rem;font-weight:700;margin:1rem 0 .35rem;color:#e5e5e5}
+    .section p,.section li{color:#a3a3a3;font-size:.88rem}
+    ul{padding-left:1.25rem;margin:.35rem 0}
+    li{margin-bottom:.3rem}
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.6rem;margin:.5rem 0}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.85rem;transition:border-color .15s}
+    .card:hover{border-color:var(--accent)}
+    .card h4{font-size:.85rem;font-weight:700;margin-bottom:.2rem}
+    .card h4 a{color:var(--ink)}.card p{font-size:.75rem;color:var(--muted);margin:0;line-height:1.5}
+    .card .meta{font-size:.65rem;color:#525252;margin-top:.25rem}
+    code{font-family:'Courier New',monospace;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:.1rem .35rem;font-size:.82rem;color:var(--accent)}
+    pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:.75rem 0;overflow-x:auto;font-size:.8rem;line-height:1.6;color:#a3a3a3}
+    pre code{background:none;border:none;padding:0;color:inherit}
+    .formula{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem;margin:.5rem 0;font-family:'Courier New',monospace;font-size:.82rem;color:#e5e5e5;text-align:center;line-height:1.8}
+    table{width:100%;border-collapse:collapse;margin:.75rem 0;font-size:.82rem}
+    th,td{border:1px solid var(--line);padding:.5rem .75rem;text-align:left}
+    th{background:var(--panel);color:var(--ink);font-weight:700}
+    td{color:#a3a3a3}
+    footer{border-top:1px solid var(--line);padding:1.5rem 0;text-align:center;font-size:.75rem;color:#525252}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/institute/" class="brand">
+        <span class="brand-emoji">🦾</span>
+        <span><span class="brand-text">Robotics Institute</span><br><span class="brand-tag">Powered by <a href="https://zensical.org" style="color:#525252">Zensical</a></span></span>
+      </a>
+      <nav>
+        <a href="/institute/">Overview</a>
+        <a href="/institute/kinematics.html" class="active">Kinematics</a>
+        <a href="/institute/control.html">Control</a>
+        <a href="/institute/perception.html">Perception</a>
+        <a href="/institute/planning.html">Planning</a>
+        <a href="/institute/learning.html">Learning</a>
+        <a href="/">Simulations</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <section class="hero">
+      <h1>Robot <em>Kinematics</em></h1>
+      <p>The mathematics of robot motion: how joint configurations map to end-effector poses, how to solve for desired positions, and where robots lose dexterity.</p>
+    </section>
+
+    <nav class="toc">
+      <h3>Contents</h3>
+      <ul>
+        <li><a href="#intro">What is Kinematics?</a></li>
+        <li><a href="#representations">Spatial Representations</a></li>
+        <li><a href="#forward">Forward Kinematics</a></li>
+        <li><a href="#dh">DH Parameters</a></li>
+        <li><a href="#poe">Product of Exponentials</a></li>
+        <li><a href="#inverse">Inverse Kinematics</a></li>
+        <li><a href="#jacobian">The Jacobian</a></li>
+        <li><a href="#workspace">Workspace Analysis</a></li>
+        <li><a href="#singularities">Singularities</a></li>
+        <li><a href="#examples">Worked Examples</a></li>
+        <li><a href="#applications">Applications</a></li>
+        <li><a href="#references">References & Further Reading</a></li>
+      </ul>
+    </nav>
+
+    <!-- Section: What is Kinematics? -->
+    <section class="section" id="intro">
+      <h2>What is Kinematics?</h2>
+      <p>Kinematics is the branch of mechanics that studies the motion of bodies without considering the forces that cause the motion. In robotics, kinematics focuses on the geometric relationship between the links and joints of a robot and the resulting position, velocity, and acceleration of the end-effector (the tool or gripper at the tip of the arm).</p>
+
+      <h3>Why It Matters</h3>
+      <p>Every robot controller needs kinematics. When you command a robot arm to move its gripper to a specific location in space, the controller must solve an inverse kinematics problem: determine what joint angles produce the desired end-effector pose. When the robot reports its current joint angles, forward kinematics computes where the end-effector actually is. Without kinematics, you cannot plan paths, avoid obstacles, or coordinate multiple robots.</p>
+
+      <h3>Two Central Problems</h3>
+      <ul>
+        <li><strong>Forward Kinematics (FK)</strong> — Given joint variables (angles for revolute joints, displacements for prismatic joints), compute the position and orientation of the end-effector. This is always solvable and has a unique solution.</li>
+        <li><strong>Inverse Kinematics (IK)</strong> — Given a desired end-effector pose, find the joint variables that achieve it. This may have zero, one, or multiple solutions, and is generally much harder than FK.</li>
+      </ul>
+
+      <h3>Types of Joints</h3>
+      <ul>
+        <li><strong>Revolute (R)</strong> — rotational joint, 1 DOF. Most common in robot arms. Variable: angle theta.</li>
+        <li><strong>Prismatic (P)</strong> — linear sliding joint, 1 DOF. Variable: displacement d.</li>
+        <li><strong>Spherical (S)</strong> — ball-and-socket, 3 DOF. Equivalent to three revolute joints with intersecting axes.</li>
+        <li><strong>Cylindrical (C)</strong> — rotation + translation along the same axis, 2 DOF.</li>
+        <li><strong>Universal (U)</strong> — two perpendicular revolute joints, 2 DOF. Common in drive shafts.</li>
+      </ul>
+
+      <p>An n-DOF serial robot chain has n joints and n+1 links. The total degrees of freedom determine the dimension of the configuration space (C-space), which is the space of all possible joint configurations.</p>
+    </section>
+
+    <!-- Section: Spatial Representations -->
+    <section class="section" id="representations">
+      <h2>Spatial Representations</h2>
+      <p>Before diving into kinematics equations, we need tools to represent position and orientation in 3D space.</p>
+
+      <h3>Rotation Matrices</h3>
+      <p>A 3x3 rotation matrix R belongs to the Special Orthogonal group SO(3). It satisfies R^T R = I and det(R) = 1. Rotation matrices are used to describe the orientation of one coordinate frame relative to another.</p>
+      <div class="formula">
+        R_z(theta) = [ cos(theta) -sin(theta) 0 ; sin(theta) cos(theta) 0 ; 0 0 1 ]
+      </div>
+      <p>Elementary rotations about the x, y, z axes can be composed to represent any orientation. The order of multiplication matters because rotations are not commutative.</p>
+
+      <h3>Euler Angles</h3>
+      <p>Three angles that parameterize a rotation. Common conventions include ZYZ (used in many industrial robots), ZYX (roll-pitch-yaw, used in aerospace), and XYZ. Euler angles are intuitive but suffer from gimbal lock: when two rotation axes align, one degree of freedom is lost.</p>
+
+      <h3>Quaternions</h3>
+      <p>Unit quaternions q = (w, x, y, z) with |q| = 1 provide a singularity-free representation of rotations. They are compact (4 numbers vs 9 for a matrix), and interpolation between orientations (SLERP) is smooth and efficient. Widely used in game engines and modern robotics software.</p>
+
+      <h3>Homogeneous Transformation Matrices</h3>
+      <p>A 4x4 matrix T in SE(3) combines rotation and translation into a single compact representation:</p>
+      <div class="formula">
+        T = [ R  p ; 0 0 0  1 ]<br>
+        where R is 3x3 rotation, p is 3x1 translation
+      </div>
+      <p>Composing transformations is simple matrix multiplication: T_02 = T_01 * T_12 gives the pose of frame 2 relative to frame 0. This is the foundation of forward kinematics.</p>
+
+      <h3>Axis-Angle Representation</h3>
+      <p>Any rotation can be described by an axis (unit vector omega) and an angle theta. Related to rotation matrices via Rodrigues' formula: R = I + sin(theta) [omega]_x + (1 - cos(theta)) [omega]_x^2, where [omega]_x is the 3x3 skew-symmetric matrix of omega. The axis-angle form connects naturally to the product of exponentials formulation.</p>
+    </section>
+
+    <!-- Section: Forward Kinematics -->
+    <section class="section" id="forward">
+      <h2>Forward Kinematics</h2>
+      <p>Forward kinematics maps joint variables to the end-effector pose. For a serial chain of n joints, the end-effector pose is computed by multiplying the transformation matrices of each link:</p>
+      <div class="formula">
+        T_0n = T_01(q1) * T_12(q2) * ... * T_{n-1,n}(qn)
+      </div>
+      <p>Each T_{i-1,i} depends on the joint variable q_i (an angle for revolute joints, a displacement for prismatic joints) and the fixed geometric parameters of the link.</p>
+
+      <h3>Procedure</h3>
+      <ul>
+        <li><strong>Step 1:</strong> Assign coordinate frames to each joint using a systematic convention (DH or PoE).</li>
+        <li><strong>Step 2:</strong> Determine the transformation matrix for each link as a function of the joint variable.</li>
+        <li><strong>Step 3:</strong> Multiply the chain of transformations to get T_0n.</li>
+        <li><strong>Step 4:</strong> Extract position (the last column of T_0n) and orientation (the upper-left 3x3 submatrix).</li>
+      </ul>
+
+      <h3>Important Properties</h3>
+      <ul>
+        <li>Forward kinematics always has a <strong>unique solution</strong> — given a set of joint values, there is exactly one end-effector pose.</li>
+        <li>The computation is O(n) in the number of joints — just n matrix multiplications.</li>
+        <li>The result is exact (no iteration needed), unlike inverse kinematics.</li>
+        <li>FK is used in simulation, visualization, collision checking, and as a subroutine in IK solvers.</li>
+      </ul>
+    </section>
+
+    <!-- Section: DH Parameters -->
+    <section class="section" id="dh">
+      <h2>Denavit-Hartenberg Parameters</h2>
+      <p>The Denavit-Hartenberg (DH) convention, introduced by Jacques Denavit and Richard Hartenberg in 1955, provides a systematic method for assigning coordinate frames to robot links. It reduces the description of each link to exactly four parameters.</p>
+
+      <h3>The Four DH Parameters</h3>
+      <table>
+        <tr><th>Parameter</th><th>Symbol</th><th>Description</th></tr>
+        <tr><td>Link length</td><td>a_i</td><td>Distance along x_i from z_{i-1} to z_i (always positive or zero)</td></tr>
+        <tr><td>Link twist</td><td>alpha_i</td><td>Angle about x_i from z_{i-1} to z_i</td></tr>
+        <tr><td>Link offset</td><td>d_i</td><td>Distance along z_{i-1} from x_{i-1} to x_i</td></tr>
+        <tr><td>Joint angle</td><td>theta_i</td><td>Angle about z_{i-1} from x_{i-1} to x_i</td></tr>
+      </table>
+
+      <p>For a revolute joint, theta_i is the joint variable (varies during motion); the other three are fixed geometric constants. For a prismatic joint, d_i is the joint variable.</p>
+
+      <h3>DH Transformation Matrix</h3>
+      <p>Each link's transformation is computed as:</p>
+      <div class="formula">
+        T_{i-1,i} = Rot_z(theta_i) * Trans_z(d_i) * Trans_x(a_i) * Rot_x(alpha_i)
+      </div>
+      <pre><code>T_{i-1,i} = [ cos(theta)  -sin(theta)*cos(alpha)   sin(theta)*sin(alpha)  a*cos(theta) ]
+            [ sin(theta)   cos(theta)*cos(alpha)  -cos(theta)*sin(alpha)  a*sin(theta) ]
+            [     0             sin(alpha)              cos(alpha)              d        ]
+            [     0                 0                       0                   1        ]</code></pre>
+
+      <h3>Modified DH (Craig's Convention)</h3>
+      <p>An alternative convention by John Craig places the coordinate frame at the proximal end of the link rather than the distal end. The transformation order becomes Rot_x(alpha_{i-1}) * Trans_x(a_{i-1}) * Rot_z(theta_i) * Trans_z(d_i). Both conventions are widely used; consistency is what matters. Industrial robots from ABB, KUKA, and FANUC typically use the standard (distal) convention in their documentation.</p>
+
+      <h3>Example: 2-Link Planar Arm DH Table</h3>
+      <table>
+        <tr><th>Joint i</th><th>theta_i</th><th>d_i</th><th>a_i</th><th>alpha_i</th></tr>
+        <tr><td>1</td><td>theta_1 (var)</td><td>0</td><td>L1</td><td>0</td></tr>
+        <tr><td>2</td><td>theta_2 (var)</td><td>0</td><td>L2</td><td>0</td></tr>
+      </table>
+      <p>The forward kinematics gives: x = L1*cos(theta_1) + L2*cos(theta_1 + theta_2), y = L1*sin(theta_1) + L2*sin(theta_1 + theta_2). This is the simplest non-trivial example and is a standard homework problem in every robotics course.</p>
+    </section>
+
+    <!-- Section: Product of Exponentials -->
+    <section class="section" id="poe">
+      <h2>Product of Exponentials (PoE)</h2>
+      <p>An alternative to DH parameters, the Product of Exponentials formulation is based on Lie group theory and the exponential map from se(3) to SE(3). Popularized by Murray, Li, and Sastry (1994) and the Modern Robotics textbook by Lynch and Park.</p>
+
+      <h3>Core Idea</h3>
+      <p>Each joint is described by a screw axis S_i = (omega_i, v_i) in the home (zero) configuration. The forward kinematics is:</p>
+      <div class="formula">
+        T(q) = e^{[S_1]*q_1} * e^{[S_2]*q_2} * ... * e^{[S_n]*q_n} * M
+      </div>
+      <p>where M is the end-effector pose at the home configuration (all joints at zero), and e^{[S_i]*q_i} is the matrix exponential of the 4x4 twist matrix [S_i] scaled by the joint variable q_i.</p>
+
+      <h3>Advantages over DH</h3>
+      <ul>
+        <li><strong>No frame assignment ambiguity</strong> — DH parameters are not unique when consecutive joint axes are parallel or intersecting. PoE avoids this entirely.</li>
+        <li><strong>Geometric intuition</strong> — each exponential represents a screw motion (rotation + translation along a screw axis).</li>
+        <li><strong>Clean Jacobian</strong> — the space Jacobian has a natural recursive formula.</li>
+        <li><strong>Works for any joint type</strong> — revolute (omega != 0, ||omega|| = 1) and prismatic (omega = 0, ||v|| = 1) are handled uniformly.</li>
+      </ul>
+
+      <h3>Matrix Exponential</h3>
+      <p>For a revolute joint with screw axis S = (omega, v) and joint angle theta:</p>
+      <div class="formula">
+        e^{[S]*theta} = [ e^{[omega]*theta}   (I*theta + (1-cos(theta))[omega] + (theta-sin(theta))[omega]^2) * v ]<br>
+                        [      0  0  0                                  1                                      ]
+      </div>
+      <p>where e^{[omega]*theta} is computed by Rodrigues' formula. This formulation is used in Drake, Pinocchio, and other modern robotics libraries.</p>
+    </section>
+
+    <!-- Section: Inverse Kinematics -->
+    <section class="section" id="inverse">
+      <h2>Inverse Kinematics</h2>
+      <p>Inverse kinematics (IK) is the problem of finding joint variables q = (q_1, ..., q_n) such that FK(q) = T_desired. This is fundamentally harder than forward kinematics because the mapping is generally many-to-one (multiple joint configurations can produce the same end-effector pose), and solutions may not exist if the desired pose is outside the workspace.</p>
+
+      <h3>Analytical (Closed-Form) Solutions</h3>
+      <p>For robots with specific geometric structures, IK can be solved in closed form using trigonometric identities. This is fast, exact, and enumerates all solutions. Pieper's theorem (1968) states that a 6-DOF robot with three consecutive revolute joint axes intersecting at a point (a spherical wrist) always admits a closed-form IK solution.</p>
+
+      <h3>Common Analytical Techniques</h3>
+      <ul>
+        <li><strong>Geometric approach</strong> — project the problem into 2D planes and use the law of cosines. Works well for planar arms and SCARA robots.</li>
+        <li><strong>Algebraic approach</strong> — write out the FK equations explicitly and solve the system of transcendental equations using substitutions like the half-angle tangent (Weierstrass substitution).</li>
+        <li><strong>Decoupling</strong> — separate position (first 3 joints) and orientation (last 3 joints, spherical wrist). Solve position IK first, then orientation IK with known wrist center.</li>
+        <li><strong>Subproblem decomposition (Paden-Kahan)</strong> — decompose the IK problem into canonical subproblems: rotation about a single axis, rotation about two axes, and rotation to a specified distance. Used with the PoE formulation.</li>
+      </ul>
+
+      <h3>Numerical Methods</h3>
+      <p>When closed-form solutions are not available (redundant robots, non-standard geometries), numerical methods iteratively converge to a solution.</p>
+      <ul>
+        <li><strong>Newton-Raphson</strong> — linearize FK around current q, solve J * delta_q = delta_x, update q. Quadratic convergence near a solution, but may diverge if the initial guess is poor.</li>
+        <li><strong>Jacobian Pseudoinverse</strong> — q_new = q + J^+ * (x_desired - FK(q)). For redundant robots (more joints than task DOFs), J^+ = J^T * (J * J^T)^{-1} gives the minimum-norm solution.</li>
+        <li><strong>Damped Least Squares (Levenberg-Marquardt)</strong> — q_new = q + J^T * (J*J^T + lambda^2*I)^{-1} * e. The damping factor lambda prevents instability near singularities. This is the workhorse of practical IK solvers.</li>
+        <li><strong>Cyclic Coordinate Descent (CCD)</strong> — optimize one joint at a time, cycling through all joints. Simple to implement, works well for animation but can be slow for precision robotics.</li>
+        <li><strong>FABRIK (Forward and Backward Reaching IK)</strong> — heuristic method that alternately adjusts joint positions from the end-effector backward and from the base forward. Fast and intuitive for chains.</li>
+        <li><strong>Optimization-based</strong> — formulate IK as a constrained optimization: minimize ||FK(q) - T_desired||^2 subject to joint limits and collision constraints. Libraries like IPOPT, NLopt, or CasADi can solve this.</li>
+      </ul>
+
+      <h3>Number of Solutions</h3>
+      <p>A 6-DOF robot can have up to 16 IK solutions for a given end-effector pose. In practice, elbow-up/elbow-down and wrist-flip configurations are the main solution branches. Redundant robots (7+ DOF) have infinitely many solutions, forming a self-motion manifold.</p>
+    </section>
+
+    <!-- Section: The Jacobian -->
+    <section class="section" id="jacobian">
+      <h2>The Jacobian</h2>
+      <p>The Jacobian matrix J(q) maps joint velocities to end-effector velocities. It is the fundamental tool for differential kinematics, force analysis, singularity detection, and numerical IK.</p>
+      <div class="formula">
+        v = J(q) * q_dot<br>
+        where v = [v_x, v_y, v_z, omega_x, omega_y, omega_z]^T (6x1 twist)<br>
+        and q_dot = [q_dot_1, ..., q_dot_n]^T (nx1 joint velocities)
+      </div>
+
+      <h3>Computing the Jacobian</h3>
+      <p>For a serial chain, each column J_i of the Jacobian corresponds to joint i:</p>
+      <ul>
+        <li><strong>Revolute joint:</strong> J_i = [z_{i-1} x (o_n - o_{i-1}) ; z_{i-1}] where z_{i-1} is the joint axis and o_{i-1} is the joint origin, both expressed in the base frame.</li>
+        <li><strong>Prismatic joint:</strong> J_i = [z_{i-1} ; 0] — pure translation along the joint axis.</li>
+      </ul>
+      <p>These quantities are extracted directly from the intermediate transformation matrices T_0i computed during forward kinematics.</p>
+
+      <h3>Analytical vs Geometric Jacobian</h3>
+      <ul>
+        <li>The <strong>geometric Jacobian</strong> maps joint velocities to the spatial twist (linear + angular velocity of the end-effector). This is what we described above.</li>
+        <li>The <strong>analytical Jacobian</strong> maps joint velocities to the time derivative of a minimal representation of pose (e.g., x, y, z, roll, pitch, yaw). It requires a transformation matrix T_a that depends on the orientation representation: J_a = T_a^{-1} * J.</li>
+        <li>The analytical Jacobian has singularities from the orientation representation (gimbal lock) in addition to kinematic singularities.</li>
+      </ul>
+
+      <h3>Force/Torque Relationship</h3>
+      <p>By the principle of virtual work, the Jacobian transpose maps end-effector forces/torques to joint torques:</p>
+      <div class="formula">
+        tau = J(q)^T * F
+      </div>
+      <p>This is used in force control, impedance control, and computing the load a robot can support at a given configuration.</p>
+
+      <h3>Manipulability</h3>
+      <p>Yoshikawa's manipulability measure w = sqrt(det(J * J^T)) quantifies how well the robot can move in all directions at a given configuration. When w = 0, the robot is at a singularity. The manipulability ellipsoid (eigenvalues/eigenvectors of J * J^T) visualizes directional dexterity.</p>
+    </section>
+
+    <!-- Section: Workspace Analysis -->
+    <section class="section" id="workspace">
+      <h2>Workspace Analysis</h2>
+      <p>The workspace is the set of all positions (and orientations) the end-effector can reach. Understanding workspace geometry is essential for robot design and task planning.</p>
+
+      <h3>Types of Workspace</h3>
+      <ul>
+        <li><strong>Reachable workspace</strong> — the set of all points the end-effector can reach with at least one orientation. It is the union of all reachable positions.</li>
+        <li><strong>Dexterous workspace</strong> — the set of points reachable with any arbitrary orientation. This is a subset of the reachable workspace and is typically much smaller.</li>
+        <li><strong>Cross-section workspace</strong> — a 2D slice through the 3D workspace, useful for visualization.</li>
+      </ul>
+
+      <h3>Workspace Geometry</h3>
+      <p>For a 2-link planar arm with link lengths L1 and L2 (L1 > L2), the reachable workspace is an annulus (ring) with inner radius |L1 - L2| and outer radius L1 + L2. For a 6-DOF anthropomorphic arm (like the PUMA 560 or KUKA KR series), the workspace is roughly a hollow sphere, with exclusion zones caused by joint limits, self-collisions, and singularity surfaces.</p>
+
+      <h3>Factors Affecting Workspace</h3>
+      <ul>
+        <li><strong>Link lengths</strong> — directly determine reach</li>
+        <li><strong>Joint limits</strong> — restrict the workspace from the theoretical maximum</li>
+        <li><strong>Joint types</strong> — prismatic joints create different workspace shapes than revolute joints (SCARA robots have a cylindrical workspace)</li>
+        <li><strong>Self-collision</strong> — some configurations are unreachable because links would intersect</li>
+        <li><strong>Mounting</strong> — floor-mounted, ceiling-mounted, and wall-mounted robots have different effective workspaces</li>
+      </ul>
+    </section>
+
+    <!-- Section: Singularities -->
+    <section class="section" id="singularities">
+      <h2>Singularities</h2>
+      <p>A singularity is a configuration where the robot loses one or more degrees of freedom of motion. Mathematically, it occurs when the Jacobian loses rank: rank(J(q)) < min(m, n), where m is the task dimension (typically 6) and n is the number of joints.</p>
+
+      <h3>Types of Singularities</h3>
+      <ul>
+        <li><strong>Boundary singularities</strong> — at the edge of the workspace, when the arm is fully extended or fully folded. Example: a 2-link arm with theta_2 = 0 (fully extended) or theta_2 = pi (folded back).</li>
+        <li><strong>Interior singularities</strong> — inside the workspace, typically when two or more joint axes align. Example: in a 6-DOF arm with a spherical wrist, if joints 4 and 6 axes align (joint 5 = 0), the robot loses one rotational DOF.</li>
+        <li><strong>Wrist singularities</strong> — specific to robots with spherical wrists. Occur when joint 5 passes through zero.</li>
+        <li><strong>Shoulder singularities</strong> — when the wrist center intersects joint 1 axis.</li>
+        <li><strong>Elbow singularities</strong> — when the arm is fully stretched or folded (joints 2 and 3 configuration).</li>
+      </ul>
+
+      <h3>Consequences of Singularities</h3>
+      <ul>
+        <li>Near a singularity, small end-effector velocities require very large joint velocities — the robot cannot physically achieve the commanded motion.</li>
+        <li>Inverse kinematics becomes ill-conditioned; the pseudoinverse amplifies noise.</li>
+        <li>Joint torques may saturate even for small end-effector forces.</li>
+        <li>Some directions of motion become impossible (the robot "locks up").</li>
+      </ul>
+
+      <h3>Dealing with Singularities</h3>
+      <ul>
+        <li><strong>Damped least squares (DLS)</strong> — adds regularization to the Jacobian inverse, sacrificing tracking accuracy near singularities in exchange for bounded joint velocities.</li>
+        <li><strong>Singularity-robust task priority</strong> — decompose the task into primary and secondary objectives; degrade gracefully near singularities.</li>
+        <li><strong>Path planning around singularities</strong> — detect singular configurations in advance and plan trajectories that avoid them.</li>
+        <li><strong>Redundancy resolution</strong> — robots with 7+ DOF can use null-space motion to move away from singularities while maintaining the end-effector trajectory.</li>
+      </ul>
+    </section>
+
+    <!-- Section: Worked Examples -->
+    <section class="section" id="examples">
+      <h2>Worked Examples</h2>
+
+      <h3>1. Two-Link Planar Arm (2-DOF)</h3>
+      <p>The simplest non-trivial robot arm. Two revolute joints, both in the xy-plane.</p>
+      <p><strong>Forward Kinematics:</strong></p>
+      <div class="formula">
+        x = L1*cos(q1) + L2*cos(q1 + q2)<br>
+        y = L1*sin(q1) + L2*sin(q1 + q2)
+      </div>
+      <p><strong>Inverse Kinematics (geometric):</strong> Using the law of cosines:</p>
+      <div class="formula">
+        cos(q2) = (x^2 + y^2 - L1^2 - L2^2) / (2*L1*L2)<br>
+        q2 = atan2(+/-sqrt(1 - cos^2(q2)), cos(q2)) [two solutions: elbow up/down]<br>
+        q1 = atan2(y, x) - atan2(L2*sin(q2), L1 + L2*cos(q2))
+      </div>
+      <p><strong>Jacobian:</strong></p>
+      <pre><code>J = [ -L1*sin(q1) - L2*sin(q1+q2)    -L2*sin(q1+q2) ]
+    [  L1*cos(q1) + L2*cos(q1+q2)     L2*cos(q1+q2) ]</code></pre>
+      <p>The determinant det(J) = L1*L2*sin(q2). Singularity occurs at q2 = 0 (arm fully extended) or q2 = pi (arm folded back).</p>
+
+      <h3>2. SCARA Robot (4-DOF)</h3>
+      <p>The Selective Compliance Assembly Robot Arm has 2 revolute joints for planar positioning, 1 prismatic joint for vertical motion, and 1 revolute joint for orientation. Popular for pick-and-place and PCB assembly.</p>
+      <table>
+        <tr><th>Joint</th><th>Type</th><th>theta</th><th>d</th><th>a</th><th>alpha</th></tr>
+        <tr><td>1</td><td>R</td><td>q1</td><td>0</td><td>L1</td><td>0</td></tr>
+        <tr><td>2</td><td>R</td><td>q2</td><td>0</td><td>L2</td><td>pi</td></tr>
+        <tr><td>3</td><td>P</td><td>0</td><td>q3</td><td>0</td><td>0</td></tr>
+        <tr><td>4</td><td>R</td><td>q4</td><td>0</td><td>0</td><td>0</td></tr>
+      </table>
+      <p>The SCARA's workspace is a cylindrical shell. IK decouples cleanly: q1 and q2 determine xy position (same as 2-link planar), q3 determines z height, q4 determines end-effector rotation.</p>
+
+      <h3>3. Six-DOF Industrial Arm (PUMA 560)</h3>
+      <p>The Unimation PUMA 560 is one of the most studied robots in history. It has 6 revolute joints with a spherical wrist (joints 4, 5, 6 axes intersect). DH parameters (standard convention):</p>
+      <table>
+        <tr><th>Joint</th><th>theta</th><th>d</th><th>a</th><th>alpha</th></tr>
+        <tr><td>1</td><td>q1</td><td>0</td><td>0</td><td>-90deg</td></tr>
+        <tr><td>2</td><td>q2</td><td>0</td><td>431.8mm</td><td>0</td></tr>
+        <tr><td>3</td><td>q3</td><td>149.1mm</td><td>-20.3mm</td><td>90deg</td></tr>
+        <tr><td>4</td><td>q4</td><td>433.1mm</td><td>0</td><td>-90deg</td></tr>
+        <tr><td>5</td><td>q5</td><td>0</td><td>0</td><td>90deg</td></tr>
+        <tr><td>6</td><td>q6</td><td>0</td><td>0</td><td>0</td></tr>
+      </table>
+      <p>IK is solved by position-orientation decoupling: joints 1-3 position the wrist center, joints 4-6 orient the end-effector. The PUMA 560 has up to 8 IK solutions (2 shoulder x 2 elbow x 2 wrist configurations). Paul, Shimano, and Mayer published the complete closed-form solution in 1981.</p>
+
+      <h3>4. Redundant 7-DOF Arm (KUKA LBR iiwa)</h3>
+      <p>The KUKA LBR iiwa has 7 revolute joints, making it kinematically redundant (7 joints for a 6-DOF task). The extra DOF enables null-space motion: the robot can change its elbow position without moving the end-effector. This is exploited for obstacle avoidance, singularity avoidance, joint limit avoidance, and optimizing manipulability during task execution.</p>
+    </section>
+
+    <!-- Section: Applications -->
+    <section class="section" id="applications">
+      <h2>Real-World Applications</h2>
+      <div class="cards">
+        <div class="card">
+          <h4>Industrial Manufacturing</h4>
+          <p>ABB, FANUC, KUKA, and Yaskawa robots use optimized IK solvers for welding, painting, and assembly. Cycle times under 1 second require microsecond-level IK computation. Offline programming tools (RobotStudio, KUKA.Sim) rely on FK/IK for path planning.</p>
+          <div class="meta">Automotive, electronics, aerospace</div>
+        </div>
+        <div class="card">
+          <h4>Surgical Robotics</h4>
+          <p>The Intuitive Surgical da Vinci system uses kinematic models of its 7-DOF instruments for teleoperation mapping. Wrist kinematics must be solved in real-time to map surgeon hand motions to instrument tip motions through a remote center of motion constraint.</p>
+          <div class="meta">Intuitive Surgical | ~9 million procedures</div>
+        </div>
+        <div class="card">
+          <h4>Computer Animation</h4>
+          <p>IK is fundamental in character animation. Pixar, DreamWorks, and game engines (Unity, Unreal) use CCD, FABRIK, and analytical IK for skeletal animation. Foot placement on uneven terrain, hand reaching, and gaze direction all require real-time IK.</p>
+          <div class="meta">Entertainment, VR/AR, games</div>
+        </div>
+        <div class="card">
+          <h4>Legged Locomotion</h4>
+          <p>Boston Dynamics' Spot and Atlas use kinematics to compute foot placements, body poses, and swing trajectories. Each leg is a serial chain; whole-body IK coordinates all four (or two) legs plus the torso to maintain balance and traverse terrain.</p>
+          <div class="meta">Boston Dynamics, Agility, Unitree</div>
+        </div>
+        <div class="card">
+          <h4>Space Robotics</h4>
+          <p>The Canadarm2 on the ISS is a 7-DOF manipulator that uses kinematics for berthing spacecraft and maintaining the station. Its redundancy enables obstacle avoidance in the cluttered station environment. Latency-tolerant IK accounts for communication delays.</p>
+          <div class="meta">MDA / Canadian Space Agency</div>
+        </div>
+        <div class="card">
+          <h4>Prosthetics & Exoskeletons</h4>
+          <p>Kinematic models of the human arm (7-DOF) and leg (6-DOF) are used to design prosthetic limbs and powered exoskeletons. IK ensures natural-looking motion patterns. Ekso Bionics and ReWalk use kinematic models for gait generation.</p>
+          <div class="meta">Rehabilitation, assistive technology</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section: References -->
+    <section class="section" id="references">
+      <h2>References & Further Reading</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="http://www.modernrobotics.org/">Lynch & Park: Modern Robotics (2017)</a></h4>
+          <p>Free textbook with rigorous treatment of kinematics using the PoE formulation. Chapters 4-6 cover FK, velocity kinematics, and IK. Companion Coursera course available.</p>
+          <div class="meta">Cambridge University Press | Free PDF</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.springer.com/gp/book/9783540382195">Siciliano et al: Robotics (2009)</a></h4>
+          <p>Graduate-level textbook. Chapters 2-3 cover DH parameters, FK, IK, and differential kinematics in detail. The Jacobian treatment is particularly thorough.</p>
+          <div class="meta">Springer | Advanced Textbooks in Control</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://link.springer.com/book/10.1007/978-1-4613-0025-3">Murray, Li & Sastry: A Mathematical Introduction to Robotic Manipulation (1994)</a></h4>
+          <p>The original treatment of robotics using Lie groups and the product of exponentials. Chapters 2-3. Free PDF available from the authors.</p>
+          <div class="meta">CRC Press | Classic reference</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://ieeexplore.ieee.org/document/1087068">Denavit & Hartenberg (1955)</a></h4>
+          <p>"A Kinematic Notation for Lower-Pair Mechanisms Based on Matrices." The original paper introducing DH parameters. Published in ASME Journal of Applied Mechanics.</p>
+          <div class="meta">ASME | Foundational paper</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://doi.org/10.1177/027836498600500302">Yoshikawa (1985): Manipulability of Robotic Mechanisms</a></h4>
+          <p>Introduced the manipulability measure w = sqrt(det(J*J^T)) and the manipulability ellipsoid. Fundamental for workspace quality analysis and robot design optimization.</p>
+          <div class="meta">IJRR | 3000+ citations</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://see.stanford.edu/Course/CS223A">Stanford CS223A: Introduction to Robotics</a></h4>
+          <p>Oussama Khatib's course with video lectures. Lectures 2-8 cover kinematics, Jacobians, and IK in detail. The best video resource for learning robot kinematics.</p>
+          <div class="meta">Stanford Engineering Everywhere | Free</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="container">
+      <a href="/">FreeRobotStore</a> · <a href="/institute/">Institute</a> · <a href="/institute/kinematics.html">Kinematics</a> · Built with <a href="https://zensical.org">Zensical</a>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Learning — Robotics Institute</title>
+  <meta name="description" content="Comprehensive guide to robot learning: reinforcement learning, imitation learning, sim-to-real transfer, foundation models for robotics, and open challenges.">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--accent:#f97316;--paper:#0a0a0a;--ink:#fafafa;--muted:#737373;--panel:#141414;--line:#262626}
+    body{font-family:'Manrope',system-ui,sans-serif;background:var(--paper);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+    .container{max-width:900px;margin:0 auto;padding:0 1.5rem}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    header{border-bottom:1px solid var(--line);padding:.75rem 0}
+    header .container{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--ink)}
+    .brand-emoji{font-size:1.5rem}
+    .brand-text{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+    .brand-tag{font-size:.68rem;color:var(--muted)}
+    nav{display:flex;gap:1rem;font-size:.82rem;font-weight:600;margin-left:auto;flex-wrap:wrap}
+    nav a{color:var(--muted)}nav a:hover{color:var(--ink)}nav a.active{color:var(--accent)}
+    .hero{text-align:center;padding:2.5rem 0 1.5rem;border-bottom:1px solid var(--line)}
+    .hero h1{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;margin-bottom:.5rem}
+    .hero h1 em{color:var(--accent);font-style:normal}
+    .hero p{color:var(--muted);max-width:600px;margin:0 auto;font-size:.95rem}
+    .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.25rem;margin:1.5rem 0}
+    .toc h3{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--accent)}
+    .toc ul{list-style:none;padding:0;columns:2}
+    .toc li{margin:.2rem 0}.toc a{color:#a3a3a3;font-size:.82rem}.toc a:hover{color:var(--ink)}
+    .section{margin-bottom:2rem;padding-top:1rem}
+    .section h2{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.35rem;border-bottom:1px solid var(--line)}
+    .section h3{font-size:.95rem;font-weight:700;margin:1rem 0 .35rem;color:#e5e5e5}
+    .section p,.section li{color:#a3a3a3;font-size:.88rem}
+    ul{padding-left:1.25rem;margin:.35rem 0}
+    li{margin-bottom:.3rem}
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.6rem;margin:.5rem 0}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.85rem;transition:border-color .15s}
+    .card:hover{border-color:var(--accent)}
+    .card h4{font-size:.85rem;font-weight:700;margin-bottom:.2rem}
+    .card h4 a{color:var(--ink)}.card p{font-size:.75rem;color:var(--muted);margin:0;line-height:1.5}
+    .card .meta{font-size:.65rem;color:#525252;margin-top:.25rem}
+    code{font-family:'Courier New',monospace;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:.1rem .35rem;font-size:.82rem;color:var(--accent)}
+    pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:.75rem 0;overflow-x:auto;font-size:.8rem;line-height:1.6;color:#a3a3a3}
+    pre code{background:none;border:none;padding:0;color:inherit}
+    .formula{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem;margin:.5rem 0;font-family:'Courier New',monospace;font-size:.82rem;color:#e5e5e5;text-align:center;line-height:1.8}
+    table{width:100%;border-collapse:collapse;margin:.75rem 0;font-size:.82rem}
+    th,td{border:1px solid var(--line);padding:.5rem .75rem;text-align:left}
+    th{background:var(--panel);color:var(--ink);font-weight:700}
+    td{color:#a3a3a3}
+    footer{border-top:1px solid var(--line);padding:1.5rem 0;text-align:center;font-size:.75rem;color:#525252}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/institute/" class="brand">
+        <span class="brand-emoji">🦾</span>
+        <span><span class="brand-text">Robotics Institute</span><br><span class="brand-tag">Powered by <a href="https://zensical.org" style="color:#525252">Zensical</a></span></span>
+      </a>
+      <nav>
+        <a href="/institute/">Overview</a>
+        <a href="/institute/kinematics.html">Kinematics</a>
+        <a href="/institute/control.html">Control</a>
+        <a href="/institute/perception.html">Perception</a>
+        <a href="/institute/planning.html">Planning</a>
+        <a href="/institute/learning.html" class="active">Learning</a>
+        <a href="/">Simulations</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <section class="hero">
+      <h1>Robot <em>Learning</em></h1>
+      <p>Teaching robots through experience, demonstration, and data. From reinforcement learning and imitation to foundation models and sim-to-real transfer — the frontier of intelligent robotics.</p>
+    </section>
+
+    <nav class="toc">
+      <h3>Contents</h3>
+      <ul>
+        <li><a href="#intro">Why Robot Learning?</a></li>
+        <li><a href="#rl-fundamentals">RL Fundamentals</a></li>
+        <li><a href="#rl-algorithms">RL Algorithms for Robotics</a></li>
+        <li><a href="#rl-robotics">RL Success Stories</a></li>
+        <li><a href="#imitation">Imitation Learning</a></li>
+        <li><a href="#lfd">Learning from Demonstration</a></li>
+        <li><a href="#sim2real">Sim-to-Real Transfer</a></li>
+        <li><a href="#foundation">Foundation Models for Robotics</a></li>
+        <li><a href="#diffusion">Diffusion Policies</a></li>
+        <li><a href="#challenges">Open Challenges</a></li>
+        <li><a href="#tools">Tools & Platforms</a></li>
+        <li><a href="#references">References</a></li>
+      </ul>
+    </nav>
+
+    <!-- Introduction -->
+    <section class="section" id="intro">
+      <h2>Why Robot Learning?</h2>
+      <p>Classical robotics relies on explicit models: kinematic equations, dynamic parameters, geometric maps. These work well in structured environments (factories, warehouses) where everything is known in advance. But the real world is messy, unpredictable, and infinitely varied. A robot in a kitchen encounters objects of unknown shapes, weights, and friction properties. A robot on a construction site faces terrain that changes daily. For these scenarios, learning from experience can succeed where hand-engineering fails.</p>
+
+      <h3>What Can Be Learned?</h3>
+      <ul>
+        <li><strong>Perception</strong> — object recognition, scene understanding, depth estimation from images. The most successful application of ML in robotics. Deep learning has revolutionized robot perception.</li>
+        <li><strong>Control policies</strong> — mapping sensor observations to motor commands. Instead of designing a controller, learn it from data. Examples: locomotion gaits, manipulation strategies, drone acrobatics.</li>
+        <li><strong>Dynamics models</strong> — learn the physics of the robot and environment from interaction data. Used in model-based RL and adaptive control.</li>
+        <li><strong>Reward functions</strong> — learn what "good behavior" looks like from human preferences or demonstrations, rather than manually specifying a reward function.</li>
+        <li><strong>Task planning</strong> — learn to decompose high-level goals into sequences of primitive actions.</li>
+      </ul>
+
+      <h3>The Data Challenge</h3>
+      <p>Unlike computer vision or NLP, robotics data is expensive and slow to collect. Each data point requires physical interaction with the real world. A robot arm can perform at most ~1000 grasps per day. Training a policy that requires millions of interactions is impractical on real hardware. This fundamental bottleneck drives two major research directions: simulation-based training (sim-to-real) and data-efficient learning (few-shot, meta-learning).</p>
+    </section>
+
+    <!-- RL Fundamentals -->
+    <section class="section" id="rl-fundamentals">
+      <h2>Reinforcement Learning Fundamentals</h2>
+      <p>Reinforcement learning (RL) is a framework for learning optimal behavior through trial and error. An agent interacts with an environment, takes actions, receives rewards, and learns a policy that maximizes cumulative reward.</p>
+
+      <h3>The RL Framework (MDP)</h3>
+      <p>Formalized as a Markov Decision Process (MDP):</p>
+      <ul>
+        <li><strong>State s</strong> — the current configuration of the robot and environment (joint angles, velocities, object positions, sensor readings).</li>
+        <li><strong>Action a</strong> — the control command (joint torques, motor velocities, gripper open/close).</li>
+        <li><strong>Transition p(s'|s,a)</strong> — the probability of moving to state s' after taking action a in state s. Determined by physics (unknown to the agent in model-free RL).</li>
+        <li><strong>Reward r(s,a)</strong> — a scalar signal indicating how good the action was. Designing good reward functions is a major challenge in robotics RL.</li>
+        <li><strong>Discount factor gamma</strong> — 0 < gamma <= 1. Trades off immediate vs future rewards. Gamma = 0.99 is typical for robotics.</li>
+      </ul>
+
+      <h3>The Objective</h3>
+      <div class="formula">
+        Maximize: E[sum_{t=0}^{infinity} gamma^t * r(s_t, a_t)]
+      </div>
+      <p>The agent learns a policy pi(a|s) — a mapping from states to actions (or a distribution over actions) — that maximizes the expected discounted sum of rewards.</p>
+
+      <h3>Key Concepts</h3>
+      <ul>
+        <li><strong>Value function V(s)</strong> — the expected return starting from state s and following policy pi. V(s) = E[sum gamma^t r | s_0 = s].</li>
+        <li><strong>Action-value function Q(s,a)</strong> — the expected return starting from state s, taking action a, then following pi. Q(s,a) = r(s,a) + gamma * E[V(s')].</li>
+        <li><strong>Exploration vs exploitation</strong> — the agent must try new actions (explore) to discover better strategies, while also using its current best knowledge (exploit) to accumulate reward. Critical in robotics: exploration means trying potentially dangerous actions on real hardware.</li>
+        <li><strong>On-policy vs off-policy</strong> — on-policy methods (PPO, TRPO) learn from data collected by the current policy. Off-policy methods (SAC, TD3) can learn from data collected by any policy (replay buffer). Off-policy is more sample-efficient but less stable.</li>
+      </ul>
+    </section>
+
+    <!-- RL Algorithms -->
+    <section class="section" id="rl-algorithms">
+      <h2>RL Algorithms for Robotics</h2>
+
+      <h3>PPO (Proximal Policy Optimization)</h3>
+      <p>Schulman et al. (OpenAI, 2017). The most widely used RL algorithm for robotics. A policy gradient method that restricts policy updates to a trust region (clipped surrogate objective), preventing destructively large updates. Simple to implement, stable, and parallelizable. Used for locomotion (quadrupeds, humanoids), dexterous manipulation, and drone control. The default choice when starting a new robotics RL project.</p>
+
+      <h3>SAC (Soft Actor-Critic)</h3>
+      <p>Haarnoja et al. (UC Berkeley, 2018). An off-policy algorithm that maximizes both expected reward and policy entropy (exploration bonus). Learns a stochastic policy, which is beneficial for multimodal tasks (multiple ways to solve the problem). More sample-efficient than PPO due to off-policy learning with replay buffers. Widely used in manipulation tasks.</p>
+
+      <h3>TD3 (Twin Delayed DDPG)</h3>
+      <p>Fujimoto et al. (2018). An improvement on DDPG (Deep Deterministic Policy Gradient) that addresses overestimation bias with twin critics and delayed policy updates. Deterministic policy — outputs a single action rather than a distribution. Good for continuous control with low-dimensional action spaces.</p>
+
+      <h3>Model-Based RL</h3>
+      <p>Instead of learning a policy directly (model-free), learn a dynamics model and use it for planning:</p>
+      <ul>
+        <li><strong>MBPO (Model-Based Policy Optimization)</strong> — Janner et al. (2019). Learn an ensemble of neural network dynamics models, generate synthetic rollouts, and train a policy on the synthetic data. 10-100x more sample-efficient than model-free methods.</li>
+        <li><strong>Dreamer</strong> — Hafner et al. (2020, Google DeepMind). Learn a world model in a latent space, then train a policy entirely in imagination. DreamerV3 (2023) achieves strong results across diverse tasks without task-specific tuning.</li>
+        <li><strong>PETS</strong> — Chua et al. (2018). Probabilistic Ensemble Trajectory Sampling. Learn an ensemble of probabilistic dynamics models, use CEM (Cross-Entropy Method) for planning. Demonstrated on real robot tasks with < 100 trials.</li>
+      </ul>
+
+      <h3>Algorithm Comparison for Robotics</h3>
+      <table>
+        <tr><th>Algorithm</th><th>Type</th><th>Sample Efficiency</th><th>Stability</th><th>Best For</th></tr>
+        <tr><td>PPO</td><td>On-policy, model-free</td><td>Low</td><td>High</td><td>Sim-to-real, locomotion</td></tr>
+        <tr><td>SAC</td><td>Off-policy, model-free</td><td>Medium</td><td>High</td><td>Manipulation, real robot</td></tr>
+        <tr><td>TD3</td><td>Off-policy, model-free</td><td>Medium</td><td>Medium</td><td>Continuous control</td></tr>
+        <tr><td>MBPO</td><td>Off-policy, model-based</td><td>High</td><td>Medium</td><td>Data-limited settings</td></tr>
+        <tr><td>DreamerV3</td><td>Model-based</td><td>High</td><td>High</td><td>Visual observations</td></tr>
+      </table>
+    </section>
+
+    <!-- RL Success Stories -->
+    <section class="section" id="rl-robotics">
+      <h2>RL Success Stories in Robotics</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/1707.02286">Robotic Grasping at Scale (Google Brain, 2018)</a></h4>
+          <p>Levine et al. trained grasping policies using 800,000 grasp attempts across 7 real robots over 2 months. The policy learns an end-to-end mapping from camera images to motor commands. 96% grasp success on novel objects.</p>
+          <div class="meta">Sergey Levine | UC Berkeley / Google</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/1910.11215">Dexterous In-Hand Manipulation (OpenAI, 2019)</a></h4>
+          <p>Trained a Shadow Dexterous Hand to solve a Rubik's cube using RL in simulation with massive domain randomization. Transferred to real hardware. Demonstrated the power (and difficulty) of sim-to-real for dexterous manipulation.</p>
+          <div class="meta">OpenAI | 16,000 CPU years of simulation</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2109.11978">Quadruped Locomotion (ETH Zurich, 2022)</a></h4>
+          <p>Miki et al. trained ANYmal to traverse extreme terrain (stairs, gaps, rubble) using RL with a teacher-student framework. The teacher uses privileged simulation information; the student learns from the teacher using only onboard sensors. Deployed in real-world disaster response scenarios.</p>
+          <div class="meta">Robotic Systems Lab, ETH Zurich</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2304.13653">Agile Drone Racing (UZH / RPG, 2023)</a></h4>
+          <p>Kaufmann et al. trained a neural network to fly a drone through a racing course, beating human world champions for the first time. Deep RL policy trained entirely in simulation, deployed on real hardware at speeds exceeding 20 m/s.</p>
+          <div class="meta">University of Zurich | Nature 2023</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2208.07860">Learning to Walk in Minutes (NVIDIA, 2022)</a></h4>
+          <p>Rudin et al. used Isaac Gym (GPU-parallelized simulation) to train locomotion policies for thousands of robots simultaneously. A quadruped policy can be trained in 20 minutes on a single GPU. Enabled by massive parallelism.</p>
+          <div class="meta">NVIDIA Isaac Gym | Legged Gym</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2310.17596">Humanoid Locomotion (UC Berkeley, 2024)</a></h4>
+          <p>Radosavovic et al. trained a humanoid robot (Digit) to walk in the real world using sim-to-real RL. The policy observes proprioception only (no vision) and achieves robust walking on various terrains. Simple reward, no motion capture reference.</p>
+          <div class="meta">Ilija Radosavovic | UC Berkeley</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Imitation Learning -->
+    <section class="section" id="imitation">
+      <h2>Imitation Learning</h2>
+      <p>Instead of learning from a reward signal (RL), imitation learning trains a policy by observing expert demonstrations. The expert provides examples of correct behavior; the learner mimics them. Also called learning from demonstration (LfD) or apprenticeship learning.</p>
+
+      <h3>Behavioral Cloning (BC)</h3>
+      <p>The simplest form: treat imitation as supervised learning. Given a dataset of (observation, action) pairs from an expert, train a neural network to predict actions from observations. Fast to train, no simulator needed. The fundamental problem: distributional shift. At test time, small prediction errors compound — the policy drifts to states not seen during training, leading to catastrophic failure. DAgger (Ross, Gordon & Bagnell, 2011) addresses this by iteratively collecting data from the learner's own execution with expert corrections.</p>
+
+      <h3>Inverse Reinforcement Learning (IRL)</h3>
+      <p>Instead of imitating actions directly, IRL infers the reward function that the expert is optimizing, then uses standard RL to find a policy for that reward. This is more robust than BC because the learned reward generalizes to new situations. Key algorithms:</p>
+      <ul>
+        <li><strong>Maximum Entropy IRL</strong> — Ziebart et al. (2008). Assumes the expert acts according to a Boltzmann distribution over trajectories, with higher probability for lower-cost trajectories. The inferred reward explains the demonstrations while being maximally uncertain (maximum entropy) about undemonstrated behavior.</li>
+        <li><strong>GAIL (Generative Adversarial Imitation Learning)</strong> — Ho & Ermon (2016). Frames imitation as a GAN problem: a discriminator distinguishes expert trajectories from learner trajectories, and the learner's policy is trained to fool the discriminator. Avoids explicitly recovering the reward function.</li>
+        <li><strong>AIRL (Adversarial IRL)</strong> — Fu et al. (2018). Recovers a transferable reward function using adversarial training. The recovered reward can be used to train new policies in different environments.</li>
+      </ul>
+
+      <h3>Data Collection Methods</h3>
+      <ul>
+        <li><strong>Teleoperation</strong> — a human controls the robot directly using a joystick, VR controller, or leader-follower setup. Produces high-quality demonstrations but is slow and requires operator skill. The ALOHA system (Zhao et al., 2023) uses bilateral teleoperation for bimanual manipulation demonstrations.</li>
+        <li><strong>Kinesthetic teaching</strong> — the human physically guides the robot through the desired motion while the robot records joint positions/torques. Intuitive but limited to compliant robots (cobots).</li>
+        <li><strong>Video demonstrations</strong> — learn from watching human videos without any robot data. Extremely challenging due to the embodiment gap (human hands are not robot grippers). Active research area: R3M (Nair et al., 2022) and VIP (Ma et al., 2023) learn visual representations from human videos for downstream robot learning.</li>
+      </ul>
+    </section>
+
+    <!-- Learning from Demonstration -->
+    <section class="section" id="lfd">
+      <h2>Learning from Demonstration: Practical Approaches</h2>
+
+      <h3>Action Chunking with Transformers (ACT)</h3>
+      <p>Zhao et al. (2023, Stanford) introduced ACT for the ALOHA bimanual manipulation system. Instead of predicting one action at a time, ACT predicts a "chunk" of future actions (e.g., the next 100 timesteps) using a CVAE (Conditional Variational Autoencoder) with a transformer backbone. This handles multi-modal demonstrations (multiple ways to perform a task) and temporal consistency. Demonstrated bimanual tasks like inserting a battery, picking up a cup from a saucer, and threading a zip tie — from only 50 demonstrations.</p>
+
+      <h3>Movement Primitives</h3>
+      <p>Encode demonstrations as parameterized motion trajectories that can be adapted to new situations:</p>
+      <ul>
+        <li><strong>DMPs (Dynamic Movement Primitives)</strong> — Ijspeert et al. (2013). Represent a motion as a dynamical system with a learnable forcing function. The forcing function is learned from a single demonstration. DMPs can be scaled in time and space, and are robust to perturbations. Widely used in industrial skill transfer.</li>
+        <li><strong>ProMP (Probabilistic Movement Primitives)</strong> — Paraschos et al. (2013). Represent demonstrations as distributions over trajectories (mean + covariance). Can condition on start/end points, blend multiple primitives, and handle via-points. Used for human-robot handover and collaborative assembly.</li>
+        <li><strong>KMP (Kernelized Movement Primitives)</strong> — Huang et al. (2019). Kernel-based regression for trajectory learning. Handles high-dimensional input spaces and orientation trajectories.</li>
+      </ul>
+
+      <h3>One-Shot and Few-Shot Imitation</h3>
+      <p>Learning a new task from a single demonstration. Approaches:</p>
+      <ul>
+        <li><strong>Meta-imitation learning</strong> — train a meta-learner on many tasks so it can quickly adapt to new tasks from one demo. Yu et al. (2018, Stanford/UC Berkeley).</li>
+        <li><strong>Task-conditioned policies</strong> — condition the policy on a video or image of the task being performed. The policy learns to extract task intent from the demonstration and execute it.</li>
+      </ul>
+    </section>
+
+    <!-- Sim-to-Real -->
+    <section class="section" id="sim2real">
+      <h2>Sim-to-Real Transfer</h2>
+      <p>Training in simulation is fast, safe, parallelizable, and cheap. But simulations are imperfect: physics engines approximate contact dynamics, rendering engines approximate visual appearance, and sensor models approximate noise characteristics. Policies trained in simulation often fail when deployed on real robots — the "reality gap." Sim-to-real transfer is the art of bridging this gap.</p>
+
+      <h3>Domain Randomization</h3>
+      <p>The most successful sim-to-real technique. During training, randomize simulation parameters so the policy experiences a wide distribution of environments. If the real world falls within this distribution, the policy will work. Parameters to randomize:</p>
+      <ul>
+        <li><strong>Physics:</strong> friction coefficients, mass, inertia, damping, restitution, actuator delays, joint backlash.</li>
+        <li><strong>Visual:</strong> lighting direction/intensity/color, textures, camera position/orientation, object colors, distractors.</li>
+        <li><strong>Dynamics:</strong> gravity, motor strength, sensor noise, communication delays.</li>
+      </ul>
+      <p>Tobin et al. (2017, OpenAI) first demonstrated that domain randomization alone (without any real data) enables sim-to-real transfer for object localization. OpenAI's Rubik's cube work (2019) pushed this to an extreme: the policy was robust to physical perturbations, broken fingers, and novel objects because training covered an enormous distribution of conditions.</p>
+
+      <h3>System Identification</h3>
+      <p>Measure the real robot's physical parameters (masses, friction, motor models) and configure the simulator to match. This reduces the reality gap directly but requires careful measurement and doesn't account for unmodeled phenomena. Often combined with domain randomization: identify what you can, randomize what you can't.</p>
+
+      <h3>Domain Adaptation</h3>
+      <p>Learn to map between simulated and real observations so that a policy trained on simulated observations works on real observations:</p>
+      <ul>
+        <li><strong>Pixel-level adaptation</strong> — use GANs (CycleGAN, etc.) to transform simulated images to look realistic. The policy sees adapted images that look like real camera data.</li>
+        <li><strong>Feature-level adaptation</strong> — learn a shared representation that is invariant to the sim/real domain. The policy operates on domain-invariant features.</li>
+        <li><strong>RCAN (Sim-to-Real via Sim-to-Sim)</strong> — James et al. (2019). Train a sim-to-real adaptation network by transferring between two different simulators first, then fine-tuning for real.</li>
+      </ul>
+
+      <h3>Sim-to-Real Frameworks</h3>
+      <table>
+        <tr><th>Simulator</th><th>Strength</th><th>Used By</th></tr>
+        <tr><td><a href="https://developer.nvidia.com/isaac-sim">Isaac Sim / Isaac Lab</a></td><td>GPU-parallelized physics, photorealistic rendering, massive scale</td><td>NVIDIA, many research labs</td></tr>
+        <tr><td><a href="https://github.com/google-deepmind/mujoco">MuJoCo</a></td><td>Fast, accurate contact physics, lightweight</td><td>DeepMind, UC Berkeley, Stanford</td></tr>
+        <tr><td><a href="https://github.com/google-deepmind/dm_control">dm_control</a></td><td>MuJoCo-based benchmark suite for continuous control</td><td>DeepMind</td></tr>
+        <tr><td><a href="https://github.com/bulletphysics/bullet3">PyBullet</a></td><td>Free, OpenAI Gym integration, URDF support</td><td>Google Brain, educational</td></tr>
+        <tr><td><a href="https://github.com/ARISE-Initiative/robosuite">robosuite</a></td><td>MuJoCo-based manipulation benchmark, standardized tasks</td><td>Stanford ILIAD, many</td></tr>
+      </table>
+    </section>
+
+    <!-- Foundation Models -->
+    <section class="section" id="foundation">
+      <h2>Foundation Models for Robotics</h2>
+      <p>The success of large language models (LLMs) and vision-language models (VLMs) has inspired a wave of research on "foundation models" for robotics — large, general-purpose models that can be applied to many robot tasks with minimal task-specific training.</p>
+
+      <h3>RT-2 (Robotics Transformer 2)</h3>
+      <p>Brohan et al. (Google DeepMind, 2023). A vision-language-action (VLA) model that directly outputs robot actions as text tokens. Built on PaLM-E (a 562B parameter VLM), fine-tuned on robot manipulation data from Google's fleet of everyday robots. RT-2 can follow natural language instructions ("move the banana to the plate"), reason about spatial relationships, and generalize to novel objects and instructions not seen during training. The key insight: pre-trained VLMs already understand the visual world; fine-tuning them to output actions adds robot embodiment.</p>
+
+      <h3>Octo</h3>
+      <p>Ghosh et al. (UC Berkeley, 2024). An open-source generalist robot policy trained on 800K robot trajectories from the Open X-Embodiment dataset (data from 22 different robot types). Octo is a transformer-based model that takes language instructions and images as input and outputs actions. It can be fine-tuned on a new robot with as few as 100 demonstrations. The first truly open foundation model for robot manipulation.</p>
+
+      <h3>OpenVLA</h3>
+      <p>Kim et al. (Stanford / UC Berkeley, 2024). A 7B parameter open-source vision-language-action model built on Llama 2 + SigLIP. Trained on the Open X-Embodiment dataset. Achieves strong performance on real robot manipulation tasks with language conditioning. Open weights and code enable community research.</p>
+
+      <h3>SayCan</h3>
+      <p>Ahn et al. (Google, 2022). Uses an LLM to propose actions (what the robot should do) and a learned affordance model to filter for feasible actions (what the robot can do). The LLM breaks down high-level instructions ("I spilled something, can you help?") into primitive skills; the affordance model grounds these skills in the robot's physical capabilities.</p>
+
+      <h3>Code as Policies</h3>
+      <p>Liang et al. (Google, 2023). Instead of outputting low-level motor commands, an LLM generates Python code that calls robot API functions. The code can include loops, conditionals, and function composition, enabling complex, compositional robot behaviors. Example: "sort the fruits by color" generates code that detects fruits, classifies colors, and commands pick-and-place for each fruit.</p>
+
+      <h3>The Trajectory So Far</h3>
+      <table>
+        <tr><th>Year</th><th>Model</th><th>Key Contribution</th></tr>
+        <tr><td>2022</td><td>SayCan</td><td>LLMs for high-level robot planning with affordance grounding</td></tr>
+        <tr><td>2022</td><td>RT-1</td><td>Transformer policy trained on 130K real robot episodes</td></tr>
+        <tr><td>2023</td><td>PaLM-E</td><td>Embodied multimodal LLM (562B params), integrates vision + language + robotics</td></tr>
+        <tr><td>2023</td><td>RT-2</td><td>VLA model: VLM fine-tuned to output robot actions as tokens</td></tr>
+        <tr><td>2023</td><td>Code as Policies</td><td>LLMs generate executable robot programs</td></tr>
+        <tr><td>2024</td><td>Octo</td><td>Open-source generalist policy, 800K trajectories, 22 robot types</td></tr>
+        <tr><td>2024</td><td>OpenVLA</td><td>Open-source 7B VLA, Llama 2 backbone, strong real-robot performance</td></tr>
+        <tr><td>2024</td><td>pi0 (Physical Intelligence)</td><td>Flow-matching VLA for dexterous manipulation, pre-trained on diverse data</td></tr>
+      </table>
+    </section>
+
+    <!-- Diffusion Policies -->
+    <section class="section" id="diffusion">
+      <h2>Diffusion Policies</h2>
+      <p>One of the most impactful recent advances in robot learning. Chi et al. (Columbia / Toyota Research, 2023) proposed using denoising diffusion models to represent robot policies. Instead of predicting a single action, the policy generates action trajectories by iteratively denoising random noise — the same process used in image generation (Stable Diffusion, DALL-E).</p>
+
+      <h3>Why Diffusion for Robotics?</h3>
+      <ul>
+        <li><strong>Multi-modality</strong> — demonstrations often show multiple valid ways to perform a task (reach from the left or the right). Standard behavioral cloning (MSE loss) averages these modes, producing invalid actions. Diffusion models naturally represent multi-modal distributions.</li>
+        <li><strong>Action chunk prediction</strong> — diffusion policies predict a sequence of future actions (a trajectory chunk), providing temporal consistency.</li>
+        <li><strong>Training stability</strong> — the denoising objective is well-behaved and trains reliably compared to adversarial methods (GANs) or autoregressive models.</li>
+      </ul>
+
+      <h3>How It Works</h3>
+      <ul>
+        <li>Training: add Gaussian noise to expert action trajectories at increasing noise levels. Train a neural network (U-Net or transformer) to predict the noise at each level, conditioned on the observation.</li>
+        <li>Inference: start with random noise, iteratively denoise using the trained network, conditioned on the current observation. After K denoising steps, the result is a clean action trajectory.</li>
+        <li>Execute the first few actions, then re-plan (receding horizon).</li>
+      </ul>
+
+      <h3>Results</h3>
+      <p>Diffusion Policy achieves state-of-the-art performance on 11 out of 12 benchmark tasks in robosuite, outperforming behavioral cloning, IBC (Implicit Behavioral Cloning), and BeT (Behavior Transformer). On real robot tasks (pushing a T-shape, sauce pouring), it achieves 80-95% success from 100-200 demonstrations. The approach has been rapidly adopted: 3D Diffusion Policy (Ze et al., 2024) extends it to 3D observations, and dp3 adds point cloud conditioning for dexterous manipulation.</p>
+    </section>
+
+    <!-- Open Challenges -->
+    <section class="section" id="challenges">
+      <h2>Open Challenges</h2>
+
+      <h3>1. Sample Efficiency</h3>
+      <p>Even the most sample-efficient RL algorithms require thousands of real-world interactions. Sim-to-real reduces this but introduces its own challenges (reality gap). The holy grail: a robot that learns a new manipulation skill from a single human demonstration, like a human apprentice would. Current best: ACT/Diffusion Policy with 50-200 demos for simple tasks. Complex tasks still require thousands.</p>
+
+      <h3>2. Generalization</h3>
+      <p>Policies trained on specific objects, environments, and tasks often fail when anything changes. A grasping policy trained on mugs may fail on bowls. Foundation models (RT-2, Octo) show promise but still struggle with truly novel scenarios. The open question: how much data and what architectures are needed for general-purpose robot intelligence?</p>
+
+      <h3>3. Long-Horizon Tasks</h3>
+      <p>Most robot learning successes are on short-horizon tasks (pick up an object, push a button). Real-world tasks involve long sequences of actions: cook a meal, clean a room, assemble furniture. These require task decomposition, error recovery, and planning over hundreds of steps. Hierarchical RL and LLM-based planners are promising but far from solved.</p>
+
+      <h3>4. Safety and Robustness</h3>
+      <p>Learned policies are black boxes. They can fail catastrophically in novel situations without warning. For deployment in homes, hospitals, and public spaces, we need: formal safety guarantees, graceful degradation, uncertainty estimation (knowing when you don't know), and safe exploration (learning without breaking things or hurting people). Constrained RL, safety filters (e.g., control barrier functions), and runtime monitoring are active research areas.</p>
+
+      <h3>5. Contact-Rich Manipulation</h3>
+      <p>Tasks involving complex contact (inserting a USB cable, tying a knot, folding clothes) remain extremely difficult. Contact physics is discontinuous and hard to simulate accurately. Tactile sensing helps but adds complexity. Deformable objects (cloth, rope, food) lack the rigid-body assumptions that most methods rely on.</p>
+
+      <h3>6. Real-World Deployment</h3>
+      <p>The gap between research demos and real-world deployment is enormous. Research papers report best-case results in controlled settings. Real deployment requires: robustness to lighting/weather changes, handling of edge cases, recovery from failures, integration with existing systems, and meeting regulatory requirements. Companies like Agility (Digit), Boston Dynamics (Spot), and Figure (01) are pushing the frontier but reliable autonomous operation in unstructured environments remains years away.</p>
+    </section>
+
+    <!-- Tools -->
+    <section class="section" id="tools">
+      <h2>Tools & Platforms</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="https://github.com/DLR-RM/stable-baselines3">Stable Baselines3</a></h4>
+          <p>Reliable PyTorch implementations of RL algorithms: PPO, SAC, TD3, A2C, DQN. Clean API, good documentation, well-tested. The go-to RL library for robotics researchers.</p>
+          <div class="meta">Python | PyTorch | MIT License | 9k+ stars</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/google-deepmind/mujoco">MuJoCo</a></h4>
+          <p>The standard physics engine for robot learning research. Fast, accurate contact dynamics, C API with Python bindings. Now free and open-source (Google DeepMind).</p>
+          <div class="meta">C / Python | Apache 2.0 | 8k+ stars</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/NVIDIA-Omniverse/IsaacLab">Isaac Lab</a></h4>
+          <p>NVIDIA's GPU-accelerated robot learning framework. Massively parallel simulation (thousands of environments on one GPU). Includes legged locomotion, manipulation, and drone tasks.</p>
+          <div class="meta">Python | NVIDIA | 2k+ stars</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/Farama-Foundation/Gymnasium">Gymnasium</a></h4>
+          <p>Successor to OpenAI Gym. Standard API for RL environments. Robotics environments available via gymnasium-robotics (Fetch, Shadow Hand, Adroit tasks).</p>
+          <div class="meta">Python | Farama Foundation | MIT License</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/real-stanford/diffusion_policy">Diffusion Policy</a></h4>
+          <p>Official implementation of Diffusion Policy (Chi et al., 2023). Includes training code, pretrained models, and real robot deployment scripts. The fastest way to get started with diffusion-based robot learning.</p>
+          <div class="meta">Python | PyTorch | MIT License</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/octo-models/octo">Octo</a></h4>
+          <p>Open-source generalist robot policy. Pre-trained on Open X-Embodiment (800K trajectories, 22 robots). Fine-tune on your robot with 100+ demos. JAX/Flax implementation.</p>
+          <div class="meta">Python | JAX | MIT License | UC Berkeley</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- References -->
+    <section class="section" id="references">
+      <h2>References & Further Reading</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="http://incompleteideas.net/book/the-book.html">Sutton & Barto: Reinforcement Learning: An Introduction (2018)</a></h4>
+          <p>THE textbook for RL. Covers bandits, MDPs, dynamic programming, Monte Carlo methods, TD learning, policy gradients, and function approximation. Free online. 2nd edition.</p>
+          <div class="meta">MIT Press | Free PDF | 50k+ citations</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2303.12712">Brohan et al: RT-2 — Vision-Language-Action Models (2023)</a></h4>
+          <p>Transfers knowledge from web-scale vision-language pre-training to robot control. Shows that VLMs can output robot actions as text tokens, enabling semantic reasoning about manipulation.</p>
+          <div class="meta">Google DeepMind | Robotics Transformer 2</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2303.04137">Chi et al: Diffusion Policy (2023)</a></h4>
+          <p>Denoising diffusion models for visuomotor policy learning. Handles multi-modal demonstrations, predicts action chunks, and achieves SOTA on manipulation benchmarks. Rapidly adopted by the community.</p>
+          <div class="meta">Columbia / Toyota Research Institute</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2310.08864">Open X-Embodiment (2024)</a></h4>
+          <p>A collaboration of 21 institutions pooling robot demonstration data from 22 robot embodiments. Over 1 million trajectories. Enables cross-embodiment generalization research. Powers Octo and RT-X.</p>
+          <div class="meta">Google DeepMind + 20 institutions</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2304.13705">Zhao et al: Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware (2023)</a></h4>
+          <p>ALOHA paper. Low-cost bimanual teleoperation system ($20K vs $100K+ alternatives) + ACT policy learning from 50 demonstrations. Demonstrated precise tasks: battery insertion, cup transfer.</p>
+          <div class="meta">Stanford | ALOHA + ACT</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://spinningup.openai.com/">OpenAI Spinning Up</a></h4>
+          <p>The best practical introduction to deep RL. Clean implementations of VPG, TRPO, PPO, DDPG, TD3, SAC. Explanations of key concepts, math, and code in one place.</p>
+          <div class="meta">OpenAI | Free | Educational resource</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="container">
+      <a href="/">FreeRobotStore</a> · <a href="/institute/">Institute</a> · <a href="/institute/learning.html">Learning</a> · Built with <a href="https://zensical.org">Zensical</a>
+    </div>
+  </footer>
+</body>
+</html>

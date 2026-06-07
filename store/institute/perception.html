@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Perception — Robotics Institute</title>
+  <meta name="description" content="Comprehensive guide to robot perception: computer vision, depth sensing, LiDAR, object detection, SLAM, sensor fusion, and 3D reconstruction.">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--accent:#f97316;--paper:#0a0a0a;--ink:#fafafa;--muted:#737373;--panel:#141414;--line:#262626}
+    body{font-family:'Manrope',system-ui,sans-serif;background:var(--paper);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+    .container{max-width:900px;margin:0 auto;padding:0 1.5rem}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    header{border-bottom:1px solid var(--line);padding:.75rem 0}
+    header .container{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--ink)}
+    .brand-emoji{font-size:1.5rem}
+    .brand-text{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+    .brand-tag{font-size:.68rem;color:var(--muted)}
+    nav{display:flex;gap:1rem;font-size:.82rem;font-weight:600;margin-left:auto;flex-wrap:wrap}
+    nav a{color:var(--muted)}nav a:hover{color:var(--ink)}nav a.active{color:var(--accent)}
+    .hero{text-align:center;padding:2.5rem 0 1.5rem;border-bottom:1px solid var(--line)}
+    .hero h1{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;margin-bottom:.5rem}
+    .hero h1 em{color:var(--accent);font-style:normal}
+    .hero p{color:var(--muted);max-width:600px;margin:0 auto;font-size:.95rem}
+    .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.25rem;margin:1.5rem 0}
+    .toc h3{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--accent)}
+    .toc ul{list-style:none;padding:0;columns:2}
+    .toc li{margin:.2rem 0}.toc a{color:#a3a3a3;font-size:.82rem}.toc a:hover{color:var(--ink)}
+    .section{margin-bottom:2rem;padding-top:1rem}
+    .section h2{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.35rem;border-bottom:1px solid var(--line)}
+    .section h3{font-size:.95rem;font-weight:700;margin:1rem 0 .35rem;color:#e5e5e5}
+    .section p,.section li{color:#a3a3a3;font-size:.88rem}
+    ul{padding-left:1.25rem;margin:.35rem 0}
+    li{margin-bottom:.3rem}
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.6rem;margin:.5rem 0}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.85rem;transition:border-color .15s}
+    .card:hover{border-color:var(--accent)}
+    .card h4{font-size:.85rem;font-weight:700;margin-bottom:.2rem}
+    .card h4 a{color:var(--ink)}.card p{font-size:.75rem;color:var(--muted);margin:0;line-height:1.5}
+    .card .meta{font-size:.65rem;color:#525252;margin-top:.25rem}
+    code{font-family:'Courier New',monospace;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:.1rem .35rem;font-size:.82rem;color:var(--accent)}
+    pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem;margin:.75rem 0;overflow-x:auto;font-size:.8rem;line-height:1.6;color:#a3a3a3}
+    pre code{background:none;border:none;padding:0;color:inherit}
+    .formula{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem;margin:.5rem 0;font-family:'Courier New',monospace;font-size:.82rem;color:#e5e5e5;text-align:center;line-height:1.8}
+    table{width:100%;border-collapse:collapse;margin:.75rem 0;font-size:.82rem}
+    th,td{border:1px solid var(--line);padding:.5rem .75rem;text-align:left}
+    th{background:var(--panel);color:var(--ink);font-weight:700}
+    td{color:#a3a3a3}
+    footer{border-top:1px solid var(--line);padding:1.5rem 0;text-align:center;font-size:.75rem;color:#525252}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/institute/" class="brand">
+        <span class="brand-emoji">🦾</span>
+        <span><span class="brand-text">Robotics Institute</span><br><span class="brand-tag">Powered by <a href="https://zensical.org" style="color:#525252">Zensical</a></span></span>
+      </a>
+      <nav>
+        <a href="/institute/">Overview</a>
+        <a href="/institute/kinematics.html">Kinematics</a>
+        <a href="/institute/control.html">Control</a>
+        <a href="/institute/perception.html" class="active">Perception</a>
+        <a href="/institute/planning.html">Planning</a>
+        <a href="/institute/learning.html">Learning</a>
+        <a href="/">Simulations</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <section class="hero">
+      <h1>Robot <em>Perception</em></h1>
+      <p>How robots see, sense, and understand the world. From cameras and LiDAR to neural networks and SLAM — the sensory systems that enable autonomy.</p>
+    </section>
+
+    <nav class="toc">
+      <h3>Contents</h3>
+      <ul>
+        <li><a href="#intro">What is Robot Perception?</a></li>
+        <li><a href="#cameras">Cameras & Image Sensors</a></li>
+        <li><a href="#depth">Depth Sensing</a></li>
+        <li><a href="#lidar">LiDAR</a></li>
+        <li><a href="#detection">Object Detection</a></li>
+        <li><a href="#segmentation">Segmentation</a></li>
+        <li><a href="#pose">Pose Estimation</a></li>
+        <li><a href="#slam">SLAM</a></li>
+        <li><a href="#fusion">Sensor Fusion</a></li>
+        <li><a href="#pointclouds">Point Clouds & 3D Reconstruction</a></li>
+        <li><a href="#tools">Tools & Libraries</a></li>
+        <li><a href="#references">References</a></li>
+      </ul>
+    </nav>
+
+    <!-- Introduction -->
+    <section class="section" id="intro">
+      <h2>What is Robot Perception?</h2>
+      <p>Perception is the process of converting raw sensor data into actionable information about the environment. It answers fundamental questions: Where am I? What is around me? Where are the objects I need to interact with? Is it safe to move? Perception is the bridge between the physical world and the robot's decision-making systems.</p>
+
+      <h3>The Perception Pipeline</h3>
+      <ul>
+        <li><strong>Sensing</strong> — raw data acquisition from cameras, LiDAR, IMUs, encoders, force/torque sensors, microphones, tactile sensors.</li>
+        <li><strong>Preprocessing</strong> — noise filtering, calibration correction, time synchronization, data alignment.</li>
+        <li><strong>Feature extraction</strong> — identifying meaningful patterns: edges, corners, planes, objects, surfaces.</li>
+        <li><strong>Interpretation</strong> — semantic understanding: object classification, scene labeling, activity recognition.</li>
+        <li><strong>State estimation</strong> — fusing noisy, uncertain measurements into a coherent estimate of the world state.</li>
+      </ul>
+
+      <h3>Why Perception is Hard</h3>
+      <ul>
+        <li><strong>Noise and uncertainty</strong> — every sensor measurement is corrupted by noise. Depth cameras have systematic errors; LiDAR returns have range-dependent accuracy; cameras are affected by lighting changes.</li>
+        <li><strong>Partial observability</strong> — robots can only see what is in front of them. Occluded objects, transparent surfaces, and reflections create ambiguity.</li>
+        <li><strong>Real-time constraints</strong> — perception must keep up with the robot's control loop. A self-driving car at 60 mph travels 27 meters per second; perception must process data in milliseconds.</li>
+        <li><strong>Open-world problem</strong> — unlike controlled industrial settings, real-world environments contain an unbounded variety of objects, materials, and conditions.</li>
+      </ul>
+    </section>
+
+    <!-- Cameras -->
+    <section class="section" id="cameras">
+      <h2>Cameras & Image Sensors</h2>
+      <p>Cameras are the most information-dense sensor in robotics. A single RGB frame contains millions of pixels of color information, enabling object detection, tracking, visual servoing, and scene understanding.</p>
+
+      <h3>Camera Types</h3>
+      <table>
+        <tr><th>Type</th><th>Output</th><th>Use Case</th><th>Example</th></tr>
+        <tr><td>Monocular RGB</td><td>Color images</td><td>Object detection, classification, tracking</td><td>FLIR Blackfly, Basler ace</td></tr>
+        <tr><td>Stereo</td><td>Rectified image pairs + disparity</td><td>Depth estimation, 3D reconstruction</td><td>Intel RealSense D435, ZED 2</td></tr>
+        <tr><td>RGB-D</td><td>Color + depth per pixel</td><td>Object detection with depth, manipulation</td><td>Intel RealSense D455, Azure Kinect</td></tr>
+        <tr><td>Event camera</td><td>Asynchronous brightness changes</td><td>High-speed motion, HDR scenes</td><td>iniVation DAVIS346, Prophesee EVK4</td></tr>
+        <tr><td>Thermal</td><td>Infrared temperature map</td><td>Night vision, human detection, industrial inspection</td><td>FLIR Lepton, Seek Thermal</td></tr>
+      </table>
+
+      <h3>Camera Model</h3>
+      <p>The pinhole camera model maps 3D world points to 2D image pixels via projection:</p>
+      <div class="formula">
+        [u, v, 1]^T = (1/Z) * K * [R | t] * [X, Y, Z, 1]^T<br>
+        K = [fx 0 cx; 0 fy cy; 0 0 1]  (intrinsic matrix)
+      </div>
+      <p>where (fx, fy) are focal lengths in pixels, (cx, cy) is the principal point, [R|t] is the extrinsic matrix (camera pose), and (X, Y, Z) is the 3D point. Lens distortion (radial and tangential) is modeled by additional polynomial coefficients.</p>
+
+      <h3>Camera Calibration</h3>
+      <p>Calibration determines intrinsic parameters (focal length, principal point, distortion) and extrinsic parameters (position/orientation relative to the robot). Zhang's method (2000) uses images of a planar checkerboard pattern — the standard approach implemented in OpenCV's <code>calibrateCamera()</code>. For stereo cameras, calibration also determines the baseline (distance between cameras) and rectification transforms.</p>
+
+      <h3>Event Cameras</h3>
+      <p>Unlike conventional cameras that capture full frames at a fixed rate, event cameras (Dynamic Vision Sensors) output asynchronous events whenever a pixel's brightness changes. Each event is a tuple (x, y, t, polarity). Advantages: microsecond temporal resolution, 120+ dB dynamic range, no motion blur, low power. Challenges: completely different data format requires new algorithms. Research from ETH Zurich (Scaramuzza group) and KAIST has pioneered event-based visual odometry, SLAM, and object detection.</p>
+    </section>
+
+    <!-- Depth Sensing -->
+    <section class="section" id="depth">
+      <h2>Depth Sensing</h2>
+      <p>Depth sensors measure the distance from the sensor to surfaces in the scene, producing a depth map (each pixel = distance value). Critical for obstacle avoidance, manipulation, and 3D mapping.</p>
+
+      <h3>Structured Light</h3>
+      <p>Projects a known pattern (dots, stripes, or speckle) onto the scene and observes the deformation with a camera. The original Microsoft Kinect v1 (PrimeSense technology) used this approach. Works well indoors but fails in sunlight (the projected pattern is washed out). Range: 0.5-5m, accuracy: ~1-3mm at 1m.</p>
+
+      <h3>Stereo Vision</h3>
+      <p>Two cameras separated by a known baseline observe the same scene. Disparity (pixel shift between left and right images) is inversely proportional to depth: Z = f * B / d, where f is focal length, B is baseline, d is disparity. Dense stereo matching algorithms (SGM, RAFT-Stereo, CREStereo) compute disparity for every pixel. Works outdoors but struggles with textureless surfaces (white walls, glass).</p>
+
+      <h3>Time-of-Flight (ToF)</h3>
+      <p>Emits modulated infrared light and measures the phase shift of the returned signal to compute distance. Each pixel independently measures depth. The Microsoft Kinect v2 and Azure Kinect DK use ToF. Advantages: works on textureless surfaces, produces clean depth maps. Disadvantages: limited resolution (typically 512x512 or less), multipath interference in corners, limited range (0.5-5m).</p>
+
+      <h3>Active Stereo</h3>
+      <p>Combines structured light projection with stereo cameras. The Intel RealSense D400 series uses active stereo: an IR projector creates texture on the scene, and two IR cameras perform stereo matching. This overcomes the textureless-surface limitation of passive stereo while working in moderate outdoor lighting.</p>
+
+      <h3>Comparison</h3>
+      <table>
+        <tr><th>Technology</th><th>Range</th><th>Resolution</th><th>Outdoor</th><th>Cost</th></tr>
+        <tr><td>Structured Light</td><td>0.5-5m</td><td>640x480+</td><td>Poor</td><td>$100-500</td></tr>
+        <tr><td>Passive Stereo</td><td>0.5-100m</td><td>1280x720+</td><td>Good</td><td>$200-2000</td></tr>
+        <tr><td>Time-of-Flight</td><td>0.5-5m</td><td>512x512</td><td>Moderate</td><td>$300-1000</td></tr>
+        <tr><td>Active Stereo</td><td>0.3-10m</td><td>1280x720</td><td>Moderate</td><td>$200-500</td></tr>
+        <tr><td>LiDAR</td><td>1-200m</td><td>N/A (points)</td><td>Excellent</td><td>$500-75,000</td></tr>
+      </table>
+    </section>
+
+    <!-- LiDAR -->
+    <section class="section" id="lidar">
+      <h2>LiDAR</h2>
+      <p>LiDAR (Light Detection and Ranging) measures distance by emitting laser pulses and timing the return. It produces sparse but highly accurate 3D point clouds, making it the primary sensor for autonomous vehicles, surveying, and outdoor mobile robotics.</p>
+
+      <h3>Types of LiDAR</h3>
+      <ul>
+        <li><strong>Mechanical spinning</strong> — a rotating head with multiple laser emitters/receivers. The Velodyne VLP-16 (16 channels, 300k points/sec) and Ouster OS1 (32/64/128 channels) are industry standards for autonomous vehicles. 360-degree coverage, 100m+ range.</li>
+        <li><strong>Solid-state</strong> — no moving parts. Uses MEMS mirrors, optical phased arrays, or flash illumination. Smaller, cheaper, more reliable. Livox Mid-360 is widely used in robotics. Limited field of view (typically 70-120 degrees).</li>
+        <li><strong>Flash LiDAR</strong> — illuminates the entire field of view simultaneously with a single pulse. Very fast (no scanning), but limited range. Used in automotive short-range sensing.</li>
+        <li><strong>FMCW LiDAR</strong> — Frequency-Modulated Continuous Wave. Measures both distance AND velocity simultaneously (Doppler shift). Aeva and Aurora are developing FMCW LiDAR for autonomous driving. Immune to interference from other LiDAR sensors.</li>
+      </ul>
+
+      <h3>LiDAR Data Characteristics</h3>
+      <ul>
+        <li>Each point has (x, y, z) coordinates, intensity (reflectivity), and sometimes return number (multiple returns from vegetation).</li>
+        <li>Typical density: 100k-2M points per second for automotive LiDAR.</li>
+        <li>Accuracy: 1-3cm at 100m range for high-end units (Velodyne Alpha Prime, Hesai AT128).</li>
+        <li>Sparse compared to cameras: a 128-channel LiDAR produces ~300k points per scan vs ~2M pixels per camera frame.</li>
+        <li>No color information (unless fused with cameras).</li>
+        <li>Works in all lighting conditions (day, night, direct sunlight).</li>
+      </ul>
+
+      <h3>LiDAR Processing</h3>
+      <ul>
+        <li><strong>Ground segmentation</strong> — separate ground plane from objects. Methods: RANSAC plane fitting, height-based filtering, or learned models.</li>
+        <li><strong>Clustering</strong> — group non-ground points into objects. DBSCAN and Euclidean clustering are common.</li>
+        <li><strong>Registration</strong> — align point clouds from different scans. ICP (Iterative Closest Point) and NDT (Normal Distributions Transform) are classical methods; modern approaches use learned features.</li>
+        <li><strong>3D object detection</strong> — detect and classify objects (cars, pedestrians, cyclists) directly from point clouds. PointPillars (Lang et al., 2019), CenterPoint (Yin et al., 2021), and VoxelNet are key architectures.</li>
+      </ul>
+    </section>
+
+    <!-- Object Detection -->
+    <section class="section" id="detection">
+      <h2>Object Detection</h2>
+      <p>Object detection identifies what objects are present in an image and where they are (bounding boxes). It is the foundation of robot perception for manipulation, navigation, and interaction.</p>
+
+      <h3>YOLO (You Only Look Once)</h3>
+      <p>The YOLO family treats detection as a single regression problem: divide the image into a grid, predict bounding boxes and class probabilities for each cell in one forward pass. Key milestones:</p>
+      <ul>
+        <li><strong>YOLOv1</strong> (Redmon et al., 2016) — first real-time detector with reasonable accuracy. 45 FPS on a GPU. Published at CVPR 2016.</li>
+        <li><strong>YOLOv3</strong> (Redmon, 2018) — multi-scale detection, Darknet-53 backbone. Practical sweet spot of speed vs accuracy for several years.</li>
+        <li><strong>YOLOv5</strong> (Ultralytics, 2020) — PyTorch implementation, extensive training pipeline. Not a paper but widely adopted in industry.</li>
+        <li><strong>YOLOv8</strong> (Ultralytics, 2023) — anchor-free detection, improved accuracy. State-of-the-art real-time detector. Supports detection, segmentation, and pose estimation.</li>
+        <li><strong>YOLOv11/YOLO-World</strong> (2024) — open-vocabulary detection (detect any object described in text without retraining).</li>
+      </ul>
+      <p>YOLO is the go-to choice for robotics when real-time performance matters: 30+ FPS on edge devices (Jetson Orin), 100+ FPS on desktop GPUs.</p>
+
+      <h3>DETR (Detection Transformer)</h3>
+      <p>Carion et al. (Facebook AI, 2020) introduced DETR: an end-to-end transformer-based detector that eliminates hand-crafted components (anchors, NMS). A CNN backbone extracts features, a transformer encoder/decoder processes them, and a set prediction loss matches predictions to ground truth. Follow-ups include Deformable DETR (faster convergence), DAB-DETR, and DINO (state-of-the-art accuracy). Transformers dominate detection benchmarks but are slower than YOLO for real-time robotics.</p>
+
+      <h3>Grounding DINO</h3>
+      <p>Liu et al. (2023) combined DINO with text grounding: given an image and a text prompt ("red cup on the table"), it detects and localizes the described objects. This open-set detection capability is transformative for robotics — the robot can be told what to look for in natural language without task-specific training.</p>
+
+      <h3>Detection Metrics</h3>
+      <ul>
+        <li><strong>mAP (mean Average Precision)</strong> — the standard metric. Computed as the area under the precision-recall curve, averaged over all classes. COCO mAP uses IoU thresholds from 0.5 to 0.95 in steps of 0.05.</li>
+        <li><strong>IoU (Intersection over Union)</strong> — measures overlap between predicted and ground-truth bounding boxes. IoU > 0.5 is a "correct" detection in the PASCAL VOC metric.</li>
+        <li><strong>FPS (Frames Per Second)</strong> — throughput. For robotics, 10+ FPS is minimum for reactive behavior; 30+ FPS is preferred.</li>
+        <li><strong>Latency</strong> — time from image capture to detection result. Critical for time-sensitive tasks (obstacle avoidance). Different from FPS because of pipelining.</li>
+      </ul>
+    </section>
+
+    <!-- Segmentation -->
+    <section class="section" id="segmentation">
+      <h2>Segmentation</h2>
+      <p>While detection gives bounding boxes, segmentation provides pixel-level understanding of the scene.</p>
+
+      <h3>Types of Segmentation</h3>
+      <ul>
+        <li><strong>Semantic segmentation</strong> — assign a class label to every pixel (road, sidewalk, car, tree). Does not distinguish individual instances of the same class.</li>
+        <li><strong>Instance segmentation</strong> — detect individual objects AND delineate their boundaries at pixel level. Mask R-CNN (He et al., 2017) is the foundational architecture.</li>
+        <li><strong>Panoptic segmentation</strong> — combines semantic and instance segmentation: classify every pixel and distinguish individual instances for "things" (countable objects like cars, people) while treating "stuff" (uncountable regions like sky, road) with semantic labels only.</li>
+      </ul>
+
+      <h3>Segment Anything Model (SAM)</h3>
+      <p>Kirillov et al. (Meta AI, 2023) introduced SAM, a foundation model for segmentation. Trained on 11 million images and 1.1 billion masks, SAM can segment any object in any image given a point, box, or text prompt. SAM 2 (Ravi et al., 2024) extends this to video with temporal consistency. For robotics, SAM enables zero-shot object segmentation — segment objects the robot has never seen during training.</p>
+
+      <h3>Robotics Applications</h3>
+      <ul>
+        <li><strong>Bin picking</strong> — instance segmentation identifies individual parts in a cluttered bin for grasp planning.</li>
+        <li><strong>Navigation</strong> — semantic segmentation labels traversable ground, obstacles, and lane markings.</li>
+        <li><strong>Manipulation</strong> — segmenting the target object from the background enables precise grasp point estimation.</li>
+        <li><strong>Scene understanding</strong> — panoptic segmentation gives a complete understanding of what is where.</li>
+      </ul>
+    </section>
+
+    <!-- Pose Estimation -->
+    <section class="section" id="pose">
+      <h2>Pose Estimation</h2>
+      <p>6-DOF pose estimation determines the position (x, y, z) and orientation (roll, pitch, yaw) of objects in the scene. Essential for robotic manipulation: the robot needs to know not just where an object is, but how it is oriented to plan a grasp.</p>
+
+      <h3>Approaches</h3>
+      <ul>
+        <li><strong>Correspondence-based</strong> — find 2D-3D correspondences between image features and a known 3D model, then solve PnP (Perspective-n-Point). Classical approach using feature detectors (SIFT, ORB) and RANSAC for outlier rejection.</li>
+        <li><strong>Direct regression</strong> — neural networks predict the 6-DOF pose directly from the image. PoseCNN (Xiang et al., 2018), PVNet (Peng et al., 2019). Fast but less accurate for symmetric objects.</li>
+        <li><strong>Render-and-compare</strong> — render the 3D model at candidate poses and compare with the observed image. CosyPose (Labbe et al., 2020) iteratively refines the pose. Accurate but slower.</li>
+        <li><strong>FoundationPose</strong> — Wen et al. (NVIDIA, 2024) proposed a foundation model for 6-DOF pose estimation that works with novel objects using either a 3D model or a reference image. No object-specific training needed.</li>
+      </ul>
+
+      <h3>BOP Benchmark</h3>
+      <p>The BOP (Benchmark for 6D Object Pose Estimation) challenge, run annually since 2017 at ECCV/ICCV, is the standard evaluation for pose estimation methods. It includes datasets like YCB-Video (21 household objects), T-LESS (texture-less industrial parts), and LM-O (occluded objects). The BOP leaderboard tracks the state of the art: <a href="https://bop.felk.cvut.cz/">bop.felk.cvut.cz</a>.</p>
+    </section>
+
+    <!-- SLAM -->
+    <section class="section" id="slam">
+      <h2>SLAM — Simultaneous Localization and Mapping</h2>
+      <p>SLAM is the process of building a map of an unknown environment while simultaneously tracking the robot's position within that map. It is one of the most important problems in mobile robotics, studied intensively since the 1986 paper by Smith, Self, and Cheeseman.</p>
+
+      <h3>The SLAM Problem</h3>
+      <p>The robot moves through an unknown environment, making noisy observations of landmarks. It must estimate both its own trajectory and the positions of all landmarks. The key insight: landmark observations are correlated through the robot's trajectory — observing the same landmark from two locations constrains the robot's motion between those observations.</p>
+
+      <h3>Visual SLAM (vSLAM)</h3>
+      <p>Uses cameras as the primary sensor. Tracks visual features across frames to estimate motion and build a 3D map of feature points.</p>
+      <ul>
+        <li><strong>ORB-SLAM3</strong> (Campos et al., 2021) — the most complete visual SLAM system. Handles monocular, stereo, and RGB-D cameras plus IMU. Includes loop closure, relocalization, and multi-map management. Open-source: <a href="https://github.com/UZ-SLAMLab/ORB_SLAM3">github.com/UZ-SLAMLab/ORB_SLAM3</a>.</li>
+        <li><strong>LSD-SLAM</strong> (Engel et al., 2014) — direct method (no feature extraction); uses pixel intensities directly. Produces semi-dense depth maps.</li>
+        <li><strong>DSO</strong> (Engel et al., 2018) — Direct Sparse Odometry. Combines direct photometric error with sparse point selection for efficiency.</li>
+        <li><strong>DPVO / DROID-SLAM</strong> (Teed & Deng, 2021) — learned visual odometry/SLAM using differentiable optimization layers. State-of-the-art accuracy on standard benchmarks.</li>
+      </ul>
+
+      <h3>LiDAR SLAM</h3>
+      <ul>
+        <li><strong>LOAM</strong> (Zhang & Singh, 2014) — LiDAR Odometry and Mapping. Extracts edge and planar features from scans, performs scan-to-scan matching at high frequency and scan-to-map matching at low frequency. The gold standard for years.</li>
+        <li><strong>LeGO-LOAM</strong> (Shan & Englot, 2018) — lightweight ground-optimized LOAM. Faster and works well on ground vehicles.</li>
+        <li><strong>KISS-ICP</strong> (Vizzo et al., 2023) — simple, robust LiDAR odometry. "Keep It Small and Simple" — point-to-point ICP with adaptive thresholds. Surprisingly competitive with complex methods.</li>
+        <li><strong>LIO-SAM</strong> (Shan et al., 2020) — tightly-coupled LiDAR-IMU SLAM using factor graphs. GTSAM backend. Robust in aggressive motion.</li>
+      </ul>
+
+      <h3>Backend Optimization</h3>
+      <p>Modern SLAM systems use factor graph optimization (pose graph SLAM) rather than filtering. The graph has nodes (robot poses, landmark positions) and edges (odometry constraints, observation constraints). Nonlinear least-squares solvers minimize the total error:</p>
+      <ul>
+        <li><strong>GTSAM</strong> (Georgia Tech Smoothing and Mapping) — C++ library using factor graphs and Bayes trees. Created by Frank Dellaert. Used in LIO-SAM, Kimera, and many research systems.</li>
+        <li><strong>g2o</strong> (General Graph Optimization) — another widely-used graph optimization framework. Used in ORB-SLAM.</li>
+        <li><strong>Ceres Solver</strong> (Google) — general nonlinear least-squares solver. Used in Cartographer (Google's 2D/3D SLAM for backpack mapping).</li>
+      </ul>
+
+      <h3>Loop Closure</h3>
+      <p>When the robot revisits a previously mapped location, loop closure detects this and corrects the accumulated drift. Without loop closure, SLAM drift grows without bound. Methods: bag-of-words image retrieval (DBoW2 in ORB-SLAM), scan context for LiDAR (Kim & Kim, 2018), and learned place recognition (NetVLAD, Patch-NetVLAD).</p>
+    </section>
+
+    <!-- Sensor Fusion -->
+    <section class="section" id="fusion">
+      <h2>Sensor Fusion</h2>
+      <p>No single sensor is sufficient for robust robot perception. Sensor fusion combines data from multiple sensors to produce estimates that are more accurate, more complete, and more robust than any individual sensor.</p>
+
+      <h3>Kalman Filter</h3>
+      <p>The workhorse of sensor fusion since Rudolf Kalman's 1960 paper. For linear systems with Gaussian noise, the Kalman filter provides the optimal (minimum variance) state estimate. It operates in two steps:</p>
+      <div class="formula">
+        Predict: x_hat = A*x + B*u,  P = A*P*A^T + Q<br>
+        Update:  K = P*H^T*(H*P*H^T + R)^{-1},  x = x_hat + K*(z - H*x_hat),  P = (I-K*H)*P
+      </div>
+      <p>where x is the state, P is the covariance, Q is process noise, R is measurement noise, H is the observation matrix, and K is the Kalman gain.</p>
+
+      <h3>Extended Kalman Filter (EKF)</h3>
+      <p>For nonlinear systems (which includes virtually all robot dynamics), the EKF linearizes the prediction and observation models around the current estimate using Jacobians. Widely used in IMU integration, GPS/INS fusion, and EKF-SLAM. Limitation: the linearization can be inaccurate for highly nonlinear systems.</p>
+
+      <h3>Unscented Kalman Filter (UKF)</h3>
+      <p>Instead of linearizing, the UKF uses sigma points — a deterministic set of sample points that capture the mean and covariance of the state distribution. Each sigma point is propagated through the actual nonlinear function. More accurate than EKF for highly nonlinear systems, with similar computational cost. Introduced by Julier and Uhlmann (1997).</p>
+
+      <h3>Particle Filter (Sequential Monte Carlo)</h3>
+      <p>Represents the probability distribution as a set of weighted samples (particles). Each particle is a hypothesis for the state. At each step: propagate particles through the motion model, weight them by the observation likelihood, and resample. Handles multi-modal distributions (multiple hypotheses) and arbitrary nonlinearities. Used in Monte Carlo Localization (MCL) for mobile robots — the standard localization algorithm in ROS (AMCL package). Computational cost scales with the number of particles.</p>
+
+      <h3>Common Fusion Architectures</h3>
+      <table>
+        <tr><th>Sensors</th><th>Application</th><th>Method</th></tr>
+        <tr><td>IMU + GPS</td><td>Outdoor localization</td><td>EKF or error-state KF</td></tr>
+        <tr><td>Camera + IMU (VIO)</td><td>Visual-inertial odometry</td><td>MSCKF, OKVIS, VINS-Mono</td></tr>
+        <tr><td>LiDAR + IMU</td><td>LiDAR-inertial SLAM</td><td>LIO-SAM, FAST-LIO2</td></tr>
+        <tr><td>Camera + LiDAR</td><td>Dense 3D perception</td><td>Projection + late fusion</td></tr>
+        <tr><td>Camera + LiDAR + Radar</td><td>Autonomous driving</td><td>BEVFusion, TransFusion</td></tr>
+        <tr><td>Wheel encoders + IMU + LiDAR</td><td>Indoor mobile robot</td><td>EKF + AMCL or Cartographer</td></tr>
+      </table>
+
+      <h3>Visual-Inertial Odometry (VIO)</h3>
+      <p>Combines camera and IMU data for 6-DOF pose estimation. The IMU provides high-rate (100-400 Hz) angular velocity and acceleration measurements; the camera provides low-rate (15-60 Hz) but drift-free relative pose constraints. Key systems:</p>
+      <ul>
+        <li><strong>VINS-Mono</strong> (Qin et al., 2018) — monocular VIO with loop closure. Open-source, widely used on drones.</li>
+        <li><strong>OKVIS</strong> (Leutenegger et al., 2015) — keyframe-based visual-inertial SLAM. From ETH Zurich.</li>
+        <li><strong>Basalt</strong> (Usenko et al., 2020) — from TUM, uses non-linear optimization with visual and inertial factors.</li>
+        <li><strong>Apple ARKit / Google ARCore</strong> — commercial VIO implementations on smartphones, enabling AR applications.</li>
+      </ul>
+    </section>
+
+    <!-- Point Clouds -->
+    <section class="section" id="pointclouds">
+      <h2>Point Clouds & 3D Reconstruction</h2>
+      <p>A point cloud is a set of 3D points representing the surfaces in a scene. Point clouds are produced by LiDAR, depth cameras, and multi-view stereo, and are the primary data structure for 3D perception.</p>
+
+      <h3>Point Cloud Processing</h3>
+      <ul>
+        <li><strong>Downsampling</strong> — reduce point density for efficiency. Voxel grid filtering (average points within each voxel) is standard. Random sampling and farthest point sampling (FPS) are alternatives.</li>
+        <li><strong>Normal estimation</strong> — compute surface normals at each point by fitting a plane to local neighbors. Essential for surface reconstruction and registration.</li>
+        <li><strong>Registration</strong> — align two point clouds. ICP (Besl & McKay, 1992) iteratively minimizes the distance between corresponding points. Variants: point-to-plane ICP, generalized ICP (GICP), colored ICP.</li>
+        <li><strong>Segmentation</strong> — separate ground plane (RANSAC), cluster objects (DBSCAN, Euclidean clustering), or segment semantically (PointNet++).</li>
+        <li><strong>Surface reconstruction</strong> — create a mesh from points. Poisson surface reconstruction, ball-pivoting algorithm, or Delaunay triangulation.</li>
+      </ul>
+
+      <h3>Deep Learning on Point Clouds</h3>
+      <ul>
+        <li><strong>PointNet</strong> (Qi et al., 2017) — the breakthrough. Processes raw point clouds directly (no voxelization or projection). Uses shared MLPs and a symmetric function (max-pooling) to achieve permutation invariance. 89.2% accuracy on ModelNet40.</li>
+        <li><strong>PointNet++</strong> (Qi et al., 2017) — adds hierarchical feature learning with set abstraction layers. Captures local geometry at multiple scales.</li>
+        <li><strong>Point Transformer</strong> (Zhao et al., 2021) — applies self-attention to 3D point clouds. State-of-the-art on indoor scene segmentation (S3DIS dataset).</li>
+        <li><strong>MinkowskiNet</strong> (Choy et al., 2019) — sparse convolutions on voxelized point clouds. Efficient and powerful for 3D segmentation.</li>
+      </ul>
+
+      <h3>3D Reconstruction Methods</h3>
+      <ul>
+        <li><strong>TSDF Fusion</strong> — Truncated Signed Distance Function. Integrate multiple depth frames into a volumetric representation. KinectFusion (Newcombe et al., 2011) demonstrated real-time dense reconstruction from an RGB-D camera. Open3D implements this.</li>
+        <li><strong>NeRF</strong> (Mildenhall et al., 2020) — Neural Radiance Fields. A neural network encodes the scene as a continuous volumetric function. Produces photorealistic novel views from sparse images. Follow-ups: Instant-NGP (real-time training), Nerfstudio, and 3D Gaussian Splatting.</li>
+        <li><strong>3D Gaussian Splatting</strong> (Kerbl et al., 2023) — represents the scene as a set of 3D Gaussians. Renders in real-time (100+ FPS). State-of-the-art for novel view synthesis and 3D reconstruction. Increasingly used in robotics for scene representation.</li>
+        <li><strong>Multi-view stereo (MVS)</strong> — reconstruct dense 3D geometry from multiple calibrated images. COLMAP (Schonberger & Frahm, 2016) is the standard pipeline: SfM (structure from motion) for camera poses, then dense MVS for point clouds.</li>
+      </ul>
+    </section>
+
+    <!-- Tools -->
+    <section class="section" id="tools">
+      <h2>Tools & Libraries</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="https://github.com/opencv/opencv">OpenCV</a></h4>
+          <p>The standard computer vision library. Image processing, feature detection, camera calibration, stereo matching, object tracking. C++ and Python bindings.</p>
+          <div class="meta">C++ / Python | 78k+ GitHub stars | Apache 2.0</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/isl-org/Open3D">Open3D</a></h4>
+          <p>Modern 3D data processing library. Point clouds, meshes, RGBD integration, TSDF, ICP, visualization. Excellent Python API.</p>
+          <div class="meta">C++ / Python | Intel ISL | MIT License</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/PointCloudLibrary/pcl">PCL (Point Cloud Library)</a></h4>
+          <p>Comprehensive C++ library for 3D point cloud processing. Filtering, segmentation, registration, surface reconstruction, feature extraction.</p>
+          <div class="meta">C++ | Open Perception | BSD</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/ultralytics/ultralytics">Ultralytics (YOLOv8/v11)</a></h4>
+          <p>Production-ready object detection, segmentation, and pose estimation. Easy training, export to ONNX/TensorRT/CoreML for edge deployment.</p>
+          <div class="meta">Python | AGPL-3.0 | 35k+ stars</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/borglab/gtsam">GTSAM</a></h4>
+          <p>Factor graph optimization library for SLAM, SfM, and state estimation. Efficient incremental inference using Bayes trees.</p>
+          <div class="meta">C++ / Python | Georgia Tech | BSD</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/colmap/colmap">COLMAP</a></h4>
+          <p>Structure-from-Motion and Multi-View Stereo pipeline. The standard tool for 3D reconstruction from images.</p>
+          <div class="meta">C++ | ETH Zurich | BSD</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- References -->
+    <section class="section" id="references">
+      <h2>References & Further Reading</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="http://www.probabilistic-robotics.org/">Thrun, Burgard & Fox: Probabilistic Robotics (2005)</a></h4>
+          <p>THE textbook for robot perception. Covers Kalman filters, particle filters, SLAM, localization, occupancy grids, and Bayesian decision-making in depth.</p>
+          <div class="meta">MIT Press | 14k+ citations</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://link.springer.com/book/10.1007/978-3-319-32552-1">Corke: Robotics, Vision and Control (2017)</a></h4>
+          <p>Practical treatment of robot vision with MATLAB toolbox. Camera models, image features, visual servoing, and navigation.</p>
+          <div class="meta">Springer | 2nd Edition</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2304.02643">Kirillov et al: Segment Anything (2023)</a></h4>
+          <p>The SAM paper from Meta AI. Trained on SA-1B (1.1 billion masks), SAM is a foundation model for promptable segmentation. Transformative for robotics perception.</p>
+          <div class="meta">Meta AI | ICCV 2023</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2003.12397">Campos et al: ORB-SLAM3 (2021)</a></h4>
+          <p>Visual, visual-inertial, and multi-map SLAM. The most complete open-source SLAM system. Handles monocular, stereo, RGB-D, and fisheye cameras.</p>
+          <div class="meta">IEEE T-RO | University of Zaragoza</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/2003.08934">Mildenhall et al: NeRF (2020)</a></h4>
+          <p>Neural Radiance Fields for view synthesis. Encodes a scene as a continuous 5D function (position + direction -> color + density). Sparked a revolution in 3D reconstruction.</p>
+          <div class="meta">ECCV 2020 | UC Berkeley</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://doi.org/10.1177/0278364917710543">Cadena et al: Past, Present, and Future of SLAM (2016)</a></h4>
+          <p>Comprehensive survey of SLAM covering 30 years of progress. Identifies open problems including long-term autonomy, semantic understanding, and resource-constrained operation.</p>
+          <div class="meta">IJRR | 2500+ citations</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="container">
+      <a href="/">FreeRobotStore</a> · <a href="/institute/">Institute</a> · <a href="/institute/perception.html">Perception</a> · Built with <a href="https://zensical.org">Zensical</a>
+    </div>
+  </footer>
+</body>
+</html>
