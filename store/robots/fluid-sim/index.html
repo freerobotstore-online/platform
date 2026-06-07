@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fluid Simulation — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.25rem 0 .25rem} h1 span{color:#06b6d4}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.5rem;text-align:center;max-width:540px}
+    canvas{border:1px solid #262626;border-radius:12px;cursor:crosshair}
+    .controls{display:flex;gap:.5rem;margin:.75rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.4rem .9rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#06b6d4;color:#06b6d4}
+    button.active{background:#06b6d4;border-color:#06b6d4;color:#fff}
+    label{font-size:.78rem;color:#a3a3a3;display:flex;align-items:center;gap:.3rem}
+    input[type=range]{width:70px;accent-color:#06b6d4}
+    .val{color:#06b6d4;font-weight:600;min-width:2rem;font-size:.75rem}
+    .stats{font-size:.75rem;color:#525252;margin:.35rem;display:flex;gap:1.25rem}
+    .stats span{color:#a3a3a3}
+    a{color:#525252;text-decoration:none}
+  </style>
+</head>
+<body>
+  <h1>Fluid <span>Simulation</span></h1>
+  <p class="sub">SPH (Smoothed Particle Hydrodynamics) fluid sim. Click/drag to splash. Particles interact with gravity, pressure, and viscosity. Add obstacles, change fluid properties.</p>
+
+  <canvas id="sim" width="800" height="500"></canvas>
+
+  <div class="controls">
+    <label>Particles <input type="range" id="count" min="100" max="1500" value="500"><span class="val" id="count-v">500</span></label>
+    <label>Gravity <input type="range" id="grav" min="0" max="30" value="10"><span class="val" id="grav-v">10</span></label>
+    <label>Viscosity <input type="range" id="visc" min="0" max="50" value="15"><span class="val" id="visc-v">15</span></label>
+    <label>Pressure <input type="range" id="press" min="10" max="200" value="80"><span class="val" id="press-v">80</span></label>
+    <button id="btn-reset">Reset</button>
+    <button id="btn-dam">Dam Break</button>
+    <button id="btn-drop">Drop</button>
+    <button id="btn-obstacle" class="">Obstacles</button>
+    <button id="btn-color">Color: Velocity</button>
+  </div>
+  <div class="stats">
+    <div>Particles: <span id="pts">500</span></div>
+    <div>FPS: <span id="fps">0</span></div>
+    <div><a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    let particles = [], obstacles = [], showObstacles = false;
+    let colorMode = 'velocity'; // velocity, pressure, density
+    const colorModes = ['velocity', 'pressure', 'density'];
+    let colorIdx = 0;
+
+    const sl = id => document.getElementById(id);
+    const sliders = { count: sl('count'), grav: sl('grav'), visc: sl('visc'), press: sl('press') };
+    const vals = { count: sl('count-v'), grav: sl('grav-v'), visc: sl('visc-v'), press: sl('press-v') };
+    for (const [k, el] of Object.entries(sliders)) el.addEventListener('input', () => vals[k].textContent = el.value);
+
+    // SPH params
+    const restDensity = 1;
+    const h = 16; // smoothing radius
+    const h2 = h * h;
+    const mass = 1;
+
+    function createParticles(n, mode) {
+      particles = [];
+      if (mode === 'dam') {
+        for (let i = 0; i < n; i++) {
+          particles.push({
+            x: 20 + Math.random() * W * 0.3,
+            y: H - 20 - Math.random() * H * 0.8,
+            vx: 0, vy: 0, density: 0, pressure: 0,
+            fx: 0, fy: 0,
+          });
+        }
+      } else if (mode === 'drop') {
+        for (let i = 0; i < n; i++) {
+          particles.push({
+            x: W * 0.3 + Math.random() * W * 0.4,
+            y: 30 + Math.random() * H * 0.15,
+            vx: (Math.random() - 0.5) * 2,
+            vy: 0, density: 0, pressure: 0, fx: 0, fy: 0,
+          });
+        }
+      } else {
+        for (let i = 0; i < n; i++) {
+          particles.push({
+            x: W * 0.2 + Math.random() * W * 0.6,
+            y: H * 0.3 + Math.random() * H * 0.6,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2,
+            density: 0, pressure: 0, fx: 0, fy: 0,
+          });
+        }
+      }
+    }
+
+    function initObstacles() {
+      obstacles = [
+        { x: W * 0.5, y: H * 0.6, r: 30 },
+        { x: W * 0.3, y: H * 0.4, r: 20 },
+        { x: W * 0.7, y: H * 0.5, r: 25 },
+      ];
+    }
+
+    sl('btn-reset').addEventListener('click', () => createParticles(+sliders.count.value, 'random'));
+    sl('btn-dam').addEventListener('click', () => createParticles(+sliders.count.value, 'dam'));
+    sl('btn-drop').addEventListener('click', () => createParticles(+sliders.count.value, 'drop'));
+    sl('btn-obstacle').addEventListener('click', function() {
+      showObstacles = !showObstacles;
+      this.classList.toggle('active');
+      if (showObstacles && obstacles.length === 0) initObstacles();
+    });
+    sl('btn-color').addEventListener('click', function() {
+      colorIdx = (colorIdx + 1) % colorModes.length;
+      colorMode = colorModes[colorIdx];
+      this.textContent = `Color: ${colorMode.charAt(0).toUpperCase() + colorMode.slice(1)}`;
+    });
+
+    // Mouse interaction
+    let mouseDown = false, mouseX = 0, mouseY = 0, prevMX = 0, prevMY = 0;
+    canvas.addEventListener('mousedown', e => {
+      mouseDown = true;
+      const r = canvas.getBoundingClientRect();
+      mouseX = prevMX = e.clientX - r.left;
+      mouseY = prevMY = e.clientY - r.top;
+    });
+    canvas.addEventListener('mousemove', e => {
+      const r = canvas.getBoundingClientRect();
+      prevMX = mouseX; prevMY = mouseY;
+      mouseX = e.clientX - r.left;
+      mouseY = e.clientY - r.top;
+    });
+    canvas.addEventListener('mouseup', () => mouseDown = false);
+    canvas.addEventListener('mouseleave', () => mouseDown = false);
+
+    // SPH kernels
+    function poly6(r2) {
+      if (r2 >= h2) return 0;
+      const d = h2 - r2;
+      return 315 / (64 * Math.PI * Math.pow(h, 9)) * d * d * d;
+    }
+
+    function spikyGrad(r) {
+      if (r >= h || r < 0.001) return 0;
+      const d = h - r;
+      return -45 / (Math.PI * Math.pow(h, 6)) * d * d;
+    }
+
+    function viscLap(r) {
+      if (r >= h) return 0;
+      return 45 / (Math.PI * Math.pow(h, 6)) * (h - r);
+    }
+
+    const dt = 0.008;
+    const GRID_SIZE = h;
+    let grid = {};
+
+    function gridKey(x, y) {
+      return `${Math.floor(x / GRID_SIZE)},${Math.floor(y / GRID_SIZE)}`;
+    }
+
+    function buildGrid() {
+      grid = {};
+      for (const p of particles) {
+        const key = gridKey(p.x, p.y);
+        if (!grid[key]) grid[key] = [];
+        grid[key].push(p);
+      }
+    }
+
+    function getNeighbors(p) {
+      const cx = Math.floor(p.x / GRID_SIZE);
+      const cy = Math.floor(p.y / GRID_SIZE);
+      const result = [];
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const cell = grid[`${cx + dx},${cy + dy}`];
+          if (cell) for (const n of cell) result.push(n);
+        }
+      }
+      return result;
+    }
+
+    function simulate() {
+      const gravity = +sliders.grav.value;
+      const viscosity = +sliders.visc.value;
+      const pressureK = +sliders.press.value;
+
+      buildGrid();
+
+      // Compute density + pressure
+      for (const p of particles) {
+        p.density = 0;
+        const neighbors = getNeighbors(p);
+        for (const n of neighbors) {
+          const dx = n.x - p.x, dy = n.y - p.y;
+          const r2 = dx * dx + dy * dy;
+          p.density += mass * poly6(r2);
+        }
+        p.density = Math.max(p.density, restDensity);
+        p.pressure = pressureK * (p.density - restDensity);
+      }
+
+      // Compute forces
+      for (const p of particles) {
+        p.fx = 0;
+        p.fy = gravity * p.density; // gravity
+
+        const neighbors = getNeighbors(p);
+        for (const n of neighbors) {
+          if (n === p) continue;
+          const dx = n.x - p.x, dy = n.y - p.y;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          if (r < 0.001 || r >= h) continue;
+
+          const nx = dx / r, ny = dy / r;
+
+          // Pressure force
+          const pAvg = (p.pressure + n.pressure) / (2 * n.density);
+          const pGrad = spikyGrad(r);
+          p.fx -= mass * pAvg * pGrad * nx;
+          p.fy -= mass * pAvg * pGrad * ny;
+
+          // Viscosity force
+          const vLap = viscLap(r);
+          p.fx += viscosity * mass * (n.vx - p.vx) / n.density * vLap;
+          p.fy += viscosity * mass * (n.vy - p.vy) / n.density * vLap;
+        }
+      }
+
+      // Mouse interaction
+      if (mouseDown) {
+        const mvx = (mouseX - prevMX) * 5;
+        const mvy = (mouseY - prevMY) * 5;
+        for (const p of particles) {
+          const dx = p.x - mouseX, dy = p.y - mouseY;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 40) {
+            const force = (40 - d) / 40;
+            p.fx += (mvx + dx * 5) * force * 50;
+            p.fy += (mvy + dy * 5) * force * 50;
+          }
+        }
+      }
+
+      // Integrate
+      for (const p of particles) {
+        p.vx += p.fx / p.density * dt;
+        p.vy += p.fy / p.density * dt;
+
+        // Damping
+        p.vx *= 0.998;
+        p.vy *= 0.998;
+
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // Boundaries
+        const margin = 5, bounce = 0.3;
+        if (p.x < margin) { p.x = margin; p.vx *= -bounce; }
+        if (p.x > W - margin) { p.x = W - margin; p.vx *= -bounce; }
+        if (p.y < margin) { p.y = margin; p.vy *= -bounce; }
+        if (p.y > H - margin) { p.y = H - margin; p.vy *= -bounce; }
+
+        // Obstacles
+        if (showObstacles) {
+          for (const obs of obstacles) {
+            const dx = p.x - obs.x, dy = p.y - obs.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < obs.r + 4) {
+              const nx = dx / d, ny = dy / d;
+              p.x = obs.x + nx * (obs.r + 4);
+              p.y = obs.y + ny * (obs.r + 4);
+              const dot = p.vx * nx + p.vy * ny;
+              p.vx -= 2 * dot * nx * 0.5;
+              p.vy -= 2 * dot * ny * 0.5;
+            }
+          }
+        }
+      }
+
+      sl('pts').textContent = particles.length;
+    }
+
+    function getColor(p) {
+      if (colorMode === 'velocity') {
+        const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+        const t = Math.min(1, spd / 8);
+        const r = Math.round(6 + t * 243);
+        const g = Math.round(182 - t * 100);
+        const b = Math.round(212 - t * 180);
+        return `rgb(${r},${g},${b})`;
+      } else if (colorMode === 'pressure') {
+        const t = Math.min(1, p.pressure / 200);
+        return `rgb(${Math.round(t*249)},${Math.round(115-t*80)},${Math.round(22+t*20)})`;
+      } else {
+        const t = Math.min(1, (p.density - restDensity) / 3);
+        return `rgb(${Math.round(16+t*200)},${Math.round(185-t*100)},${Math.round(129-t*100)})`;
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, W, H);
+
+      // Container outline
+      ctx.strokeStyle = '#1f1f1f'; ctx.lineWidth = 2;
+      ctx.strokeRect(3, 3, W - 6, H - 6);
+
+      // Obstacles
+      if (showObstacles) {
+        for (const obs of obstacles) {
+          ctx.fillStyle = '#262626';
+          ctx.beginPath(); ctx.arc(obs.x, obs.y, obs.r, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#404040'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(obs.x, obs.y, obs.r, 0, Math.PI * 2); ctx.stroke();
+        }
+      }
+
+      // Particles
+      for (const p of particles) {
+        ctx.fillStyle = getColor(p);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Mouse cursor
+      if (mouseDown) {
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(mouseX, mouseY, 40, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+
+    let frameCount = 0, lastFpsTime = performance.now();
+
+    function loop() {
+      requestAnimationFrame(loop);
+      simulate();
+      simulate(); // 2 substeps
+      draw();
+
+      frameCount++;
+      const now = performance.now();
+      if (now - lastFpsTime >= 1000) {
+        sl('fps').textContent = frameCount;
+        frameCount = 0;
+        lastFpsTime = now;
+      }
+    }
+
+    createParticles(500, 'random');
+    loop();
+  </script>
+</body>
+</html>

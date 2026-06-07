@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spider Robot — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.25rem 0 .25rem} h1 span{color:#f97316}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.5rem;text-align:center;max-width:540px}
+    canvas{border:1px solid #262626;border-radius:12px}
+    .controls{display:flex;gap:.5rem;margin:.75rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.4rem .9rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    button.primary{background:#f97316;border-color:#f97316;color:#fff}
+    label{font-size:.78rem;color:#a3a3a3;display:flex;align-items:center;gap:.3rem}
+    input[type=range]{width:70px;accent-color:#f97316}
+    .val{color:#f97316;font-weight:600;min-width:2rem;font-size:.75rem}
+    .key{display:inline-block;padding:.08rem .3rem;border-radius:3px;border:1px solid #404040;background:#1f1f1f;font-size:.62rem;font-family:monospace;color:#f97316}
+    .info{font-size:.75rem;color:#525252;margin:.35rem}
+    a{color:#525252;text-decoration:none}
+  </style>
+</head>
+<body>
+  <h1>Spider <span>Robot</span></h1>
+  <p class="sub">6-legged hexapod with inverse kinematics. <span class="key">WASD</span> to walk, <span class="key">Q</span><span class="key">E</span> to rotate, <span class="key">Space</span> to crouch. Each leg has 3 joints (coxa, femur, tibia) — 18 servos total.</p>
+
+  <canvas id="sim" width="800" height="500"></canvas>
+
+  <div class="controls">
+    <label>Speed <input type="range" id="speed" min="1" max="10" value="4"><span class="val" id="speed-v">4</span></label>
+    <label>Height <input type="range" id="height" min="20" max="80" value="45"><span class="val" id="height-v">45</span></label>
+    <label>Stride <input type="range" id="stride" min="10" max="50" value="25"><span class="val" id="stride-v">25</span></label>
+    <label>Legs <input type="range" id="legs" min="4" max="8" step="2" value="6"><span class="val" id="legs-v">6</span></label>
+    <button id="btn-tripod" class="primary">Tripod Gait</button>
+    <button id="btn-wave">Wave Gait</button>
+    <button id="btn-ripple">Ripple Gait</button>
+    <button id="btn-reset">Reset</button>
+  </div>
+  <div class="info">18 servos | IK per leg | Gait generator | <a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    let spider, gaitType, time;
+    const sl = id => document.getElementById(id);
+
+    for (const [id, vid] of [['speed','speed-v'],['height','height-v'],['stride','stride-v'],['legs','legs-v']]) {
+      sl(id).addEventListener('input', () => { sl(vid).textContent = sl(id).value; initSpider(); });
+    }
+
+    sl('btn-tripod').addEventListener('click', () => { gaitType = 'tripod'; setActive('btn-tripod'); });
+    sl('btn-wave').addEventListener('click', () => { gaitType = 'wave'; setActive('btn-wave'); });
+    sl('btn-ripple').addEventListener('click', () => { gaitType = 'ripple'; setActive('btn-ripple'); });
+    sl('btn-reset').addEventListener('click', () => { initSpider(); time = 0; });
+
+    function setActive(id) {
+      ['btn-tripod','btn-wave','btn-ripple'].forEach(b => sl(b).classList.remove('primary'));
+      sl(id).classList.add('primary');
+    }
+
+    const keys = {};
+    addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+    function initSpider() {
+      const numLegs = +sl('legs').value;
+      spider = {
+        x: W / 2, y: H / 2,
+        angle: -Math.PI / 2,
+        vx: 0, vy: 0, va: 0,
+        legs: [],
+      };
+
+      for (let i = 0; i < numLegs; i++) {
+        const a = (i / numLegs) * Math.PI * 2;
+        const side = i < numLegs / 2 ? 1 : -1;
+        spider.legs.push({
+          baseAngle: a,
+          phase: (gaitType === 'tripod') ? (i % 2) * 0.5 :
+                 (gaitType === 'wave') ? i / numLegs :
+                 (i % 3) / 3,
+          footX: 0, footY: 0,
+          lifted: false,
+          coxaAngle: 0, femurAngle: 0, tibiaAngle: 0,
+        });
+      }
+      gaitType = gaitType || 'tripod';
+      time = time || 0;
+    }
+
+    function update() {
+      const speed = +sl('speed').value;
+      const bodyHeight = +sl('height').value;
+      const stride = +sl('stride').value;
+
+      // Input
+      const fwd = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0);
+      const strafe = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+      const rot = (keys.e ? 1 : 0) - (keys.q ? 1 : 0);
+      const crouch = keys[' '] ? 0.5 : 1;
+
+      const moving = Math.abs(fwd) > 0 || Math.abs(strafe) > 0 || Math.abs(rot) > 0;
+
+      // Movement
+      spider.va += rot * 0.003;
+      spider.va *= 0.9;
+      spider.angle += spider.va;
+
+      const ca = Math.cos(spider.angle), sa = Math.sin(spider.angle);
+      spider.vx += (fwd * ca - strafe * sa) * speed * 0.08;
+      spider.vy += (fwd * sa + strafe * ca) * speed * 0.08;
+      spider.vx *= 0.92; spider.vy *= 0.92;
+      spider.x += spider.vx; spider.y += spider.vy;
+
+      // Bounds
+      spider.x = Math.max(60, Math.min(W - 60, spider.x));
+      spider.y = Math.max(60, Math.min(H - 60, spider.y));
+
+      // Gait cycle
+      if (moving) time += speed * 0.015;
+
+      const legLen = bodyHeight * 0.8;
+      const coxaLen = 15, femurLen = legLen * 0.5, tibiaLen = legLen * 0.5;
+
+      for (const leg of spider.legs) {
+        const cyclePos = (time + leg.phase) % 1;
+        leg.lifted = cyclePos < 0.3 && moving;
+
+        // Foot target position (relative to body)
+        const baseX = Math.cos(leg.baseAngle + spider.angle) * (25 + coxaLen);
+        const baseY = Math.sin(leg.baseAngle + spider.angle) * (25 + coxaLen);
+
+        // Stride offset
+        let strideOffset = 0;
+        if (moving) {
+          if (leg.lifted) {
+            strideOffset = (cyclePos / 0.3 - 0.5) * stride;
+          } else {
+            const stancePhase = (cyclePos - 0.3) / 0.7;
+            strideOffset = (0.5 - stancePhase) * stride;
+          }
+        }
+
+        const moveAngle = Math.atan2(spider.vy, spider.vx);
+        const targetX = spider.x + baseX + Math.cos(moveAngle) * strideOffset;
+        const targetY = spider.y + baseY + Math.sin(moveAngle) * strideOffset;
+
+        // Smooth foot movement
+        leg.footX += (targetX - leg.footX) * 0.3;
+        leg.footY += (targetY - leg.footY) * 0.3;
+
+        // IK angles (simplified 2D)
+        const dx = leg.footX - (spider.x + Math.cos(leg.baseAngle + spider.angle) * 20);
+        const dy = leg.footY - (spider.y + Math.sin(leg.baseAngle + spider.angle) * 20);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        leg.coxaAngle = Math.atan2(dy, dx);
+        const clampDist = Math.min(dist, femurLen + tibiaLen - 2);
+        const cosKnee = (femurLen * femurLen + tibiaLen * tibiaLen - clampDist * clampDist) / (2 * femurLen * tibiaLen);
+        leg.femurAngle = Math.acos(Math.max(-1, Math.min(1, cosKnee)));
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, W, H);
+
+      // Grid
+      ctx.strokeStyle = '#141414'; ctx.lineWidth = 1;
+      const ox = spider.x % 40, oy = spider.y % 40;
+      for (let x = -ox; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = -oy; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+      const bodyHeight = +sl('height').value;
+      const coxaLen = 15, femurLen = bodyHeight * 0.4, tibiaLen = bodyHeight * 0.4;
+
+      // Draw legs (behind body)
+      for (let i = 0; i < spider.legs.length; i++) {
+        const leg = spider.legs[i];
+        const hipX = spider.x + Math.cos(leg.baseAngle + spider.angle) * 20;
+        const hipY = spider.y + Math.sin(leg.baseAngle + spider.angle) * 20;
+
+        // Coxa -> Femur -> Tibia -> Foot
+        const kneeX = hipX + Math.cos(leg.coxaAngle) * femurLen;
+        const kneeY = hipY + Math.sin(leg.coxaAngle) * femurLen;
+
+        // Lift height
+        const liftH = leg.lifted ? 6 : 0;
+
+        // Segments
+        ctx.strokeStyle = leg.lifted ? '#fb923c' : '#ea580c';
+        ctx.lineWidth = leg.lifted ? 3 : 4;
+        ctx.lineCap = 'round';
+
+        // Femur
+        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(kneeX, kneeY - liftH); ctx.stroke();
+        // Tibia
+        ctx.beginPath(); ctx.moveTo(kneeX, kneeY - liftH); ctx.lineTo(leg.footX, leg.footY - liftH); ctx.stroke();
+
+        // Joints
+        ctx.fillStyle = '#737373';
+        ctx.beginPath(); ctx.arc(hipX, hipY, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(kneeX, kneeY - liftH, 2.5, 0, Math.PI * 2); ctx.fill();
+
+        // Foot
+        ctx.fillStyle = leg.lifted ? '#fbbf24' : '#525252';
+        ctx.beginPath(); ctx.arc(leg.footX, leg.footY - liftH, 3, 0, Math.PI * 2); ctx.fill();
+
+        // Ground contact indicator
+        if (!leg.lifted) {
+          ctx.fillStyle = 'rgba(249, 115, 22, 0.1)';
+          ctx.beginPath(); ctx.arc(leg.footX, leg.footY, 6, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      // Body
+      ctx.save();
+      ctx.translate(spider.x, spider.y);
+      ctx.rotate(spider.angle);
+
+      // Body shape
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 22, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Head
+      ctx.fillStyle = '#ea580c';
+      ctx.beginPath();
+      ctx.ellipse(18, 0, 8, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eyes
+      ctx.fillStyle = '#10b981';
+      ctx.shadowColor = '#10b981'; ctx.shadowBlur = 4;
+      ctx.beginPath(); ctx.arc(22, -4, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(22, 4, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Body segment lines
+      ctx.strokeStyle = '#c2410c'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-8, -14); ctx.lineTo(-8, 14); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(5, -15); ctx.lineTo(5, 15); ctx.stroke();
+
+      ctx.restore();
+
+      // Direction indicator
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.2)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(spider.x + Math.cos(spider.angle) * 30, spider.y + Math.sin(spider.angle) * 30);
+      ctx.lineTo(spider.x + Math.cos(spider.angle) * 50, spider.y + Math.sin(spider.angle) * 50);
+      ctx.stroke();
+
+      // Gait phase indicator (bottom)
+      const barX = W / 2 - 100, barY = H - 25, barW = 200, barH = 8;
+      ctx.fillStyle = '#141414'; ctx.fillRect(barX, barY, barW, barH);
+      for (let i = 0; i < spider.legs.length; i++) {
+        const leg = spider.legs[i];
+        const lx = barX + (time + leg.phase) % 1 * barW;
+        ctx.fillStyle = leg.lifted ? '#fbbf24' : '#f97316';
+        ctx.fillRect(lx - 2, barY, 4, barH);
+      }
+      ctx.strokeStyle = '#262626'; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, barH);
+      ctx.fillStyle = '#525252'; ctx.font = '9px Manrope';
+      ctx.fillText('Gait phase', barX, barY - 4);
+    }
+
+    function loop() { requestAnimationFrame(loop); update(); draw(); }
+    gaitType = 'tripod';
+    initSpider();
+    loop();
+  </script>
+</body>
+</html>

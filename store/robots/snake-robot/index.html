@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake Robot — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.25rem 0 .25rem} h1 span{color:#f97316}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.5rem;text-align:center;max-width:540px}
+    canvas{border:1px solid #262626;border-radius:12px}
+    .controls{display:flex;gap:.5rem;margin:.75rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.4rem .9rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    label{font-size:.78rem;color:#a3a3a3;display:flex;align-items:center;gap:.3rem}
+    input[type=range]{width:70px;accent-color:#f97316}
+    .val{color:#f97316;font-weight:600;min-width:2rem;font-size:.75rem}
+    .key{display:inline-block;padding:.08rem .3rem;border-radius:3px;border:1px solid #404040;background:#1f1f1f;font-size:.62rem;font-family:monospace;color:#f97316}
+    .info{font-size:.75rem;color:#525252;margin:.35rem}
+    a{color:#525252;text-decoration:none}
+  </style>
+</head>
+<body>
+  <h1>Snake <span>Robot</span></h1>
+  <p class="sub">16-segment serpentine robot using sinusoidal locomotion. <span class="key">WASD</span> to steer. Each segment is a joint with independent angle control. Sidewinding, rectilinear, and lateral undulation gaits.</p>
+
+  <canvas id="sim" width="800" height="500"></canvas>
+
+  <div class="controls">
+    <label>Segments <input type="range" id="segs" min="6" max="30" value="16"><span class="val" id="segs-v">16</span></label>
+    <label>Amplitude <input type="range" id="amp" min="5" max="40" value="20"><span class="val" id="amp-v">20</span></label>
+    <label>Frequency <input type="range" id="freq" min="1" max="10" value="4"><span class="val" id="freq-v">4</span></label>
+    <label>Wave <input type="range" id="wave" min="1" max="8" step=".5" value="3"><span class="val" id="wave-v">3.0</span></label>
+    <button id="btn-lateral">Lateral</button>
+    <button id="btn-sidewind">Sidewind</button>
+    <button id="btn-recti">Rectilinear</button>
+    <button id="btn-reset">Reset</button>
+  </div>
+  <div class="info">Joints: <span id="joints">16</span> | Gait: <span id="gait">Lateral undulation</span> | <a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    let segments = [], gait = 'lateral', time = 0;
+    const segLen = 12;
+
+    const sl = id => document.getElementById(id);
+    for (const [id, vid] of [['segs','segs-v'],['amp','amp-v'],['freq','freq-v'],['wave','wave-v']]) {
+      sl(id).addEventListener('input', () => { sl(vid).textContent = id==='wave'? (+sl(id).value).toFixed(1) : sl(id).value; initSnake(); });
+    }
+
+    sl('btn-lateral').addEventListener('click', () => { gait = 'lateral'; sl('gait').textContent = 'Lateral undulation'; });
+    sl('btn-sidewind').addEventListener('click', () => { gait = 'sidewind'; sl('gait').textContent = 'Sidewinding'; });
+    sl('btn-recti').addEventListener('click', () => { gait = 'rectilinear'; sl('gait').textContent = 'Rectilinear'; });
+    sl('btn-reset').addEventListener('click', initSnake);
+
+    const keys = {};
+    addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+    function initSnake() {
+      const n = +sl('segs').value;
+      segments = [];
+      for (let i = 0; i < n; i++) {
+        segments.push({ x: W / 2 - i * segLen, y: H / 2, angle: 0 });
+      }
+      sl('joints').textContent = n;
+    }
+
+    function update() {
+      const amp = +sl('amp').value;
+      const freq = +sl('freq').value;
+      const waveLen = +sl('wave').value;
+      const n = segments.length;
+
+      // Steering
+      const turn = (keys.a || keys.arrowleft ? -0.03 : 0) + (keys.d || keys.arrowright ? 0.03 : 0);
+      const speed = (keys.w || keys.arrowup ? 1.5 : 0) + (keys.s || keys.arrowdown ? -0.5 : 0);
+
+      time += freq * 0.02;
+
+      // Head movement
+      const head = segments[0];
+      let targetAngle = head.angle + turn;
+
+      if (gait === 'lateral') {
+        // Lateral undulation: sine wave propagates down body
+        targetAngle += Math.sin(time) * amp * 0.015;
+        head.angle += (targetAngle - head.angle) * 0.2;
+        head.x += Math.cos(head.angle) * (1 + speed);
+        head.y += Math.sin(head.angle) * (1 + speed);
+      } else if (gait === 'sidewind') {
+        // Sidewinding: segments lift and shift laterally
+        targetAngle += Math.sin(time) * amp * 0.01;
+        head.angle += (targetAngle - head.angle) * 0.15;
+        head.x += Math.cos(head.angle) * (0.8 + speed);
+        head.y += Math.sin(head.angle) * (0.8 + speed);
+        head.x += Math.cos(head.angle + Math.PI / 2) * Math.sin(time * 2) * 0.5;
+        head.y += Math.sin(head.angle + Math.PI / 2) * Math.sin(time * 2) * 0.5;
+      } else {
+        // Rectilinear: segments contract/expand
+        head.angle += turn;
+        head.x += Math.cos(head.angle) * (0.5 + speed * 0.5) * (1 + Math.sin(time) * 0.3);
+        head.y += Math.sin(head.angle) * (0.5 + speed * 0.5) * (1 + Math.sin(time) * 0.3);
+      }
+
+      // Wrap
+      if (head.x < 0) head.x += W; if (head.x > W) head.x -= W;
+      if (head.y < 0) head.y += H; if (head.y > H) head.y -= H;
+
+      // Body follows head with wave
+      for (let i = 1; i < n; i++) {
+        const prev = segments[i - 1];
+        const seg = segments[i];
+
+        let targetX = prev.x - Math.cos(prev.angle) * segLen;
+        let targetY = prev.y - Math.sin(prev.angle) * segLen;
+
+        if (gait === 'lateral') {
+          const waveOffset = Math.sin(time - i / n * waveLen * Math.PI * 2) * amp * 0.3;
+          targetX += Math.cos(prev.angle + Math.PI / 2) * waveOffset;
+          targetY += Math.sin(prev.angle + Math.PI / 2) * waveOffset;
+        } else if (gait === 'sidewind') {
+          const lift = Math.sin(time * 2 - i * 0.5) > 0 ? 1 : 0;
+          const waveOffset = Math.sin(time - i / n * waveLen * Math.PI * 2) * amp * 0.2 * lift;
+          targetX += Math.cos(prev.angle + Math.PI / 2) * waveOffset;
+          targetY += Math.sin(prev.angle + Math.PI / 2) * waveOffset;
+        }
+
+        seg.x += (targetX - seg.x) * 0.4;
+        seg.y += (targetY - seg.y) * 0.4;
+        seg.angle = Math.atan2(prev.y - seg.y, prev.x - seg.x);
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, W, H);
+
+      // Grid
+      ctx.strokeStyle = '#141414'; ctx.lineWidth = 1;
+      for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+      const n = segments.length;
+
+      // Trail
+      ctx.beginPath();
+      ctx.moveTo(segments[0].x, segments[0].y);
+      for (let i = 1; i < n; i++) ctx.lineTo(segments[i].x, segments[i].y);
+      ctx.strokeStyle = 'rgba(249, 115, 22, 0.08)'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+
+      // Body segments
+      for (let i = n - 1; i >= 0; i--) {
+        const seg = segments[i];
+        const t = i / n;
+        const radius = 4 + (1 - t) * 6; // head bigger
+
+        // Segment body
+        const r = Math.round(249 - t * 80);
+        const g = Math.round(115 - t * 40);
+        const b = Math.round(22 + t * 10);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.beginPath(); ctx.arc(seg.x, seg.y, radius, 0, Math.PI * 2); ctx.fill();
+
+        // Scale pattern
+        if (i % 2 === 0) {
+          ctx.fillStyle = `rgba(0,0,0,0.15)`;
+          ctx.beginPath(); ctx.arc(seg.x, seg.y, radius * 0.6, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // Joint indicator
+        if (i > 0 && i < n - 1) {
+          ctx.fillStyle = '#525252';
+          ctx.beginPath(); ctx.arc(seg.x, seg.y, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      // Head details
+      const head = segments[0];
+      ctx.save();
+      ctx.translate(head.x, head.y);
+      ctx.rotate(head.angle);
+
+      // Eyes
+      ctx.fillStyle = '#10b981';
+      ctx.shadowColor = '#10b981'; ctx.shadowBlur = 4;
+      ctx.beginPath(); ctx.arc(8, -4, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(8, 4, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Tongue (flickers)
+      if (Math.sin(time * 5) > 0) {
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(10, 0);
+        ctx.lineTo(16, -2); ctx.moveTo(13, 0); ctx.lineTo(16, 2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+
+      // Sidewind lift indicators
+      if (gait === 'sidewind') {
+        for (let i = 0; i < n; i++) {
+          const lifted = Math.sin(time * 2 - i * 0.5) > 0;
+          if (lifted) {
+            ctx.fillStyle = 'rgba(251, 191, 36, 0.15)';
+            ctx.beginPath(); ctx.arc(segments[i].x, segments[i].y, 8, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+      }
+    }
+
+    function loop() { requestAnimationFrame(loop); update(); draw(); }
+    initSnake();
+    loop();
+  </script>
+</body>
+</html>

@@ -175,26 +175,26 @@
 
     <section>
       <div class="tabs">
-          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">20</span></button>
+          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">23</span></button>
           <button class="tab" onclick="switchTab('firmware')">Firmware <span class="tab-count">1</span></button>
           <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">3</span></button>
-          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">16</span></button>
+          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">19</span></button>
         </div>
 
         <div class="toolbar">
         <button class="filter-btn active" onclick="filterCategory('all')">All</button>
         <button class="filter-btn" onclick="filterCategory('flight')">Flight</button>
+        <button class="filter-btn" onclick="filterCategory('simulation')">Simulation</button>
+        <button class="filter-btn" onclick="filterCategory('locomotion')">Locomotion</button>
         <button class="filter-btn" onclick="filterCategory('coordination')">Coordination</button>
         <button class="filter-btn" onclick="filterCategory('manipulation')">Manipulation</button>
         <button class="filter-btn" onclick="filterCategory('localization')">Localization</button>
-        <button class="filter-btn" onclick="filterCategory('locomotion')">Locomotion</button>
-        <button class="filter-btn" onclick="filterCategory('simulation')">Simulation</button>
         <button class="filter-btn" onclick="filterCategory('learning')">Learning</button>
         <button class="filter-btn" onclick="filterCategory('navigation')">Navigation</button>
         <button class="filter-btn" onclick="filterCategory('control')">Control</button>
         <button class="filter-btn" onclick="filterCategory('perception')">Perception</button>
         <button class="filter-btn" onclick="filterCategory('actuators')">Actuators</button>
-        <span class="agent-count" id="agentCount">20 agents</span>
+        <span class="agent-count" id="agentCount">23 agents</span>
       </div>
             <div class="agents-grid" id="agentsGrid">
         <div class="agent-card" data-category="flight" data-store-type="behavior">
@@ -210,6 +210,60 @@
             </div>
           </a>
           <a href="/robots/drone-sim/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="simulation" data-store-type="behavior">
+          <a href="/robots/fluid-sim/" class="agent-card-body">
+            <div class="agent-icon" style="background:#06b6d4">💧</div>
+            <div class="agent-body">
+              <span class="agent-name">Fluid Simulation</span>
+              <span class="agent-desc">SPH particle fluid — click to splash, dam break, obstacles. ...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/fluid-sim/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="locomotion" data-store-type="behavior">
+          <a href="/robots/spider-robot/" class="agent-card-body">
+            <div class="agent-icon" style="background:#f97316">🕷️</div>
+            <div class="agent-body">
+              <span class="agent-name">Spider Robot</span>
+              <span class="agent-desc">6-legged hexapod with IK — WASD walk, 3 gaits (tripod/wave/r...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/spider-robot/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="locomotion" data-store-type="behavior">
+          <a href="/robots/snake-robot/" class="agent-card-body">
+            <div class="agent-icon" style="background:#f97316">🐍</div>
+            <div class="agent-body">
+              <span class="agent-name">Snake Robot</span>
+              <span class="agent-desc">16-segment serpentine robot — WASD steer, 3 locomotion modes...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/snake-robot/" class="agent-cta">
             <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
             Open
           </a>
