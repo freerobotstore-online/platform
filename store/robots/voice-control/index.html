@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice-Controlled Robot — FreeRobotStore</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #fafafa; font-family: 'Manrope', system-ui, sans-serif; display: flex; min-height: 100vh; }
+
+    /* Left: canvas */
+    .main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; }
+    canvas { border-radius: 12px; border: 1px solid #262626; display: block; background: #0f0f0f; max-width: 100%; }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 0.75rem; }
+    .header h1 { font-size: 1.3rem; font-weight: 700; }
+    .header h1 span { color: #f97316; }
+    .header .sub { color: #737373; font-size: 0.85rem; margin-top: 0.25rem; }
+    .badges { margin: 0.5rem 0; }
+    .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 6px; font-size: 0.72rem; font-weight: 600; background: rgba(249,115,22,0.15); color: #fb923c; margin: 0.25rem; }
+
+    /* Controls under canvas */
+    .controls { display: flex; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; justify-content: center; align-items: center; }
+    button { padding: 0.5rem 1.25rem; border-radius: 10px; border: 1px solid #333; background: #171717; color: #fafafa; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+    button:hover { border-color: #f97316; color: #f97316; }
+    button.primary { background: #f97316; border-color: #f97316; color: white; }
+    button.primary:hover { background: #ea580c; }
+    button.listening { background: #ef4444; border-color: #ef4444; color: white; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); } }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Mic icon */
+    .mic-icon { display: inline-block; width: 14px; height: 14px; margin-right: 0.35rem; vertical-align: -2px; }
+
+    /* Transcript display */
+    .transcript-box { background: #141414; border: 1px solid #262626; border-radius: 10px; padding: 0.75rem 1rem; min-height: 2.5rem; width: 100%; max-width: 600px; margin: 0.5rem 0; font-size: 0.85rem; }
+    .transcript-label { font-size: 0.72rem; color: #525252; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+    .transcript-text { color: #a3a3a3; min-height: 1.2em; }
+    .transcript-text .interim { color: #525252; font-style: italic; }
+
+    /* Command flash */
+    .command-flash { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2rem; font-weight: 700; color: #f97316; opacity: 0; pointer-events: none; text-transform: uppercase; transition: opacity 0.15s; text-shadow: 0 0 20px rgba(249,115,22,0.5); }
+    .command-flash.show { opacity: 1; }
+
+    /* Right sidebar: panel */
+    .sidebar { width: 280px; background: #111; border-left: 1px solid #1a1a1a; padding: 1.25rem; display: flex; flex-direction: column; overflow-y: auto; }
+    .sidebar h3 { font-size: 0.78rem; font-weight: 600; color: #737373; margin: 0.75rem 0 0.35rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .sidebar h3:first-child { margin-top: 0; }
+
+    /* Joint state display */
+    .joint-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: #a3a3a3; padding: 0.25rem 0; border-bottom: 1px solid #1a1a1a; transition: background 0.3s; }
+    .joint-row.highlight { background: rgba(249,115,22,0.15); }
+    .joint-row .name { color: #737373; }
+    .joint-row .val { color: #f97316; font-weight: 600; font-family: 'SF Mono', monospace; }
+
+    /* Command list */
+    .cmd-list { font-size: 0.72rem; }
+    .cmd-item { display: flex; justify-content: space-between; padding: 0.2rem 0; }
+    .cmd-item .cmd { color: #f97316; font-weight: 600; }
+    .cmd-item .desc { color: #525252; }
+
+    /* History log */
+    .history { flex: 1; overflow-y: auto; max-height: 200px; }
+    .history-item { font-size: 0.72rem; color: #525252; padding: 0.15rem 0; border-bottom: 1px solid #0f0f0f; }
+    .history-item .time { color: #404040; margin-right: 0.5rem; }
+    .history-item .action { color: #a3a3a3; }
+
+    /* Speed indicator */
+    .speed-bar { display: flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; color: #a3a3a3; margin: 0.25rem 0; }
+    .speed-bar .bar { flex: 1; height: 4px; background: #262626; border-radius: 2px; overflow: hidden; }
+    .speed-bar .fill { height: 100%; background: #f97316; border-radius: 2px; transition: width 0.3s; }
+
+    /* Stats */
+    .stats { font-size: 0.72rem; color: #525252; margin-top: auto; padding-top: 0.75rem; border-top: 1px solid #1a1a1a; }
+    .stats a { color: #525252; text-decoration: none; }
+
+    /* Responsive */
+    @media (max-width: 800px) {
+      body { flex-direction: column; }
+      .sidebar { width: 100%; max-height: 300px; border-left: none; border-top: 1px solid #1a1a1a; }
+    }
+
+    .no-speech { background: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 1rem; color: #a3a3a3; font-size: 0.85rem; text-align: center; margin: 1rem 0; max-width: 500px; }
+    .no-speech strong { color: #f97316; }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="header">
+      <h1>Voice <span>Robot</span></h1>
+      <p class="sub">Control a robot arm with your voice. Uses the Web Speech API built into your browser — no model download needed.</p>
+      <div class="badges"><span class="badge">Web Speech API</span><span class="badge">Canvas 2D</span><span class="badge">No Download</span></div>
+    </div>
+
+    <div style="position: relative; display: inline-block;">
+      <canvas id="canvas" width="600" height="450"></canvas>
+      <div class="command-flash" id="cmd-flash"></div>
+    </div>
+
+    <div class="controls">
+      <button class="primary" id="btn-listen">
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        Start Listening
+      </button>
+      <button id="btn-home">Home</button>
+      <button id="btn-wave">Wave</button>
+    </div>
+
+    <div class="transcript-box">
+      <div class="transcript-label">Transcript</div>
+      <div class="transcript-text" id="transcript">Say a command after clicking "Start Listening"</div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h3>Joint State</h3>
+    <div class="joint-row" id="jr-base"><span class="name">Base</span><span class="val" id="jv-base">0deg</span></div>
+    <div class="joint-row" id="jr-shoulder"><span class="name">Shoulder</span><span class="val" id="jv-shoulder">-30deg</span></div>
+    <div class="joint-row" id="jr-elbow"><span class="name">Elbow</span><span class="val" id="jv-elbow">45deg</span></div>
+    <div class="joint-row" id="jr-gripper"><span class="name">Gripper</span><span class="val" id="jv-gripper">Open</span></div>
+
+    <h3>Speed</h3>
+    <div class="speed-bar">
+      <span id="speed-label">1.0x</span>
+      <div class="bar"><div class="fill" id="speed-fill" style="width: 50%"></div></div>
+    </div>
+
+    <h3>Commands</h3>
+    <div class="cmd-list">
+      <div class="cmd-item"><span class="cmd">"left" / "right"</span><span class="desc">Rotate base</span></div>
+      <div class="cmd-item"><span class="cmd">"up" / "down"</span><span class="desc">Shoulder</span></div>
+      <div class="cmd-item"><span class="cmd">"open" / "close"</span><span class="desc">Gripper</span></div>
+      <div class="cmd-item"><span class="cmd">"grab" / "drop"</span><span class="desc">Grab/release</span></div>
+      <div class="cmd-item"><span class="cmd">"home"</span><span class="desc">Reset position</span></div>
+      <div class="cmd-item"><span class="cmd">"wave"</span><span class="desc">Wave animation</span></div>
+      <div class="cmd-item"><span class="cmd">"faster" / "slower"</span><span class="desc">Adjust speed</span></div>
+    </div>
+
+    <h3>History</h3>
+    <div class="history" id="history"></div>
+
+    <div class="stats">
+      Commands: <span id="cmd-count">0</span> |
+      <a href="https://freerobotstore.pages.dev">FreeRobotStore</a>
+    </div>
+  </div>
+
+  <div class="no-speech" id="no-speech" style="display:none">
+    <strong>Speech Recognition Unavailable</strong><br>
+    Your browser does not support the Web Speech API.<br>
+    Please use Chrome, Edge, or Safari for voice control. You can still interact with the robot using the keyboard (arrow keys) or buttons below.
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const btnListen = document.getElementById('btn-listen');
+    const btnHome = document.getElementById('btn-home');
+    const btnWave = document.getElementById('btn-wave');
+    const transcriptEl = document.getElementById('transcript');
+    const cmdFlash = document.getElementById('cmd-flash');
+    const historyEl = document.getElementById('history');
+    const cmdCountEl = document.getElementById('cmd-count');
+    const noSpeechEl = document.getElementById('no-speech');
+
+    // Robot state
+    const robot = {
+      base: 0,         // degrees
+      shoulder: -30,    // degrees
+      elbow: 45,        // degrees
+      gripperOpen: true,
+      speed: 1.0,
+      grabbed: false,
+    };
+
+    // Targets for smooth animation
+    const target = { ...robot };
+    const STEP = 15; // degrees per command
+    let cmdCount = 0;
+    let animating = false;
+    let waveAnim = null;
+
+    // Speech Recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let listening = false;
+
+    if (!SpeechRecognition) {
+      btnListen.disabled = true;
+      noSpeechEl.style.display = '';
+    }
+
+    function startListening() {
+      if (!SpeechRecognition) return;
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        let interim = '';
+        let final = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            final += transcript;
+          } else {
+            interim += transcript;
+          }
+        }
+
+        if (final) {
+          transcriptEl.innerHTML = final;
+          processCommand(final.trim().toLowerCase());
+        } else if (interim) {
+          transcriptEl.innerHTML = `<span class="interim">${interim}</span>`;
+        }
+      };
+
+      recognition.onerror = (event) => {
+        if (event.error === 'no-speech') return; // Ignore no-speech
+        console.error('Speech error:', event.error);
+        transcriptEl.textContent = 'Error: ' + event.error;
+      };
+
+      recognition.onend = () => {
+        // Auto-restart if still supposed to be listening
+        if (listening) {
+          try { recognition.start(); } catch (e) { /* already started */ }
+        }
+      };
+
+      recognition.start();
+      listening = true;
+      btnListen.classList.add('listening');
+      btnListen.innerHTML = `
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        Listening...
+      `;
+      transcriptEl.textContent = 'Listening for commands...';
+    }
+
+    function stopListening() {
+      listening = false;
+      if (recognition) {
+        recognition.stop();
+        recognition = null;
+      }
+      btnListen.classList.remove('listening');
+      btnListen.classList.add('primary');
+      btnListen.innerHTML = `
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        Start Listening
+      `;
+      transcriptEl.textContent = 'Stopped listening';
+    }
+
+    btnListen.addEventListener('click', () => {
+      if (listening) {
+        stopListening();
+      } else {
+        startListening();
+      }
+    });
+
+    // Command processing
+    function processCommand(text) {
+      const words = text.split(/\s+/);
+
+      let matched = null;
+
+      for (const word of words) {
+        switch (word) {
+          case 'left':
+            target.base = Math.max(target.base - STEP * robot.speed, -180);
+            matched = 'LEFT';
+            highlightJoint('base');
+            break;
+          case 'right':
+            target.base = Math.min(target.base + STEP * robot.speed, 180);
+            matched = 'RIGHT';
+            highlightJoint('base');
+            break;
+          case 'up':
+            target.shoulder = Math.max(target.shoulder - STEP * robot.speed, -90);
+            matched = 'UP';
+            highlightJoint('shoulder');
+            break;
+          case 'down':
+            target.shoulder = Math.min(target.shoulder + STEP * robot.speed, 90);
+            matched = 'DOWN';
+            highlightJoint('shoulder');
+            break;
+          case 'open':
+            target.gripperOpen = true;
+            robot.grabbed = false;
+            matched = 'OPEN';
+            highlightJoint('gripper');
+            break;
+          case 'close':
+            target.gripperOpen = false;
+            matched = 'CLOSE';
+            highlightJoint('gripper');
+            break;
+          case 'grab':
+            target.gripperOpen = false;
+            robot.grabbed = true;
+            matched = 'GRAB';
+            highlightJoint('gripper');
+            break;
+          case 'drop':
+            target.gripperOpen = true;
+            robot.grabbed = false;
+            matched = 'DROP';
+            highlightJoint('gripper');
+            break;
+          case 'home':
+          case 'reset':
+            target.base = 0;
+            target.shoulder = -30;
+            target.elbow = 45;
+            target.gripperOpen = true;
+            robot.grabbed = false;
+            matched = 'HOME';
+            break;
+          case 'wave':
+            playWave();
+            matched = 'WAVE';
+            break;
+          case 'faster':
+            robot.speed = Math.min(robot.speed + 0.5, 3.0);
+            matched = 'FASTER';
+            updateSpeedUI();
+            break;
+          case 'slower':
+            robot.speed = Math.max(robot.speed - 0.5, 0.5);
+            matched = 'SLOWER';
+            updateSpeedUI();
+            break;
+        }
+        if (matched) break;
+      }
+
+      if (matched) {
+        flashCommand(matched);
+        addHistory(matched, text);
+        cmdCount++;
+        cmdCountEl.textContent = cmdCount;
+      }
+    }
+
+    // Visual feedback
+    function flashCommand(cmd) {
+      cmdFlash.textContent = cmd;
+      cmdFlash.classList.add('show');
+      setTimeout(() => cmdFlash.classList.remove('show'), 800);
+    }
+
+    function highlightJoint(name) {
+      const row = document.getElementById('jr-' + name);
+      row.classList.add('highlight');
+      setTimeout(() => row.classList.remove('highlight'), 600);
+    }
+
+    function addHistory(cmd, raw) {
+      const now = new Date();
+      const time = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = `<span class="time">${time}</span><span class="action">${cmd}</span> <span style="color:#404040">"${raw}"</span>`;
+      historyEl.prepend(item);
+
+      // Cap at 50
+      while (historyEl.children.length > 50) {
+        historyEl.removeChild(historyEl.lastChild);
+      }
+    }
+
+    function updateSpeedUI() {
+      document.getElementById('speed-label').textContent = robot.speed.toFixed(1) + 'x';
+      document.getElementById('speed-fill').style.width = ((robot.speed / 3.0) * 100) + '%';
+    }
+
+    // Wave animation
+    function playWave() {
+      if (waveAnim) return;
+      const origShoulder = target.shoulder;
+      const origElbow = target.elbow;
+      let step = 0;
+      const sequence = [
+        { shoulder: -60, elbow: -20 },
+        { shoulder: -40, elbow: 30 },
+        { shoulder: -60, elbow: -20 },
+        { shoulder: -40, elbow: 30 },
+        { shoulder: origShoulder, elbow: origElbow },
+      ];
+
+      waveAnim = setInterval(() => {
+        if (step >= sequence.length) {
+          clearInterval(waveAnim);
+          waveAnim = null;
+          return;
+        }
+        target.shoulder = sequence[step].shoulder;
+        target.elbow = sequence[step].elbow;
+        step++;
+      }, 400);
+    }
+
+    // Button controls
+    btnHome.addEventListener('click', () => processCommand('home'));
+    btnWave.addEventListener('click', () => processCommand('wave'));
+
+    // Keyboard fallback
+    document.addEventListener('keydown', (e) => {
+      switch (e.key) {
+        case 'ArrowLeft': processCommand('left'); break;
+        case 'ArrowRight': processCommand('right'); break;
+        case 'ArrowUp': processCommand('up'); break;
+        case 'ArrowDown': processCommand('down'); break;
+        case ' ':
+          e.preventDefault();
+          processCommand(robot.gripperOpen ? 'close' : 'open');
+          break;
+      }
+    });
+
+    // Update joint state display
+    function updateJointUI() {
+      document.getElementById('jv-base').textContent = Math.round(robot.base) + 'deg';
+      document.getElementById('jv-shoulder').textContent = Math.round(robot.shoulder) + 'deg';
+      document.getElementById('jv-elbow').textContent = Math.round(robot.elbow) + 'deg';
+      document.getElementById('jv-gripper').textContent = robot.gripperOpen ? 'Open' : (robot.grabbed ? 'Grabbed' : 'Closed');
+    }
+
+    // ---- Robot Arm Drawing ----
+    const W = canvas.width;
+    const H = canvas.height;
+    const BASE_X = W / 2;
+    const BASE_Y = H - 60;
+    const L1 = 140; // upper arm length
+    const L2 = 120; // forearm length
+    const L3 = 50;  // gripper length
+
+    function lerp(current, target, speed) {
+      const diff = target - current;
+      if (Math.abs(diff) < 0.5) return target;
+      return current + diff * 0.12 * speed;
+    }
+
+    function drawRobot() {
+      // Smooth towards targets
+      robot.base = lerp(robot.base, target.base, robot.speed);
+      robot.shoulder = lerp(robot.shoulder, target.shoulder, robot.speed);
+      robot.elbow = lerp(robot.elbow, target.elbow, robot.speed);
+      robot.gripperOpen = target.gripperOpen;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Grid background
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < W; x += 30) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      }
+      for (let y = 0; y < H; y += 30) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+
+      // Ground
+      ctx.fillStyle = '#161616';
+      ctx.fillRect(0, BASE_Y + 20, W, H - BASE_Y - 20);
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, BASE_Y + 20); ctx.lineTo(W, BASE_Y + 20); ctx.stroke();
+
+      // Base platform
+      const baseRad = robot.base * Math.PI / 180;
+      const shoulderRad = robot.shoulder * Math.PI / 180;
+      const elbowRad = robot.elbow * Math.PI / 180;
+
+      // Draw base
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.moveTo(BASE_X - 50, BASE_Y + 20);
+      ctx.lineTo(BASE_X + 50, BASE_Y + 20);
+      ctx.lineTo(BASE_X + 35, BASE_Y);
+      ctx.lineTo(BASE_X - 35, BASE_Y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Base rotation indicator
+      const baseIndicatorLen = 30;
+      const biX = BASE_X + Math.sin(baseRad) * baseIndicatorLen;
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.arc(BASE_X, BASE_Y - 5, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw rotation arc
+      if (Math.abs(robot.base) > 1) {
+        ctx.strokeStyle = 'rgba(249,115,22,0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(BASE_X, BASE_Y, 45, -Math.PI / 2, -Math.PI / 2 + baseRad, baseRad < 0);
+        ctx.stroke();
+      }
+
+      // Shoulder joint position (offset by base rotation horizontally)
+      const baseOffsetX = Math.sin(baseRad) * 20;
+      const shoulderX = BASE_X + baseOffsetX;
+      const shoulderY = BASE_Y;
+
+      // Upper arm
+      const elbowX = shoulderX + Math.sin(shoulderRad + baseRad * 0.3) * L1;
+      const elbowY = shoulderY - Math.cos(shoulderRad + baseRad * 0.3) * L1;
+
+      // Draw upper arm shadow
+      ctx.strokeStyle = 'rgba(249,115,22,0.08)';
+      ctx.lineWidth = 24;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(shoulderX + 3, shoulderY + 3);
+      ctx.lineTo(elbowX + 3, elbowY + 3);
+      ctx.stroke();
+
+      // Draw upper arm
+      const armGrad = ctx.createLinearGradient(shoulderX, shoulderY, elbowX, elbowY);
+      armGrad.addColorStop(0, '#444');
+      armGrad.addColorStop(1, '#333');
+      ctx.strokeStyle = armGrad;
+      ctx.lineWidth = 18;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(shoulderX, shoulderY);
+      ctx.lineTo(elbowX, elbowY);
+      ctx.stroke();
+
+      // Arm detail lines
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1;
+      const midX = (shoulderX + elbowX) / 2;
+      const midY = (shoulderY + elbowY) / 2;
+      const perpX = -(elbowY - shoulderY);
+      const perpY = elbowX - shoulderX;
+      const pLen = Math.sqrt(perpX * perpX + perpY * perpY);
+      if (pLen > 0) {
+        const nx = perpX / pLen * 7;
+        const ny = perpY / pLen * 7;
+        ctx.beginPath(); ctx.moveTo(midX - nx, midY - ny); ctx.lineTo(midX + nx, midY + ny); ctx.stroke();
+      }
+
+      // Forearm
+      const totalElbow = shoulderRad + elbowRad + baseRad * 0.3;
+      const wristX = elbowX + Math.sin(totalElbow) * L2;
+      const wristY = elbowY - Math.cos(totalElbow) * L2;
+
+      // Draw forearm shadow
+      ctx.strokeStyle = 'rgba(249,115,22,0.06)';
+      ctx.lineWidth = 16;
+      ctx.beginPath();
+      ctx.moveTo(elbowX + 3, elbowY + 3);
+      ctx.lineTo(wristX + 3, wristY + 3);
+      ctx.stroke();
+
+      // Draw forearm
+      const fGrad = ctx.createLinearGradient(elbowX, elbowY, wristX, wristY);
+      fGrad.addColorStop(0, '#3a3a3a');
+      fGrad.addColorStop(1, '#2a2a2a');
+      ctx.strokeStyle = fGrad;
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(elbowX, elbowY);
+      ctx.lineTo(wristX, wristY);
+      ctx.stroke();
+
+      // Shoulder joint
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.arc(shoulderX, shoulderY, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0a0a0a';
+      ctx.beginPath();
+      ctx.arc(shoulderX, shoulderY, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Elbow joint
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.arc(elbowX, elbowY, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0a0a0a';
+      ctx.beginPath();
+      ctx.arc(elbowX, elbowY, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Gripper
+      const gripAngle = totalElbow;
+      const gripLen = robot.gripperOpen ? 20 : 8;
+      const gripSpread = robot.gripperOpen ? 0.5 : 0.15;
+
+      // Left finger
+      const lFingerX = wristX + Math.sin(gripAngle - gripSpread) * L3;
+      const lFingerY = wristY - Math.cos(gripAngle - gripSpread) * L3;
+      // Right finger
+      const rFingerX = wristX + Math.sin(gripAngle + gripSpread) * L3;
+      const rFingerY = wristY - Math.cos(gripAngle + gripSpread) * L3;
+
+      ctx.strokeStyle = robot.grabbed ? '#10b981' : '#888';
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(wristX, wristY);
+      ctx.lineTo(lFingerX, lFingerY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(wristX, wristY);
+      ctx.lineTo(rFingerX, rFingerY);
+      ctx.stroke();
+
+      // Fingertips
+      ctx.fillStyle = robot.grabbed ? '#10b981' : '#aaa';
+      ctx.beginPath(); ctx.arc(lFingerX, lFingerY, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(rFingerX, rFingerY, 4, 0, Math.PI * 2); ctx.fill();
+
+      // Wrist joint
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.arc(wristX, wristY, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Grabbed object indicator
+      if (robot.grabbed && !robot.gripperOpen) {
+        const objX = (lFingerX + rFingerX) / 2;
+        const objY = (lFingerY + rFingerY) / 2;
+        ctx.fillStyle = '#10b981';
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(objX, objY, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // Listening indicator
+      if (listening) {
+        ctx.fillStyle = 'rgba(239,68,68,0.15)';
+        const pulseR = 12 + Math.sin(Date.now() / 300) * 3;
+        ctx.beginPath();
+        ctx.arc(30, 30, pulseR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(30, 30, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ef4444';
+        ctx.font = '600 11px Manrope, sans-serif';
+        ctx.fillText('LIVE', 46, 34);
+      }
+
+      updateJointUI();
+      requestAnimationFrame(drawRobot);
+    }
+
+    drawRobot();
+  </script>
+</body>
+</html>
