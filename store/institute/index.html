@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robotics Institute — Powered by Zensical</title>
+  <meta name="description" content="Free educational resources for robotics. Tutorials, research papers, courses, tools, and community.">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--accent:#f97316;--paper:#0a0a0a;--ink:#fafafa;--muted:#737373;--panel:#141414;--line:#262626}
+    body{font-family:'Manrope',system-ui,sans-serif;background:var(--paper);color:var(--ink);line-height:1.7;-webkit-font-smoothing:antialiased}
+    .container{max-width:900px;margin:0 auto;padding:0 1.5rem}
+    a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+    header{border-bottom:1px solid var(--line);padding:.75rem 0}
+    header .container{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--ink)}
+    .brand-emoji{font-size:1.5rem}
+    .brand-text{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+    .brand-tag{font-size:.68rem;color:var(--muted)}
+    nav{display:flex;gap:1rem;font-size:.82rem;font-weight:600;margin-left:auto}
+    nav a{color:var(--muted)}nav a:hover{color:var(--ink)}
+    .hero{text-align:center;padding:2.5rem 0 1.5rem;border-bottom:1px solid var(--line)}
+    .hero h1{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:700;margin-bottom:.5rem}
+    .hero h1 em{color:var(--accent);font-style:normal}
+    .hero p{color:var(--muted);max-width:600px;margin:0 auto;font-size:.95rem}
+    .powered{font-size:.72rem;color:#525252;margin-top:.75rem}
+    .powered a{color:#525252}
+    .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.25rem;margin:1.5rem 0}
+    .toc h3{font-size:.85rem;font-weight:700;margin-bottom:.5rem;color:var(--accent)}
+    .toc ul{list-style:none;padding:0;columns:2}
+    .toc li{margin:.2rem 0}.toc a{color:#a3a3a3;font-size:.82rem}.toc a:hover{color:var(--ink)}
+    .section{margin-bottom:2rem;padding-top:1rem}
+    .section h2{font-family:'Fraunces',serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem;padding-bottom:.35rem;border-bottom:1px solid var(--line)}
+    .section h3{font-size:.95rem;font-weight:700;margin:1rem 0 .35rem;color:#e5e5e5}
+    .section p,.section li{color:#a3a3a3;font-size:.88rem}
+    ul{padding-left:1.25rem;margin:.35rem 0}
+    li{margin-bottom:.3rem}
+    .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.6rem;margin:.5rem 0}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.85rem;transition:border-color .15s}
+    .card:hover{border-color:var(--accent)}
+    .card h4{font-size:.85rem;font-weight:700;margin-bottom:.2rem}
+    .card h4 a{color:var(--ink)}.card p{font-size:.75rem;color:var(--muted);margin:0;line-height:1.5}
+    .card .meta{font-size:.65rem;color:#525252;margin-top:.25rem}
+    footer{border-top:1px solid var(--line);padding:1.5rem 0;text-align:center;font-size:.75rem;color:#525252}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/institute/" class="brand">
+        <span class="brand-emoji">🦾</span>
+        <span><span class="brand-text">Robotics Institute</span><br><span class="brand-tag">Powered by <a href="https://zensical.org" style="color:#525252">Zensical</a></span></span>
+      </a>
+      <nav><a href="/">Simulations</a><a href="#fundamentals">Learn</a><a href="#courses">Courses</a><a href="#research">Research</a><a href="#tools">Tools</a><a href="#community">Community</a></nav>
+    </div>
+  </header>
+
+  <div class="container">
+    <section class="hero">
+      <h1>Robotics <em>Institute</em></h1>
+      <p>Everything you need to learn robotics. Free courses, research papers, open-source tools, and community resources — curated for practitioners.</p>
+      
+    </section>
+
+    <nav class="toc">
+      <h3>Contents</h3>
+      <ul>
+        <li><a href="#fundamentals">Fundamentals</a></li>
+        <li><a href="#courses">Free Courses</a></li>
+        <li><a href="#textbooks">Textbooks</a></li>
+        <li><a href="#research">Key Research Papers</a></li>
+        <li><a href="#tools">Open-Source Tools</a></li>
+        <li><a href="#hardware">Industry & Hardware</a></li>
+        <li><a href="#reference">Reference</a></li>
+        <li><a href="#community">Community</a></li>
+      </ul>
+    </nav>
+
+    <section class="section" id="fundamentals">
+      <h2>Fundamentals</h2>
+      <h3>What is a Robot?</h3>
+      <p>A robot is a programmable machine capable of sensing its environment, making decisions, and acting on the physical world. Modern robotics integrates mechanical engineering, electrical engineering, and computer science — combining kinematics, dynamics, control theory, perception, and planning into autonomous systems.</p>
+
+      <h3>Key Concepts</h3>
+      <ul>
+        <li><strong>Kinematics</strong> — the study of motion without forces: forward kinematics (joint angles to end-effector pose) and inverse kinematics (desired pose to joint angles)</li>
+        <li><strong>Dynamics</strong> — how forces and torques produce motion; Newton-Euler and Lagrangian formulations</li>
+        <li><strong>Control Theory</strong> — PID, optimal control, and model predictive control to make robots follow desired trajectories</li>
+        <li><strong>SLAM</strong> — Simultaneous Localization and Mapping; building a map of the environment while tracking the robot's position within it</li>
+        <li><strong>Motion Planning</strong> — finding collision-free paths through configuration space (RRT, PRM, A*)</li>
+        <li><strong>Grasping & Manipulation</strong> — how robots pick up and interact with objects; force closure, grasp planning, dexterous manipulation</li>
+      </ul>
+
+      <h3>Robotics vs Automation</h3>
+      <ul>
+        <li>Automation follows fixed, pre-programmed sequences. Robotics involves sensing, reasoning, and adapting to uncertainty.</li>
+        <li>A robotic system must perceive its environment (cameras, LiDAR, IMUs), plan actions, and execute them with feedback control.</li>
+        <li>Modern robots combine classical control with machine learning for tasks like grasping novel objects or navigating unstructured terrain.</li>
+        <li>Key challenge: the real world is messy — robots must handle noise, uncertainty, and unexpected situations.</li>
+      </ul>
+    </section>
+
+    <section class="section" id="courses">
+      <h2>Free Courses</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="https://ocw.mit.edu/courses/2-12-introduction-to-robotics-fall-2005/">MIT OCW: Introduction to Robotics</a></h4>
+          <p>Covers mechanics, dynamics, and control of robot manipulators. Includes lecture notes, problem sets, and labs.</p>
+          <div class="meta">MIT OpenCourseWare | Free | Intermediate</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://see.stanford.edu/Course/CS223A">Stanford CS223A: Introduction to Robotics</a></h4>
+          <p>Oussama Khatib's classic course. Kinematics, dynamics, control, motion planning. Video lectures available.</p>
+          <div class="meta">Stanford Engineering Everywhere | Free | Intermediate</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.coursera.org/learn/robotics-perception">Coursera: Robotics Specialization (UPenn)</a></h4>
+          <p>Six-course series covering aerial robotics, perception, estimation, planning, and capstone. Free to audit.</p>
+          <div class="meta">University of Pennsylvania | Free audit | Beginner to Advanced</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.coursera.org/specializations/modernrobotics">Coursera: Modern Robotics (Northwestern)</a></h4>
+          <p>Based on the Lynch & Park textbook. Rigorous treatment of kinematics, dynamics, planning, and manipulation.</p>
+          <div class="meta">Northwestern University | Free audit | Intermediate</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://docs.ros.org/en/humble/Tutorials.html">ROS 2 Tutorials</a></h4>
+          <p>Official tutorials for Robot Operating System 2. Learn the de facto standard middleware for robotics development.</p>
+          <div class="meta">Open Robotics | Free | Beginner to Intermediate</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.udacity.com/course/artificial-intelligence-for-robotics--cs373">Udacity: AI for Robotics (Sebastian Thrun)</a></h4>
+          <p>Localization, tracking, PID control, SLAM, and path planning. Taught by the leader of the Stanford autonomous car team.</p>
+          <div class="meta">Udacity | Free | Intermediate</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="textbooks">
+      <h2>Textbooks</h2>
+      <ul>
+        <li><strong><a href="https://www.springer.com/gp/book/9783540382195">Siciliano et al: Robotics — Modelling, Planning and Control</a></strong> — Comprehensive graduate-level textbook. Covers kinematics, dynamics, motion planning, and force control.</li>
+        <li><strong><a href="http://www.modernrobotics.org/">Lynch & Park: Modern Robotics</a></strong> — Free PDF available. Rigorous, modern treatment of mechanics, planning, and control. Companion Coursera course.</li>
+        <li><strong><a href="https://link.springer.com/book/10.1007/978-3-319-32552-1">Corke: Robotics, Vision and Control</a></strong> — Practical approach with MATLAB toolbox. Covers manipulators, mobile robots, and vision.</li>
+        <li><strong><a href="http://www.probabilistic-robotics.org/">Thrun, Burgard & Fox: Probabilistic Robotics</a></strong> — THE textbook for probabilistic state estimation, SLAM, localization, and decision-making under uncertainty.</li>
+        <li><strong><a href="http://lavalle.pl/planning/">LaValle: Planning Algorithms</a></strong> — Free online. Definitive reference for motion planning, sampling-based algorithms, and decision-theoretic planning.</li>
+      </ul>
+    </section>
+
+    <section class="section" id="research">
+      <h2>Key Research Papers</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="https://people.csail.mit.edu/brooks/papers/AIM-864.pdf">Brooks (1986): A Robust Layered Control System</a></h4>
+          <p>Introduced the subsumption architecture — reactive, behavior-based robotics without central world models. Revolutionized how robots are programmed.</p>
+          <div class="meta">Rodney Brooks | MIT AI Lab</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://cs.stanford.edu/groups/manips/publications/pdfs/Khatib_1986_MRAS.pdf">Khatib (1986): Real-Time Obstacle Avoidance</a></h4>
+          <p>Artificial potential field method for real-time motion planning. Attractive fields to goal, repulsive fields from obstacles. Foundational for reactive navigation.</p>
+          <div class="meta">Oussama Khatib | Stanford</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://dspace.mit.edu/handle/1721.1/6820">Raibert (1986): Legged Robots That Balance</a></h4>
+          <p>Pioneered dynamic legged locomotion. Showed that running and hopping could be decomposed into three decoupled controllers. Foundation for Boston Dynamics.</p>
+          <div class="meta">Marc Raibert | MIT Leg Lab</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.cs.cmu.edu/~motionplanning/papers/sbp_papers/PRM/prmbasic_01.pdf">Kavraki et al (1996): Probabilistic Roadmaps</a></h4>
+          <p>Probabilistic Roadmap Method (PRM) for multi-DOF motion planning. Sample random configurations, connect collision-free neighbors. Still widely used.</p>
+          <div class="meta">Kavraki, Svestka, Latombe, Overmars</div>
+        </div>
+        <div class="card">
+          <h4><a href="http://msl.cs.uiuc.edu/rrt/about.html">LaValle (1998): Rapidly-Exploring Random Trees</a></h4>
+          <p>RRT algorithm for single-query motion planning. Incrementally builds a space-filling tree. Foundation for RRT* and modern planning.</p>
+          <div class="meta">Steven LaValle | University of Illinois</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/abs/1707.02286">Levine et al (2018): Learning Hand-Eye Coordination</a></h4>
+          <p>Large-scale deep learning for robotic grasping. 800,000 grasp attempts across multiple robots. Showed end-to-end learning from pixels to motor torques.</p>
+          <div class="meta">Sergey Levine | Google Brain / UC Berkeley</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="tools">
+      <h2>Open-Source Tools</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="https://github.com/ros2/ros2">ROS 2 (Robot Operating System)</a></h4>
+          <p>The de facto standard middleware for robotics. Pub/sub messaging, hardware abstraction, package management, visualization.</p>
+          <div class="meta">C++ / Python | Open Robotics | Apache 2.0</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/gazebosim/gz-sim">Gazebo</a></h4>
+          <p>3D robotics simulator with physics, sensors, and ROS integration. Test robots in realistic environments before deploying on hardware.</p>
+          <div class="meta">C++ | Open Robotics | Apache 2.0</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/google-deepmind/mujoco">MuJoCo</a></h4>
+          <p>Multi-Joint dynamics with Contact. High-performance physics engine for robotics research. Now free and open-source (Google DeepMind).</p>
+          <div class="meta">C / Python | Google DeepMind | Apache 2.0</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/bulletphysics/bullet3">PyBullet</a></h4>
+          <p>Physics simulation for robotics, games, and ML. Python bindings, OpenAI Gym integration, URDF/SDF support.</p>
+          <div class="meta">C++ / Python | Erwin Coumans | zlib</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://developer.nvidia.com/isaac-sim">NVIDIA Isaac Sim</a></h4>
+          <p>GPU-accelerated robotics simulation built on Omniverse. Synthetic data generation, domain randomization, ROS/ROS2 bridge.</p>
+          <div class="meta">NVIDIA | Free for individual use</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://github.com/RobotLocomotion/drake">Drake</a></h4>
+          <p>Model-based design and verification for robotics. Multibody dynamics, optimization-based planning, and control. Used by Toyota Research.</p>
+          <div class="meta">C++ / Python | MIT | BSD 3-Clause</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="hardware">
+      <h2>Industry & Hardware</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="https://bostondynamics.com">Boston Dynamics</a></h4>
+          <p>Spot (quadruped), Atlas (humanoid), Stretch (logistics). The most advanced dynamic robots in the world.</p>
+          <div class="meta">Legged robots | Hyundai subsidiary</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.universal-robots.com">Universal Robots</a></h4>
+          <p>Collaborative robot arms (cobots). UR3e, UR5e, UR10e, UR16e. Industry standard for lightweight industrial automation.</p>
+          <div class="meta">Cobots | Teradyne subsidiary</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.arduino.cc">Arduino</a></h4>
+          <p>Open-source microcontroller platform. The easiest way to start building robot hardware. Huge ecosystem of sensors, motors, and shields.</p>
+          <div class="meta">Microcontrollers | Open-source hardware</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.raspberrypi.com">Raspberry Pi</a></h4>
+          <p>Single-board computer for robot brains. Run ROS, computer vision, and ML inference. GPIO for sensor/actuator interfacing.</p>
+          <div class="meta">SBC | Raspberry Pi Foundation</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/">NVIDIA Jetson</a></h4>
+          <p>GPU-powered edge computing for robotics. Run neural networks on robots. Jetson Nano, Orin Nano, AGX Orin.</p>
+          <div class="meta">Edge AI | NVIDIA</div>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.dji.com/robomaster-s1">DJI RoboMaster</a></h4>
+          <p>Educational robot with omnidirectional wheels, vision, and programmable AI. Great for learning competition robotics.</p>
+          <div class="meta">Educational robot | DJI</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="reference">
+      <h2>Reference</h2>
+      <h3>Kinematics & Dynamics</h3>
+      <ul>
+        <li><strong>Forward Kinematics</strong> — compute end-effector position/orientation from joint angles using DH parameters or product of exponentials</li>
+        <li><strong>Inverse Kinematics</strong> — find joint angles that achieve a desired end-effector pose; analytical (closed-form) or numerical (Jacobian-based)</li>
+        <li><strong>Jacobian</strong> — maps joint velocities to end-effector velocities; used for differential kinematics, singularity analysis, and force control</li>
+        <li><strong>Euler-Lagrange dynamics</strong> — derive equations of motion from kinetic and potential energy: M(q)q'' + C(q,q')q' + g(q) = tau</li>
+      </ul>
+
+      <h3>Control</h3>
+      <ul>
+        <li><strong>PID Control</strong> — proportional-integral-derivative; the workhorse of industrial robotics. Tune Kp, Ki, Kd for stability and performance.</li>
+        <li><strong>Computed Torque Control</strong> — model-based: cancel nonlinear dynamics, then apply linear control. Requires accurate dynamic model.</li>
+        <li><strong>Model Predictive Control (MPC)</strong> — optimize control inputs over a receding horizon. Handles constraints. Used in legged locomotion.</li>
+        <li><strong>Impedance Control</strong> — control the dynamic relationship between force and motion. Essential for safe human-robot interaction.</li>
+      </ul>
+
+      <h3>Perception & Planning</h3>
+      <ul>
+        <li><strong>SLAM</strong> — simultaneous localization and mapping. EKF-SLAM, particle filter SLAM, graph-based SLAM (g2o, GTSAM).</li>
+        <li><strong>Motion Planning</strong> — RRT, RRT*, PRM, A*, Dijkstra in configuration space. Sampling-based vs grid-based vs optimization-based.</li>
+        <li><strong>Computer Vision</strong> — object detection, pose estimation, depth sensing, visual servoing. OpenCV, deep learning (YOLO, SAM).</li>
+        <li><strong>Grasping</strong> — force closure analysis, grasp planning, contact modeling. GraspIt!, Dex-Net for data-driven grasping.</li>
+      </ul>
+    </section>
+
+    <section class="section" id="community">
+      <h2>Community & News</h2>
+      <div class="cards">
+        <div class="card">
+          <h4><a href="https://discourse.ros.org">ROS Discourse</a></h4>
+          <p>Official ROS community forum. Package announcements, design discussions, help for ROS developers.</p>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.reddit.com/r/robotics/">r/robotics</a></h4>
+          <p>Active Reddit community for robotics enthusiasts, researchers, and hobbyists. Projects, news, career advice.</p>
+        </div>
+        <div class="card">
+          <h4><a href="https://www.ieee-ras.org">IEEE Robotics & Automation Society</a></h4>
+          <p>Premier professional society for robotics. Publishes top journals (T-RO, RA-L) and runs ICRA, IROS conferences.</p>
+        </div>
+        <div class="card">
+          <h4><a href="https://robohub.org">Robohub</a></h4>
+          <p>Non-profit robotics news and community. Podcasts, articles, and perspectives from robotics researchers worldwide.</p>
+        </div>
+        <div class="card">
+          <h4><a href="https://arxiv.org/list/cs.RO/new">arXiv cs.RO</a></h4>
+          <p>Daily preprints in robotics research. Manipulation, locomotion, planning, learning — where new results appear first.</p>
+        </div>
+        <div class="card">
+          <h4><a href="https://roboticsweekly.com">Robotics Weekly</a></h4>
+          <p>Curated weekly newsletter covering robotics industry news, research, and open-source projects.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="container">
+      <a href="/">FreeRobotStore</a> · <a href="/institute/">Institute</a> · Built with <a href="https://zensical.org">Zensical</a>
+    </div>
+  </footer>
+</body>
+</html>
