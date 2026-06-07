@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sensor Fusion - FreeRobotStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:Manrope,system-ui,sans-serif;overflow-x:hidden}
+.back{position:fixed;top:12px;left:12px;z-index:99;color:#f97316;text-decoration:none;font-size:.8rem;font-weight:600;opacity:.7}.back:hover{opacity:1}
+h1{text-align:center;color:#f97316;margin:16px 0 4px;font-size:1.5rem;font-weight:700}
+.sub{text-align:center;color:#737373;font-size:.82rem;margin-bottom:10px;max-width:700px;margin-left:auto;margin-right:auto}
+.wrap{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;padding:0 12px}
+canvas{background:#111;border:1px solid #262626;border-radius:8px}
+.panel{background:#141414;border:1px solid #262626;border-radius:8px;padding:12px;min-width:220px;max-width:260px}
+.panel h3{color:#f97316;font-size:.82rem;margin-bottom:6px}
+.ctrl label{font-size:.7rem;color:#a3a3a3;display:flex;justify-content:space-between;margin:3px 0}
+.ctrl input[type=range]{width:100%;accent-color:#f97316}
+.btn{background:#f97316;color:#000;border:none;padding:6px 14px;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer;width:100%;margin:3px 0;font-family:Manrope,system-ui,sans-serif}.btn:hover{background:#fb923c}
+.btn.sec{background:#262626;color:#fafafa}.btn.sec:hover{background:#333}
+.legend{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px 0;font-size:.68rem;color:#737373}
+.legend span{display:flex;align-items:center;gap:3px}
+.legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.info-box{background:#1a1a1a;border:1px solid #262626;border-radius:6px;padding:8px;font-size:.68rem;color:#a3a3a3;margin:6px 0;line-height:1.5}
+.info-box b{color:#f97316}
+.stats{font-size:.68rem;color:#737373;margin-top:6px;line-height:1.6}
+.stats b{color:#fafafa}
+.tag{display:inline-block;background:#f97316;color:#000;font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;vertical-align:middle}
+.chart-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:0 12px;margin-top:8px}
+footer{text-align:center;padding:20px;font-size:.65rem;color:#404040}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Sensor Fusion Lab <span class="tag">Composed</span></h1>
+<p class="sub">Combine noisy GPS, IMU (accelerometer + gyroscope), and magnetometer data using Extended Kalman Filter to get accurate position and heading</p>
+<div class="legend">
+<span><span class="dot" style="background:#ef4444"></span> GPS (noisy)</span>
+<span><span class="dot" style="background:#3b82f6"></span> IMU (drift)</span>
+<span><span class="dot" style="background:#10b981"></span> Fused (EKF)</span>
+<span><span class="dot" style="background:#f97316"></span> True position</span>
+<span><span class="dot" style="background:#737373"></span> Trail</span>
+</div>
+<div class="wrap">
+<div>
+<canvas id="main" width="500" height="500"></canvas>
+</div>
+<div class="panel">
+<h3>Sensor Noise</h3>
+<div class="ctrl">
+<label>GPS noise <span id="gpsNV">15</span>px</label>
+<input type="range" id="gpsN" min="0" max="50" step="1" value="15">
+<label>GPS update rate <span id="gpsRV">10</span> steps</label>
+<input type="range" id="gpsR" min="1" max="30" step="1" value="10">
+<label>IMU noise <span id="imuNV">0.5</span></label>
+<input type="range" id="imuN" min="0" max="3" step="0.1" value="0.5">
+<label>IMU drift rate <span id="imuDV">0.02</span></label>
+<input type="range" id="imuD" min="0" max="0.1" step="0.005" value="0.02">
+<label>Magnetometer noise <span id="magNV">5</span>deg</label>
+<input type="range" id="magN" min="0" max="30" step="1" value="5">
+</div>
+<h3 style="margin-top:10px">EKF Tuning</h3>
+<div class="ctrl">
+<label>Process noise Q <span id="ekfQV">1</span></label>
+<input type="range" id="ekfQ" min="0.1" max="10" step="0.1" value="1">
+<label>GPS trust R_gps <span id="ekfRgV">10</span></label>
+<input type="range" id="ekfRg" min="1" max="50" step="1" value="10">
+<label>IMU trust R_imu <span id="ekfRiV">2</span></label>
+<input type="range" id="ekfRi" min="0.1" max="10" step="0.1" value="2">
+</div>
+<button class="btn" id="startBtn">Start</button>
+<button class="btn sec" id="resetBtn">Reset</button>
+<button class="btn sec" id="pathBtn">Change Path</button>
+<div class="info-box">
+<b>Extended Kalman Filter</b> fuses multiple noisy sensors into one accurate estimate.<br><br>
+GPS: accurate but low-rate &amp; noisy<br>
+IMU: fast but drifts over time<br>
+Magnetometer: heading reference<br><br>
+EKF predicts with IMU, corrects with GPS, uses mag for heading.
+</div>
+<div class="stats">
+GPS error: <b id="gpsErr">--</b>px<br>
+IMU error: <b id="imuErr">--</b>px<br>
+Fused error: <b id="fusErr">--</b>px<br>
+Improvement: <b id="improve">--</b>x
+</div>
+</div>
+</div>
+<div class="chart-row">
+<canvas id="errChart" width="500" height="150"></canvas>
+</div>
+<footer>Built with <a href="/">FreeRobotStore</a> building blocks | Chains: Kalman Filter + IMU + GPS + Magnetometer</footer>
+
+<script>
+const W=500,H=500;
+const ctx=document.getElementById('main').getContext('2d');
+const errCtx=document.getElementById('errChart').getContext('2d');
+
+document.querySelectorAll('.ctrl input[type=range]').forEach(inp=>{
+const span=document.getElementById(inp.id+'V');
+if(span)inp.oninput=()=>span.textContent=inp.value;
+});
+
+const paths=[
+// Figure-8
+t=>{const s=t*0.015;return{x:250+120*Math.sin(s),y:250+80*Math.sin(2*s)};},
+// Circle
+t=>{const s=t*0.02;return{x:250+150*Math.cos(s),y:250+150*Math.sin(s)};},
+// Square wave path
+t=>{const seg=Math.floor(t/80)%4;const p=t%80/80;
+const pts=[[100,100],[400,100],[400,400],[100,400]];
+const next=pts[(seg+1)%4];const cur=pts[seg];
+return{x:cur[0]+(next[0]-cur[0])*p,y:cur[1]+(next[1]-cur[1])*p};},
+// Random walk
+(()=>{let cx=250,cy=250,tx=250,ty=250;return t=>{
+if(t%60===0){tx=50+Math.random()*400;ty=50+Math.random()*400;}
+cx+=(tx-cx)*0.03;cy+=(ty-cy)*0.03;
+return{x:cx,y:cy};};})()
+];
+let pathIdx=0;
+let running=false,step=0;
+let trueTrail=[],gpsTrail=[],imuTrail=[],fusedTrail=[],errHist=[];
+let imuX=250,imuY=250,imuH=0,imuDriftX=0,imuDriftY=0;
+let ekfX=250,ekfY=250,ekfVx=0,ekfVy=0,ekfH=0;
+let P=[[100,0,0,0],[0,100,0,0],[0,0,10,0],[0,0,0,10]];
+
+function randn(){return Math.sqrt(-2*Math.log(Math.random()))*Math.cos(2*Math.PI*Math.random());}
+
+function getParams(){
+return{
+gpsNoise:+document.getElementById('gpsN').value,
+gpsRate:+document.getElementById('gpsR').value,
+imuNoise:+document.getElementById('imuN').value,
+imuDrift:+document.getElementById('imuD').value,
+magNoise:+document.getElementById('magN').value,
+Q:+document.getElementById('ekfQ').value,
+Rg:+document.getElementById('ekfRg').value,
+Ri:+document.getElementById('ekfRi').value,
+};
+}
+
+function reset(){
+running=false;step=0;
+trueTrail=[];gpsTrail=[];imuTrail=[];fusedTrail=[];errHist=[];
+imuX=250;imuY=250;imuDriftX=0;imuDriftY=0;
+ekfX=250;ekfY=250;ekfVx=0;ekfVy=0;
+P=[[100,0,0,0],[0,100,0,0],[0,0,10,0],[0,0,0,10]];
+document.getElementById('startBtn').textContent='Start';
+draw();drawErrChart();
+}
+
+function tick(){
+if(!running)return;
+const p=getParams();
+const truePos=paths[pathIdx](step);
+const prevTrue=step>0?paths[pathIdx](step-1):{x:truePos.x,y:truePos.y};
+const trueDx=truePos.x-prevTrue.x,trueDy=truePos.y-prevTrue.y;
+const trueHeading=Math.atan2(trueDy,trueDx);
+
+// IMU: integrate acceleration with noise + drift
+imuDriftX+=randn()*p.imuDrift;imuDriftY+=randn()*p.imuDrift;
+const imuDx=trueDx+randn()*p.imuNoise+imuDriftX;
+const imuDy=trueDy+randn()*p.imuNoise+imuDriftY;
+imuX+=imuDx;imuY+=imuDy;
+
+// GPS: noisy position at low rate
+let gpsX=null,gpsY=null;
+if(step%p.gpsRate===0){
+gpsX=truePos.x+randn()*p.gpsNoise;
+gpsY=truePos.y+randn()*p.gpsNoise;
+gpsTrail.push({x:gpsX,y:gpsY});
+}
+
+// Magnetometer: noisy heading
+const magH=trueHeading+randn()*p.magNoise*Math.PI/180;
+
+// EKF Predict
+ekfX+=ekfVx;ekfY+=ekfVy;
+ekfVx=imuDx*0.3+ekfVx*0.7;
+ekfVy=imuDy*0.3+ekfVy*0.7;
+const q=p.Q;
+for(let i=0;i<4;i++)P[i][i]+=q;
+
+// EKF Update with GPS
+if(gpsX!==null){
+const rg=p.Rg*p.Rg;
+const innovX=gpsX-ekfX,innovY=gpsY-ekfY;
+const Sx=P[0][0]+rg,Sy=P[1][1]+rg;
+const Kx=P[0][0]/Sx,Ky=P[1][1]/Sy;
+ekfX+=Kx*innovX;ekfY+=Ky*innovY;
+ekfVx+=P[2][0]/Sx*innovX;ekfVy+=P[3][1]/Sy*innovY;
+P[0][0]*=(1-Kx);P[1][1]*=(1-Ky);
+P[2][0]*=(1-Kx);P[3][1]*=(1-Ky);
+}
+
+// EKF Update with magnetometer
+ekfH=ekfH*0.9+magH*0.1;
+
+trueTrail.push({x:truePos.x,y:truePos.y});
+imuTrail.push({x:imuX,y:imuY});
+fusedTrail.push({x:ekfX,y:ekfY});
+
+// Error tracking
+const gpsErr=gpsX!==null?Math.sqrt((gpsX-truePos.x)**2+(gpsY-truePos.y)**2):null;
+const imuErr=Math.sqrt((imuX-truePos.x)**2+(imuY-truePos.y)**2);
+const fusErr=Math.sqrt((ekfX-truePos.x)**2+(ekfY-truePos.y)**2);
+errHist.push({gps:gpsErr,imu:imuErr,fused:fusErr});
+
+// Update stats every 10 steps
+if(step%10===0){
+const recentGps=errHist.filter(e=>e.gps!==null).slice(-30);
+const avgGps=recentGps.length?recentGps.reduce((s,e)=>s+e.gps,0)/recentGps.length:0;
+const recentImu=errHist.slice(-30);
+const avgImu=recentImu.reduce((s,e)=>s+e.imu,0)/recentImu.length;
+const avgFus=recentImu.reduce((s,e)=>s+e.fused,0)/recentImu.length;
+document.getElementById('gpsErr').textContent=avgGps.toFixed(1);
+document.getElementById('imuErr').textContent=avgImu.toFixed(1);
+document.getElementById('fusErr').textContent=avgFus.toFixed(1);
+const best=Math.min(avgGps||Infinity,avgImu);
+document.getElementById('improve').textContent=best>0?(best/Math.max(0.1,avgFus)).toFixed(1):'--';
+}
+
+step++;
+draw();
+if(step%5===0)drawErrChart();
+requestAnimationFrame(tick);
+}
+
+function drawTrail(trail,color,maxLen=300){
+if(trail.length<2)return;
+const start=Math.max(0,trail.length-maxLen);
+ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();
+for(let i=start;i<trail.length;i++){
+i===start?ctx.moveTo(trail[i].x,trail[i].y):ctx.lineTo(trail[i].x,trail[i].y);
+}
+ctx.stroke();
+}
+
+function draw(){
+ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+// Grid
+ctx.strokeStyle='#1a1a1a';ctx.lineWidth=0.5;
+for(let i=0;i<=W;i+=50){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke();
+ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(W,i);ctx.stroke();}
+
+drawTrail(trueTrail,'rgba(249,115,22,0.3)');
+drawTrail(imuTrail,'rgba(59,130,246,0.4)');
+drawTrail(fusedTrail,'rgba(16,185,129,0.6)');
+
+// GPS dots
+const recent=gpsTrail.slice(-20);
+recent.forEach((g,i)=>{
+const alpha=0.2+0.8*i/recent.length;
+ctx.fillStyle=`rgba(239,68,68,${alpha})`;
+ctx.beginPath();ctx.arc(g.x,g.y,3,0,Math.PI*2);ctx.fill();
+});
+
+// Current positions
+if(trueTrail.length){
+const t=trueTrail[trueTrail.length-1];
+ctx.fillStyle='#f97316';ctx.beginPath();ctx.arc(t.x,t.y,5,0,Math.PI*2);ctx.fill();
+}
+if(imuTrail.length){
+const t=imuTrail[imuTrail.length-1];
+ctx.fillStyle='#3b82f6';ctx.beginPath();ctx.arc(t.x,t.y,4,0,Math.PI*2);ctx.fill();
+}
+if(fusedTrail.length){
+const t=fusedTrail[fusedTrail.length-1];
+ctx.fillStyle='#10b981';ctx.beginPath();ctx.arc(t.x,t.y,5,0,Math.PI*2);ctx.fill();
+ctx.strokeStyle='#10b981';ctx.lineWidth=1;ctx.beginPath();ctx.arc(t.x,t.y,10,0,Math.PI*2);ctx.stroke();
+}
+}
+
+function drawErrChart(){
+const c=errCtx,w=500,h=150;
+c.fillStyle='#111';c.fillRect(0,0,w,h);
+c.strokeStyle='#1a1a1a';c.lineWidth=0.5;
+for(let y=0;y<=h;y+=30){c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke();}
+
+const maxE=Math.max(50,...errHist.map(e=>Math.max(e.imu,e.fused,e.gps||0)));
+const recent=errHist.slice(-200);
+if(recent.length<2)return;
+
+// IMU error
+c.strokeStyle='rgba(59,130,246,0.5)';c.lineWidth=1;c.beginPath();
+recent.forEach((e,i)=>{const x=i/recent.length*w,y_=h-e.imu/maxE*h;
+i===0?c.moveTo(x,y_):c.lineTo(x,y_);});c.stroke();
+
+// Fused error
+c.strokeStyle='#10b981';c.lineWidth=1.5;c.beginPath();
+recent.forEach((e,i)=>{const x=i/recent.length*w,y_=h-e.fused/maxE*h;
+i===0?c.moveTo(x,y_):c.lineTo(x,y_);});c.stroke();
+
+// GPS dots
+recent.forEach((e,i)=>{
+if(e.gps!==null){
+c.fillStyle='#ef4444';c.beginPath();
+c.arc(i/recent.length*w,h-e.gps/maxE*h,2,0,Math.PI*2);c.fill();
+}
+});
+
+c.fillStyle='#525252';c.font='9px Manrope,system-ui';
+c.fillText('Error over time (px)',4,10);
+c.fillText(`Max: ${maxE.toFixed(0)}px`,w-70,10);
+}
+
+document.getElementById('startBtn').onclick=()=>{
+running=!running;
+document.getElementById('startBtn').textContent=running?'Pause':'Resume';
+if(running)tick();
+};
+document.getElementById('resetBtn').onclick=reset;
+document.getElementById('pathBtn').onclick=()=>{pathIdx=(pathIdx+1)%paths.length;reset();};
+
+reset();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

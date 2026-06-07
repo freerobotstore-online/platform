@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Path Planning Comparison - FreeRobotStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:Manrope,system-ui,sans-serif;overflow-x:hidden}
+.back{position:fixed;top:12px;left:12px;z-index:99;color:#f97316;text-decoration:none;font-size:.8rem;font-weight:600;opacity:.7}.back:hover{opacity:1}
+h1{text-align:center;color:#f97316;margin:16px 0 4px;font-size:1.5rem;font-weight:700}
+.sub{text-align:center;color:#737373;font-size:.82rem;margin-bottom:10px;max-width:700px;margin-left:auto;margin-right:auto}
+.grid-wrap{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;padding:0 12px}
+.algo-panel{background:#141414;border:1px solid #262626;border-radius:8px;padding:10px;text-align:center}
+.algo-panel h3{color:#f97316;font-size:.82rem;margin-bottom:4px}
+.algo-panel .info{font-size:.65rem;color:#737373;margin-bottom:6px}
+canvas{background:#111;border-radius:6px}
+.controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:10px 0;padding:0 12px}
+.btn{background:#f97316;color:#000;border:none;padding:7px 16px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:Manrope,system-ui,sans-serif}.btn:hover{background:#fb923c}
+.btn.sec{background:#262626;color:#fafafa}.btn.sec:hover{background:#333}
+select{background:#262626;color:#fafafa;border:1px solid #404040;padding:5px 10px;border-radius:6px;font-size:.78rem;font-family:Manrope,system-ui,sans-serif}
+.legend{display:flex;gap:10px;justify-content:center;font-size:.68rem;color:#737373;margin:6px 0;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:3px}
+.legend .dot{width:8px;height:8px;border-radius:2px;display:inline-block}
+.tag{display:inline-block;background:#f97316;color:#000;font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;vertical-align:middle}
+.stats-row{display:flex;justify-content:center;gap:24px;font-size:.72rem;color:#a3a3a3;margin:6px 0}
+.stats-row b{color:#fafafa}
+footer{text-align:center;padding:20px;font-size:.65rem;color:#404040;margin-top:20px}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Path Planning Comparison <span class="tag">Composed</span></h1>
+<p class="sub">Compare A*, Dijkstra, Greedy BFS, BFS, DFS, and RRT side-by-side. Click to place walls, then watch each algorithm find the optimal path.</p>
+<div class="controls">
+<select id="mapSelect">
+<option value="empty">Empty Grid</option>
+<option value="maze">Random Maze</option>
+<option value="rooms">Room Layout</option>
+<option value="spiral">Spiral</option>
+</select>
+<button class="btn" id="runBtn">Run All</button>
+<button class="btn sec" id="clearBtn">Clear Walls</button>
+<button class="btn sec" id="resetBtn">New Map</button>
+<label style="font-size:.72rem;color:#a3a3a3;display:flex;align-items:center;gap:4px">
+<input type="checkbox" id="showVisited" checked> Show visited
+</label>
+</div>
+<div class="legend">
+<span><span class="dot" style="background:#10b981"></span> Start</span>
+<span><span class="dot" style="background:#ef4444"></span> Goal</span>
+<span><span class="dot" style="background:#f97316"></span> Path</span>
+<span><span class="dot" style="background:rgba(139,92,246,0.4)"></span> Visited</span>
+<span><span class="dot" style="background:#404040"></span> Wall</span>
+</div>
+<div class="grid-wrap" id="gridWrap"></div>
+<div class="stats-row" id="statsRow"></div>
+<footer>Built with <a href="/">FreeRobotStore</a> building blocks | Uses: Maze Solver + A* + Particle Filter concepts</footer>
+<script>
+const ROWS=30,COLS=30,CS=12;
+const ALGOS=['A*','Dijkstra','Greedy BFS','BFS','DFS','RRT'];
+const walls=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+let start={r:2,c:2},goal={r:ROWS-3,c:COLS-3};
+let canvases=[],ctxs=[],results=[];
+let drawing=false,drawMode=true;
+
+function createPanels(){
+const wrap=document.getElementById('gridWrap');
+wrap.innerHTML='';canvases=[];ctxs=[];
+ALGOS.forEach((name,i)=>{
+const panel=document.createElement('div');
+panel.className='algo-panel';
+panel.innerHTML=`<h3>${name}</h3><div class="info" id="info${i}">Ready</div>`;
+const cv=document.createElement('canvas');
+cv.width=COLS*CS;cv.height=ROWS*CS;
+panel.appendChild(cv);
+wrap.appendChild(panel);
+canvases.push(cv);ctxs.push(cv.getContext('2d'));
+});
+canvases[0].addEventListener('mousedown',e=>{
+const rect=canvases[0].getBoundingClientRect();
+const c=Math.floor((e.clientX-rect.left)/CS),r=Math.floor((e.clientY-rect.top)/CS);
+if(r>=0&&r<ROWS&&c>=0&&c<COLS){drawing=true;drawMode=!walls[r][c];walls[r][c]=drawMode;drawAll();}
+});
+canvases[0].addEventListener('mousemove',e=>{
+if(!drawing)return;
+const rect=canvases[0].getBoundingClientRect();
+const c=Math.floor((e.clientX-rect.left)/CS),r=Math.floor((e.clientY-rect.top)/CS);
+if(r>=0&&r<ROWS&&c>=0&&c<COLS){walls[r][c]=drawMode;drawAll();}
+});
+document.addEventListener('mouseup',()=>drawing=false);
+}
+
+function drawGrid(ctx,visited,path){
+ctx.fillStyle='#111';ctx.fillRect(0,0,COLS*CS,ROWS*CS);
+const showV=document.getElementById('showVisited').checked;
+for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+if(walls[r][c]){ctx.fillStyle='#404040';ctx.fillRect(c*CS,r*CS,CS,CS);}
+else if(showV&&visited&&visited[r]&&visited[r][c]){ctx.fillStyle='rgba(139,92,246,0.25)';ctx.fillRect(c*CS,r*CS,CS,CS);}
+}
+if(path){
+ctx.strokeStyle='#f97316';ctx.lineWidth=2;ctx.beginPath();
+path.forEach((p,i)=>{i===0?ctx.moveTo(p.c*CS+CS/2,p.r*CS+CS/2):ctx.lineTo(p.c*CS+CS/2,p.r*CS+CS/2);});
+ctx.stroke();
+path.forEach(p=>{ctx.fillStyle='rgba(249,115,22,0.5)';ctx.fillRect(p.c*CS+1,p.r*CS+1,CS-2,CS-2);});
+}
+ctx.fillStyle='#10b981';ctx.beginPath();ctx.arc(start.c*CS+CS/2,start.r*CS+CS/2,CS/2-1,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#ef4444';ctx.beginPath();ctx.arc(goal.c*CS+CS/2,goal.r*CS+CS/2,CS/2-1,0,Math.PI*2);ctx.fill();
+ctx.strokeStyle='#1a1a1a';ctx.lineWidth=0.3;
+for(let r=0;r<=ROWS;r++){ctx.beginPath();ctx.moveTo(0,r*CS);ctx.lineTo(COLS*CS,r*CS);ctx.stroke();}
+for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.moveTo(c*CS,0);ctx.lineTo(c*CS,ROWS*CS);ctx.stroke();}
+}
+
+function drawAll(){ctxs.forEach(ctx=>drawGrid(ctx,null,null));}
+
+function neighbors(r,c){
+const n=[];
+[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([dr,dc])=>{
+const nr=r+dr,nc=c+dc;
+if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&!walls[nr][nc])n.push({r:nr,c:nc,d:Math.abs(dr)+Math.abs(dc)>1?1.414:1});
+});
+return n;
+}
+
+function heuristic(r,c){return Math.sqrt((r-goal.r)**2+(c-goal.c)**2);}
+
+function reconstruct(parent,end){
+const path=[];let cur=end;
+while(cur){path.unshift(cur);cur=parent[cur.r*COLS+cur.c];}
+return path;
+}
+
+function aStar(){
+const visited=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+const dist=Array.from({length:ROWS},()=>Array(COLS).fill(Infinity));
+const parent={};
+dist[start.r][start.c]=0;
+const open=[{r:start.r,c:start.c,f:heuristic(start.r,start.c)}];
+let count=0;
+while(open.length){
+open.sort((a,b)=>a.f-b.f);
+const{r,c}=open.shift();
+if(visited[r][c])continue;
+visited[r][c]=true;count++;
+if(r===goal.r&&c===goal.c)return{visited,path:reconstruct(parent,{r,c}),explored:count};
+neighbors(r,c).forEach(n=>{
+const nd=dist[r][c]+n.d;
+if(nd<dist[n.r][n.c]){dist[n.r][n.c]=nd;parent[n.r*COLS+n.c]={r,c};
+open.push({r:n.r,c:n.c,f:nd+heuristic(n.r,n.c)});}
+});
+}
+return{visited,path:[],explored:count};
+}
+
+function dijkstra(){
+const visited=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+const dist=Array.from({length:ROWS},()=>Array(COLS).fill(Infinity));
+const parent={};
+dist[start.r][start.c]=0;
+const open=[{r:start.r,c:start.c,d:0}];
+let count=0;
+while(open.length){
+open.sort((a,b)=>a.d-b.d);
+const{r,c}=open.shift();
+if(visited[r][c])continue;
+visited[r][c]=true;count++;
+if(r===goal.r&&c===goal.c)return{visited,path:reconstruct(parent,{r,c}),explored:count};
+neighbors(r,c).forEach(n=>{
+const nd=dist[r][c]+n.d;
+if(nd<dist[n.r][n.c]){dist[n.r][n.c]=nd;parent[n.r*COLS+n.c]={r,c};
+open.push({r:n.r,c:n.c,d:nd});}
+});
+}
+return{visited,path:[],explored:count};
+}
+
+function greedyBFS(){
+const visited=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+const parent={};
+const open=[{r:start.r,c:start.c,h:heuristic(start.r,start.c)}];
+let count=0;
+while(open.length){
+open.sort((a,b)=>a.h-b.h);
+const{r,c}=open.shift();
+if(visited[r][c])continue;
+visited[r][c]=true;count++;
+if(r===goal.r&&c===goal.c)return{visited,path:reconstruct(parent,{r,c}),explored:count};
+neighbors(r,c).forEach(n=>{
+if(!visited[n.r][n.c]){parent[n.r*COLS+n.c]={r,c};
+open.push({r:n.r,c:n.c,h:heuristic(n.r,n.c)});}
+});
+}
+return{visited,path:[],explored:count};
+}
+
+function bfs(){
+const visited=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+const parent={};
+const queue=[{r:start.r,c:start.c}];
+visited[start.r][start.c]=true;
+let count=0;
+while(queue.length){
+const{r,c}=queue.shift();count++;
+if(r===goal.r&&c===goal.c)return{visited,path:reconstruct(parent,{r,c}),explored:count};
+neighbors(r,c).forEach(n=>{
+if(!visited[n.r][n.c]){visited[n.r][n.c]=true;parent[n.r*COLS+n.c]={r,c};
+queue.push({r:n.r,c:n.c});}
+});
+}
+return{visited,path:[],explored:count};
+}
+
+function dfs(){
+const visited=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+const parent={};
+const stack=[{r:start.r,c:start.c}];
+let count=0;
+while(stack.length){
+const{r,c}=stack.pop();
+if(visited[r][c])continue;
+visited[r][c]=true;count++;
+if(r===goal.r&&c===goal.c)return{visited,path:reconstruct(parent,{r,c}),explored:count};
+neighbors(r,c).forEach(n=>{
+if(!visited[n.r][n.c]){parent[n.r*COLS+n.c]={r,c};stack.push({r:n.r,c:n.c});}
+});
+}
+return{visited,path:[],explored:count};
+}
+
+function rrt(){
+const visited=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+const tree=[{r:start.r,c:start.c,parent:null}];
+const maxIter=5000;const stepSize=2;
+let count=0;
+for(let i=0;i<maxIter;i++){
+const rand=Math.random()<0.1?{r:goal.r,c:goal.c}:{r:Math.random()*ROWS|0,c:Math.random()*COLS|0};
+let nearest=tree[0],minD=Infinity;
+tree.forEach(n=>{const d=(n.r-rand.r)**2+(n.c-rand.c)**2;if(d<minD){minD=d;nearest=n;}});
+const dist=Math.sqrt((rand.r-nearest.r)**2+(rand.c-nearest.c)**2);
+const sr=dist<=stepSize?rand.r:Math.round(nearest.r+(rand.r-nearest.r)/dist*stepSize);
+const sc=dist<=stepSize?rand.c:Math.round(nearest.c+(rand.c-nearest.c)/dist*stepSize);
+if(sr<0||sr>=ROWS||sc<0||sc>=COLS||walls[sr][sc])continue;
+let blocked=false;
+const steps=Math.max(Math.abs(sr-nearest.r),Math.abs(sc-nearest.c));
+for(let s=1;s<=steps;s++){
+const ir=Math.round(nearest.r+(sr-nearest.r)*s/steps);
+const ic=Math.round(nearest.c+(sc-nearest.c)*s/steps);
+if(walls[ir][ic]){blocked=true;break;}
+}
+if(blocked)continue;
+const node={r:sr,c:sc,parent:tree.indexOf(nearest)};
+tree.push(node);visited[sr][sc]=true;count++;
+if(Math.abs(sr-goal.r)<=1&&Math.abs(sc-goal.c)<=1){
+const path=[];let cur=tree.length-1;
+while(cur!==null&&cur!==undefined){path.unshift({r:tree[cur].r,c:tree[cur].c});cur=tree[cur].parent;}
+return{visited,path,explored:count};
+}
+}
+return{visited,path:[],explored:count};
+}
+
+const algoFns=[aStar,dijkstra,greedyBFS,bfs,dfs,rrt];
+
+function runAll(){
+results=algoFns.map((fn,i)=>{
+const t0=performance.now();
+const res=fn();
+const t1=performance.now();
+res.time=(t1-t0).toFixed(1);
+drawGrid(ctxs[i],res.visited,res.path);
+document.getElementById('info'+i).innerHTML=
+res.path.length?`Path: ${res.path.length} | Visited: ${res.explored} | ${res.time}ms`:'<span style="color:#ef4444">No path found</span>';
+return res;
+});
+const statsRow=document.getElementById('statsRow');
+statsRow.innerHTML=results.map((r,i)=>`<span>${ALGOS[i]}: <b>${r.path.length||'--'}</b> steps</span>`).join('');
+}
+
+function generateMaze(){
+for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)walls[r][c]=true;
+function carve(r,c){
+walls[r][c]=false;
+const dirs=[[0,2],[0,-2],[2,0],[-2,0]].sort(()=>Math.random()-0.5);
+dirs.forEach(([dr,dc])=>{
+const nr=r+dr,nc=c+dc;
+if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&walls[nr][nc]){
+walls[r+dr/2][c+dc/2]=false;carve(nr,nc);
+}
+});
+}
+carve(1,1);
+walls[start.r][start.c]=false;walls[goal.r][goal.c]=false;
+}
+
+function generateRooms(){
+for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)walls[r][c]=false;
+for(let i=0;i<6;i++){
+const rr=4+Math.random()*(ROWS-10)|0,rc=4+Math.random()*(COLS-10)|0;
+const rw=4+Math.random()*6|0,rh=4+Math.random()*6|0;
+for(let r=rr;r<Math.min(ROWS,rr+rh);r++)for(let c=rc;c<Math.min(COLS,rc+rw);c++){
+if(r===rr||r===rr+rh-1||c===rc||c===rc+rw-1)walls[r][c]=true;
+}
+const door=Math.random()*4|0;
+const dr=rr+Math.random()*(rh-2)|0+1,dc=rc+Math.random()*(rw-2)|0+1;
+if(door===0)walls[rr][dc]=false;
+else if(door===1)walls[Math.min(ROWS-1,rr+rh-1)][dc]=false;
+else if(door===2)walls[dr][rc]=false;
+else walls[dr][Math.min(COLS-1,rc+rw-1)]=false;
+}
+walls[start.r][start.c]=false;walls[goal.r][goal.c]=false;
+}
+
+function generateSpiral(){
+for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)walls[r][c]=false;
+let top=2,bottom=ROWS-3,left=2,right=COLS-3;
+let open='right';
+while(top<bottom&&left<right){
+if(open!=='top')for(let c=left;c<=right;c++)walls[top][c]=true;
+if(open!=='right')for(let r=top;r<=bottom;r++)walls[r][right]=true;
+if(open!=='bottom')for(let c=left;c<=right;c++)walls[bottom][c]=true;
+if(open!=='left')for(let r=top;r<=bottom;r++)walls[r][left]=true;
+const sides=['top','right','bottom','left'];
+open=sides[(sides.indexOf(open)+1)%4];
+top+=3;bottom-=3;left+=3;right-=3;
+}
+walls[start.r][start.c]=false;walls[goal.r][goal.c]=false;
+}
+
+document.getElementById('mapSelect').onchange=function(){
+const v=this.value;
+if(v==='empty')for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)walls[r][c]=false;
+else if(v==='maze')generateMaze();
+else if(v==='rooms')generateRooms();
+else if(v==='spiral')generateSpiral();
+drawAll();
+};
+
+document.getElementById('runBtn').onclick=runAll;
+document.getElementById('clearBtn').onclick=()=>{
+for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)walls[r][c]=false;drawAll();
+};
+document.getElementById('resetBtn').onclick=()=>{document.getElementById('mapSelect').onchange();};
+
+createPanels();drawAll();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Robot Olympics - FreeRobotStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:Manrope,system-ui,sans-serif;overflow-x:hidden}
+.back{position:fixed;top:12px;left:12px;z-index:99;color:#f97316;text-decoration:none;font-size:.8rem;font-weight:600;opacity:.7}.back:hover{opacity:1}
+h1{text-align:center;color:#f97316;margin:16px 0 4px;font-size:1.5rem;font-weight:700}
+.sub{text-align:center;color:#737373;font-size:.82rem;margin-bottom:8px;max-width:600px;margin-left:auto;margin-right:auto}
+.events{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin:8px 12px}
+.event-btn{background:#141414;border:1px solid #262626;color:#a3a3a3;padding:7px 14px;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer;font-family:Manrope,system-ui,sans-serif;transition:all .15s}
+.event-btn.active{background:#f97316;color:#000;border-color:#f97316}
+.event-btn:hover:not(.active){border-color:#f97316;color:#f97316}
+.arena{display:flex;justify-content:center;margin:8px 0}
+canvas{background:#111;border:1px solid #262626;border-radius:8px}
+.controls{display:flex;justify-content:center;gap:8px;margin:8px 0;flex-wrap:wrap;padding:0 12px}
+.btn{background:#f97316;color:#000;border:none;padding:7px 16px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:Manrope,system-ui,sans-serif}.btn:hover{background:#fb923c}
+.btn.sec{background:#262626;color:#fafafa}.btn.sec:hover{background:#333}
+.scoreboard{background:#141414;border:1px solid #262626;border-radius:8px;padding:10px 16px;margin:8px auto;max-width:600px;font-size:.75rem}
+.scoreboard h3{color:#f97316;font-size:.82rem;margin-bottom:6px}
+.score-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #1a1a1a}
+.score-row:last-child{border:none}
+.score-row .name{color:#fafafa;font-weight:600}
+.score-row .val{color:#f97316;font-weight:700}
+.medal{font-size:.9rem}
+.tag{display:inline-block;background:#f97316;color:#000;font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;vertical-align:middle}
+.event-desc{text-align:center;font-size:.72rem;color:#525252;margin:4px 0}
+footer{text-align:center;padding:20px;font-size:.65rem;color:#404040}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Robot Olympics <span class="tag">Composed</span></h1>
+<p class="sub">4 events, 8 robots, each using different control strategies. Watch them compete!</p>
+
+<div class="events" id="events"></div>
+<div class="event-desc" id="eventDesc"></div>
+<div class="arena"><canvas id="arena" width="700" height="420"></canvas></div>
+<div class="controls">
+<button class="btn" id="startBtn">Start Race</button>
+<button class="btn sec" id="resetBtn">Reset</button>
+<button class="btn sec" id="slowBtn">Slow Motion</button>
+</div>
+<div class="scoreboard">
+<h3>Scoreboard</h3>
+<div id="scores"></div>
+</div>
+<footer>Built with <a href="/">FreeRobotStore</a> | Uses: PID + Neural Net + Path Planning + Sensor Fusion + Swarm</footer>
+
+<script>
+const W=700,H=420;
+const ctx=document.getElementById('arena').getContext('2d');
+const ROBOTS=[
+{name:'PID-Bot',color:'#f97316',strategy:'pid'},
+{name:'Neural-Bot',color:'#8b5cf6',strategy:'neural'},
+{name:'Fuzzy-Bot',color:'#10b981',strategy:'fuzzy'},
+{name:'Swarm-A',color:'#3b82f6',strategy:'swarm'},
+{name:'Swarm-B',color:'#06b6d4',strategy:'swarm'},
+{name:'Bang-Bot',color:'#eab308',strategy:'bangbang'},
+{name:'MPC-Bot',color:'#ec4899',strategy:'mpc'},
+{name:'Random-Bot',color:'#737373',strategy:'random'}
+];
+
+const EVENTS=[
+{name:'Sprint',desc:'Race from left to right — fastest controller wins',
+init:(robots)=>{robots.forEach((r,i)=>{r.x=40;r.y=50+i*45;r.vx=0;r.vy=0;r.finished=false;r.time=0;r.target={x:660,y:50+i*45};});},
+update:(r,dt)=>{const dx=r.target.x-r.x;const ctrl=getControl(r,dx,0);r.vx+=(ctrl-r.vx*0.1)*dt;r.x+=r.vx*dt;if(r.x>=r.target.x&&!r.finished){r.finished=true;}},
+isDone:(robots)=>robots.every(r=>r.finished),
+score:(r)=>r.time.toFixed(2)+'s'},
+
+{name:'Obstacle Course',desc:'Navigate through gates — fewest collisions wins',
+init:(robots)=>{
+robots.forEach((r,i)=>{r.x=30;r.y=50+i*45;r.vx=2;r.vy=0;r.finished=false;r.time=0;r.collisions=0;
+r.target={x:670,y:50+i*45};r.gates=[];
+for(let g=0;g<5;g++){r.gates.push({x:120+g*110,gapY:30+Math.random()*(H/ROBOTS.length-60),gapH:25+Math.random()*15});}
+});},
+update:(r,dt)=>{
+const nextGate=r.gates.find(g=>g.x>r.x);
+if(nextGate){
+const targetY=r.y+((nextGate.gapY+nextGate.gapH/2)-(50+ROBOTS.indexOf(r)*45));
+const dy=nextGate.gapY+nextGate.gapH/2-r.y;
+const ctrl=getControl(r,0,dy);
+r.vy+=(ctrl-r.vy*0.2)*dt*0.5;
+}
+r.x+=2*dt;r.y+=r.vy*dt;
+const laneTop=ROBOTS.indexOf(r)*45+20;
+const laneBot=laneTop+45;
+r.y=Math.max(laneTop+5,Math.min(laneBot-5,r.y));
+r.gates.forEach(g=>{
+if(Math.abs(r.x-g.x)<5){
+const ry=r.y-(50+ROBOTS.indexOf(r)*45)+laneTop;
+if(ry<g.gapY||ry>g.gapY+g.gapH)r.collisions++;
+}
+});
+if(r.x>=660)r.finished=true;
+},
+isDone:(robots)=>robots.every(r=>r.finished),
+score:(r)=>r.collisions+' hits'},
+
+{name:'Precision Stop',desc:'Stop as close to the target line as possible',
+init:(robots)=>{robots.forEach((r,i)=>{r.x=40;r.y=50+i*45;r.vx=4;r.vy=0;r.finished=false;r.time=0;
+r.target={x:500,y:50+i*45};r.stopped=false;});},
+update:(r,dt)=>{if(r.stopped)return;
+const dx=r.target.x-r.x;
+const ctrl=getControl(r,dx,0);
+if(r.strategy==='bangbang'){r.vx+=dx>30?3*dt:dx>0?-5*dt:-3*dt;}
+else{r.vx+=(ctrl*0.1-r.vx*0.05)*dt;}
+r.x+=r.vx*dt;
+if(Math.abs(r.vx)<0.05&&r.x>200){r.stopped=true;r.finished=true;r.finalDist=Math.abs(r.x-r.target.x);}
+if(r.x>660){r.stopped=true;r.finished=true;r.finalDist=Math.abs(r.x-r.target.x);}
+},
+isDone:(robots)=>robots.every(r=>r.finished)||step>800,
+score:(r)=>(r.finalDist||Math.abs(r.x-r.target.x)).toFixed(1)+'px off'},
+
+{name:'Formation',desc:'Hold formation while moving — least deviation wins',
+init:(robots)=>{
+const cx=100,cy=H/2;
+robots.forEach((r,i)=>{
+const angle=i/ROBOTS.length*Math.PI*2;
+r.formOffX=Math.cos(angle)*80;r.formOffY=Math.sin(angle)*60;
+r.x=cx+r.formOffX;r.y=cy+r.formOffY;r.vx=0;r.vy=0;r.finished=false;r.time=0;r.deviation=0;r.samples=0;
+});},
+update:(r,dt,step_)=>{
+const cx=100+step_*0.5,cy=H/2+Math.sin(step_*0.02)*60;
+const tx=cx+r.formOffX,ty=cy+r.formOffY;
+const dx=tx-r.x,dy=ty-r.y;
+const ctrl=getControl(r,dx,dy);
+r.vx+=(dx*0.1-r.vx*0.1)*dt;r.vy+=(dy*0.1-r.vy*0.1)*dt;
+if(r.strategy==='random'){r.vx+=Math.random()*0.4-0.2;r.vy+=Math.random()*0.4-0.2;}
+r.x+=r.vx*dt;r.y+=r.vy*dt;
+r.deviation+=Math.sqrt(dx*dx+dy*dy);r.samples++;
+if(cx>600)r.finished=true;
+},
+isDone:(robots)=>robots.every(r=>r.finished)||step>1000,
+score:(r)=>r.samples?(r.deviation/r.samples).toFixed(1)+'px avg':'--'}
+];
+
+function getControl(r,dx,dy){
+const dist=Math.sqrt(dx*dx+dy*dy)||1;
+switch(r.strategy){
+case 'pid':return dx*0.3+dy*0.3;
+case 'neural':{const sigmoid=x=>1/(1+Math.exp(-x));return(sigmoid(dx*0.05)-0.5)*10+(sigmoid(dy*0.05)-0.5)*10;}
+case 'fuzzy':{if(Math.abs(dx)>50)return Math.sign(dx)*5;if(Math.abs(dx)>10)return Math.sign(dx)*2;return dx*0.1;}
+case 'swarm':return dx*0.2+dy*0.2+Math.sin(step*0.1)*0.5;
+case 'bangbang':return Math.abs(dx)>5?Math.sign(dx)*8:0;
+case 'mpc':{let best=0,bc=Infinity;for(let u=-5;u<=5;u+=1){let px=r.x+r.vx+u;let cost=(px-(r.x+dx))**2+u*u*0.5;if(cost<bc){bc=cost;best=u;}}return best;}
+case 'random':return(Math.random()-0.5)*6+dx*0.05;
+default:return 0;
+}
+}
+
+let currentEvent=0,robots=[],step=0,running=false,slow=false,totalScores={};
+
+function initEvent(){
+robots=ROBOTS.map(r=>({...r}));
+EVENTS[currentEvent].init(robots);
+step=0;running=false;
+document.getElementById('startBtn').textContent='Start Race';
+draw();updateScoreboard();
+}
+
+function draw(){
+ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+// Lanes
+robots.forEach((r,i)=>{
+ctx.strokeStyle='#1a1a1a';ctx.setLineDash([4,4]);
+ctx.beginPath();ctx.moveTo(0,25+i*45+45);ctx.lineTo(W,25+i*45+45);ctx.stroke();
+ctx.setLineDash([]);
+});
+
+// Event-specific drawing
+if(currentEvent===0||currentEvent===2){// Sprint / Precision
+const tx=currentEvent===2?500:660;
+ctx.strokeStyle='rgba(249,115,22,0.3)';ctx.lineWidth=2;
+ctx.beginPath();ctx.moveTo(tx,0);ctx.lineTo(tx,H);ctx.stroke();ctx.lineWidth=1;
+}
+if(currentEvent===1){// Obstacles
+robots.forEach(r=>{
+r.gates&&r.gates.forEach(g=>{
+const laneTop=ROBOTS.indexOf(r)*45+20;
+ctx.fillStyle='rgba(64,64,64,0.5)';
+ctx.fillRect(g.x-3,laneTop,6,g.gapY);
+ctx.fillRect(g.x-3,laneTop+g.gapY+g.gapH,6,45-g.gapY-g.gapH);
+});
+});
+}
+
+// Robots
+robots.forEach((r,i)=>{
+ctx.fillStyle=r.color;
+ctx.beginPath();ctx.arc(r.x,r.y,6,0,Math.PI*2);ctx.fill();
+if(r.finished){ctx.strokeStyle='#10b981';ctx.lineWidth=2;ctx.beginPath();ctx.arc(r.x,r.y,9,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1;}
+ctx.fillStyle=r.color;ctx.font='bold 9px Manrope,system-ui';ctx.textAlign='left';
+ctx.fillText(r.name,r.x+10,r.y+3);
+});
+}
+
+function updateScoreboard(){
+const div=document.getElementById('scores');
+const sorted=[...robots].sort((a,b)=>{
+const ev=EVENTS[currentEvent];
+if(currentEvent===0)return(a.finished?a.time:9999)-(b.finished?b.time:9999);
+if(currentEvent===1)return a.collisions-b.collisions;
+if(currentEvent===2)return(a.finalDist||999)-(b.finalDist||999);
+if(currentEvent===3)return(a.samples?a.deviation/a.samples:999)-(b.samples?b.deviation/b.samples:999);
+return 0;
+});
+const medals=['&#x1F947;','&#x1F948;','&#x1F949;'];
+div.innerHTML=sorted.map((r,i)=>{
+const medal=i<3?`<span class="medal">${medals[i]}</span>`:'';
+return`<div class="score-row"><span class="name" style="color:${r.color}">${medal} ${r.name}</span><span class="val">${EVENTS[currentEvent].score(r)}</span></div>`;
+}).join('');
+}
+
+function tick(){
+if(!running)return;
+const dt=slow?0.3:1;
+robots.forEach(r=>{
+if(!r.finished){r.time+=dt*0.016;EVENTS[currentEvent].update(r,dt,step);}
+});
+step++;
+draw();
+if(step%5===0)updateScoreboard();
+if(EVENTS[currentEvent].isDone(robots)){
+running=false;
+document.getElementById('startBtn').textContent='Finished!';
+updateScoreboard();
+return;
+}
+requestAnimationFrame(tick);
+}
+
+// Build event buttons
+const evDiv=document.getElementById('events');
+EVENTS.forEach((e,i)=>{
+const btn=document.createElement('button');
+btn.className='event-btn'+(i===0?' active':'');
+btn.textContent=e.name;
+btn.onclick=()=>{
+currentEvent=i;
+document.querySelectorAll('.event-btn').forEach(b=>b.classList.remove('active'));
+btn.classList.add('active');
+document.getElementById('eventDesc').textContent=EVENTS[i].desc;
+initEvent();
+};
+evDiv.appendChild(btn);
+});
+document.getElementById('eventDesc').textContent=EVENTS[0].desc;
+
+document.getElementById('startBtn').onclick=()=>{
+if(EVENTS[currentEvent].isDone(robots)){initEvent();}
+running=!running;
+document.getElementById('startBtn').textContent=running?'Pause':'Resume';
+if(running)tick();
+};
+document.getElementById('resetBtn').onclick=initEvent;
+document.getElementById('slowBtn').onclick=function(){slow=!slow;this.textContent=slow?'Normal Speed':'Slow Motion';};
+
+initEvent();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

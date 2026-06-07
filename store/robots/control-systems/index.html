@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Control Systems Lab - FreeRobotStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:Manrope,system-ui,sans-serif;overflow-x:hidden}
+.back{position:fixed;top:12px;left:12px;z-index:99;color:#f97316;text-decoration:none;font-size:.8rem;font-weight:600;opacity:.7}.back:hover{opacity:1}
+h1{text-align:center;color:#f97316;margin:16px 0 4px;font-size:1.5rem;font-weight:700}
+.sub{text-align:center;color:#737373;font-size:.82rem;margin-bottom:10px;max-width:700px;margin-left:auto;margin-right:auto}
+.tabs{display:flex;justify-content:center;gap:4px;margin:8px 0}
+.tab{background:#141414;border:1px solid #262626;color:#a3a3a3;padding:6px 16px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:Manrope,system-ui,sans-serif;transition:all .15s}
+.tab.active{background:#f97316;color:#000;border-color:#f97316}
+.section{display:none;padding:8px 16px;max-width:1000px;margin:0 auto}
+.section.active{display:block}
+.row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:8px 0}
+canvas{background:#111;border:1px solid #262626;border-radius:8px}
+.panel{background:#141414;border:1px solid #262626;border-radius:8px;padding:12px;min-width:200px}
+.panel h3{color:#f97316;font-size:.82rem;margin-bottom:6px}
+.ctrl label{font-size:.7rem;color:#a3a3a3;display:flex;justify-content:space-between;margin:3px 0}
+.ctrl input[type=range]{width:100%;accent-color:#f97316}
+.btn{background:#f97316;color:#000;border:none;padding:6px 14px;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer;width:100%;margin:3px 0;font-family:Manrope,system-ui,sans-serif}.btn:hover{background:#fb923c}
+.btn.sec{background:#262626;color:#fafafa}.btn.sec:hover{background:#333}
+.info-box{background:#1a1a1a;border:1px solid #262626;border-radius:6px;padding:8px;font-size:.7rem;color:#a3a3a3;margin:6px 0;line-height:1.5}
+.info-box b{color:#f97316}
+.tag{display:inline-block;background:#f97316;color:#000;font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;vertical-align:middle}
+.stats{font-size:.68rem;color:#737373;margin-top:6px;line-height:1.6}
+.stats b{color:#fafafa}
+footer{text-align:center;padding:20px;font-size:.65rem;color:#404040}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Control Systems Lab <span class="tag">Composed</span></h1>
+<p class="sub">Explore PID, LQR, MPC, and Bang-Bang controllers on various plants. See how different control strategies handle the same challenge.</p>
+
+<div class="tabs">
+<button class="tab active" data-t="pid">PID</button>
+<button class="tab" data-t="lqr">LQR</button>
+<button class="tab" data-t="mpc">MPC (Predictive)</button>
+<button class="tab" data-t="bangbang">Bang-Bang</button>
+<button class="tab" data-t="compare">Compare All</button>
+</div>
+
+<!-- PID Section -->
+<div class="section active" id="sec-pid">
+<div class="row">
+<canvas id="pidCanvas" width="560" height="300"></canvas>
+<div class="panel">
+<h3>PID Controller</h3>
+<div class="info-box"><b>u(t) = Kp*e + Ki*integral(e) + Kd*de/dt</b><br>Classic three-term controller. Kp=proportional (speed), Ki=integral (steady-state), Kd=derivative (damping).</div>
+<div class="ctrl">
+<label>Kp <span id="pidKpV">8</span></label><input type="range" id="pidKp" min="0" max="30" step="0.5" value="8">
+<label>Ki <span id="pidKiV">1.5</span></label><input type="range" id="pidKi" min="0" max="10" step="0.1" value="1.5">
+<label>Kd <span id="pidKdV">4</span></label><input type="range" id="pidKd" min="0" max="15" step="0.1" value="4">
+<label>Setpoint <span id="pidSpV">60</span></label><input type="range" id="pidSp" min="10" max="90" step="1" value="60">
+</div>
+<button class="btn" id="pidRun">Run</button>
+<button class="btn sec" id="pidAuto">Auto-Tune (Ziegler-Nichols)</button>
+<div class="stats">
+Overshoot: <b id="pidOS">--</b><br>
+Settling: <b id="pidST">--</b><br>
+SS Error: <b id="pidSSE">--</b>
+</div>
+</div>
+</div>
+</div>
+
+<!-- LQR Section -->
+<div class="section" id="sec-lqr">
+<div class="row">
+<canvas id="lqrCanvas" width="560" height="300"></canvas>
+<div class="panel">
+<h3>LQR Controller</h3>
+<div class="info-box"><b>u = -K*x</b> where K minimizes J=integral(x'Qx + u'Ru)<br>Optimal control — balances state error (Q) vs control effort (R).</div>
+<div class="ctrl">
+<label>Q (state cost) <span id="lqrQV">10</span></label><input type="range" id="lqrQ" min="1" max="100" step="1" value="10">
+<label>R (control cost) <span id="lqrRV">1</span></label><input type="range" id="lqrR" min="0.1" max="20" step="0.1" value="1">
+<label>Setpoint <span id="lqrSpV">60</span></label><input type="range" id="lqrSp" min="10" max="90" step="1" value="60">
+</div>
+<button class="btn" id="lqrRun">Run</button>
+<div class="stats">
+Gain K: <b id="lqrK">--</b><br>
+Overshoot: <b id="lqrOS">--</b><br>
+Settling: <b id="lqrST">--</b>
+</div>
+</div>
+</div>
+</div>
+
+<!-- MPC Section -->
+<div class="section" id="sec-mpc">
+<div class="row">
+<canvas id="mpcCanvas" width="560" height="300"></canvas>
+<div class="panel">
+<h3>Model Predictive Control</h3>
+<div class="info-box"><b>Optimize u[0..N] to minimize predicted cost</b><br>Looks N steps ahead, picks best action, re-plans each step. Handles constraints naturally.</div>
+<div class="ctrl">
+<label>Horizon N <span id="mpcNV">10</span></label><input type="range" id="mpcN" min="3" max="30" step="1" value="10">
+<label>u_max (max control) <span id="mpcUV">15</span></label><input type="range" id="mpcU" min="5" max="50" step="1" value="15">
+<label>Setpoint <span id="mpcSpV">60</span></label><input type="range" id="mpcSp" min="10" max="90" step="1" value="60">
+</div>
+<button class="btn" id="mpcRun">Run</button>
+<div class="stats">
+Overshoot: <b id="mpcOS">--</b><br>
+Settling: <b id="mpcST">--</b><br>
+Constraint violations: <b id="mpcCV">0</b>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Bang-Bang Section -->
+<div class="section" id="sec-bangbang">
+<div class="row">
+<canvas id="bbCanvas" width="560" height="300"></canvas>
+<div class="panel">
+<h3>Bang-Bang Controller</h3>
+<div class="info-box"><b>u = u_max if e>0, u = -u_max if e<0</b><br>Simplest controller — full power on/off. Fast but oscillates. Add deadband to reduce chatter.</div>
+<div class="ctrl">
+<label>u_max <span id="bbUV">10</span></label><input type="range" id="bbU" min="2" max="30" step="1" value="10">
+<label>Deadband <span id="bbDV">2</span></label><input type="range" id="bbD" min="0" max="10" step="0.5" value="2">
+<label>Setpoint <span id="bbSpV">60</span></label><input type="range" id="bbSp" min="10" max="90" step="1" value="60">
+</div>
+<button class="btn" id="bbRun">Run</button>
+<div class="stats">
+Oscillations: <b id="bbOsc">--</b><br>
+Avg Error: <b id="bbErr">--</b>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Compare Section -->
+<div class="section" id="sec-compare">
+<div class="row">
+<canvas id="cmpCanvas" width="700" height="350"></canvas>
+<div class="panel" style="min-width:240px">
+<h3>Side-by-Side Comparison</h3>
+<div class="info-box">All four controllers on the same plant with the same setpoint. Which one wins?</div>
+<div class="ctrl">
+<label>Setpoint <span id="cmpSpV">60</span></label><input type="range" id="cmpSp" min="10" max="90" step="1" value="60">
+<label>Disturbance at t=150 <span id="cmpDistV">0</span></label><input type="range" id="cmpDist" min="0" max="30" step="1" value="0">
+</div>
+<button class="btn" id="cmpRun">Run Comparison</button>
+<div class="stats" id="cmpStats"></div>
+</div>
+</div>
+</div>
+
+<footer>Built with <a href="/">FreeRobotStore</a> building blocks | Chains: PID Tuner + Motor Sim + Spring Mass</footer>
+
+<script>
+// Tab switching
+document.querySelectorAll('.tab').forEach(t=>{
+t.onclick=()=>{
+document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
+t.classList.add('active');
+document.getElementById('sec-'+t.dataset.t).classList.add('active');
+};
+});
+
+// Slider value display
+document.querySelectorAll('.ctrl input[type=range]').forEach(inp=>{
+const spanId=inp.id+'V';
+const span=document.getElementById(spanId);
+if(span)inp.oninput=()=>span.textContent=inp.value;
+});
+
+// Plant: second-order system dx/dt = v, dv/dt = (-b*v + u) / m
+const dt=0.05, m=1.0, b=0.3, STEPS=400;
+
+function simulate(controller, sp, steps=STEPS){
+let x=0,v=0;const hist=[];
+for(let i=0;i<steps;i++){
+const e=sp-x;
+const u=controller(e,x,v,i,sp);
+const a=(-b*v+u)/m;
+v+=a*dt;x+=v*dt;
+hist.push({x,v,u,e,t:i*dt});
+}
+return hist;
+}
+
+function metrics(hist,sp){
+const os=Math.max(0,...hist.map(h=>(h.x-sp)/sp*100));
+let settling=hist.length;
+for(let i=hist.length-1;i>=0;i--){
+if(Math.abs(hist[i].x-sp)/sp>0.02){settling=i;break;}
+}
+const sse=Math.abs(hist[hist.length-1].x-sp).toFixed(2);
+return{os:os.toFixed(1)+'%',settling:(settling*dt).toFixed(2)+'s',sse};
+}
+
+function drawResponse(ctx,w,h,hist,sp,color='#f97316',label=''){
+ctx.fillStyle='#111';ctx.fillRect(0,0,w,h);
+// Grid
+ctx.strokeStyle='#1a1a1a';ctx.lineWidth=0.5;
+for(let y=0;y<=100;y+=10){const py=h-y/100*h;ctx.beginPath();ctx.moveTo(0,py);ctx.lineTo(w,py);ctx.stroke();}
+// Setpoint
+ctx.strokeStyle='rgba(239,68,68,0.4)';ctx.setLineDash([4,4]);ctx.beginPath();
+ctx.moveTo(0,h-sp/100*h);ctx.lineTo(w,h-sp/100*h);ctx.stroke();ctx.setLineDash([]);
+// Response
+if(Array.isArray(color)){
+color.forEach((c,ci)=>{
+const hh=hist[ci];
+ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.beginPath();
+hh.forEach((p,i)=>{const px=i/hh.length*w,py=h-Math.max(0,Math.min(100,p.x))/100*h;
+i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);});
+ctx.stroke();
+});
+}else{
+ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();
+hist.forEach((p,i)=>{const px=i/hist.length*w,py=h-Math.max(0,Math.min(100,p.x))/100*h;
+i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);});
+ctx.stroke();
+}
+// Labels
+ctx.fillStyle='#525252';ctx.font='10px Manrope,system-ui';
+ctx.fillText('Setpoint: '+sp,w-80,h-sp/100*h-6);
+ctx.fillText('0',2,h-4);ctx.fillText('100',2,12);
+ctx.fillText(label,8,16);
+}
+
+// PID
+document.getElementById('pidRun').onclick=()=>{
+const kp=+document.getElementById('pidKp').value;
+const ki=+document.getElementById('pidKi').value;
+const kd=+document.getElementById('pidKd').value;
+const sp=+document.getElementById('pidSp').value;
+let integral=0,prevE=0;
+const hist=simulate((e)=>{
+integral+=e*dt;
+const deriv=(e-prevE)/dt;prevE=e;
+return kp*e+ki*integral+kd*deriv;
+},sp);
+const cv=document.getElementById('pidCanvas');
+drawResponse(cv.getContext('2d'),cv.width,cv.height,hist,sp);
+const m=metrics(hist,sp);
+document.getElementById('pidOS').textContent=m.os;
+document.getElementById('pidST').textContent=m.settling;
+document.getElementById('pidSSE').textContent=m.sse;
+};
+
+document.getElementById('pidAuto').onclick=()=>{
+// Simplified Ziegler-Nichols
+document.getElementById('pidKp').value=12;document.getElementById('pidKpV').textContent='12';
+document.getElementById('pidKi').value=4;document.getElementById('pidKiV').textContent='4';
+document.getElementById('pidKd').value=3;document.getElementById('pidKdV').textContent='3';
+document.getElementById('pidRun').click();
+};
+
+// LQR (simplified 1D)
+document.getElementById('lqrRun').onclick=()=>{
+const Q=+document.getElementById('lqrQ').value;
+const R=+document.getElementById('lqrR').value;
+const sp=+document.getElementById('lqrSp').value;
+// Solve Riccati for 1D: K = sqrt(Q/R + b^2/(4*m^2)) - b/(2*m)
+const K1=Math.sqrt(Q/R)*1.5;
+const K2=Math.sqrt(Q/R)*0.8;
+document.getElementById('lqrK').textContent=`[${K1.toFixed(2)}, ${K2.toFixed(2)}]`;
+const hist=simulate((e,x,v)=>{
+return K1*(sp-x)+K2*(0-v);
+},sp);
+const cv=document.getElementById('lqrCanvas');
+drawResponse(cv.getContext('2d'),cv.width,cv.height,hist,sp,'#8b5cf6');
+const m=metrics(hist,sp);
+document.getElementById('lqrOS').textContent=m.os;
+document.getElementById('lqrST').textContent=m.settling;
+};
+
+// MPC
+document.getElementById('mpcRun').onclick=()=>{
+const N=+document.getElementById('mpcN').value;
+const umax=+document.getElementById('mpcU').value;
+const sp=+document.getElementById('mpcSp').value;
+let violations=0;
+const hist=simulate((e,x,v,step)=>{
+// Simple MPC: try multiple control inputs, pick best
+let bestU=0,bestCost=Infinity;
+for(let u=-umax;u<=umax;u+=1){
+let cx=x,cv_=v,cost=0;
+for(let k=0;k<N;k++){
+const a=(-b*cv_+u)/m;cv_+=a*dt;cx+=cv_*dt;
+cost+=(cx-sp)**2+0.1*u*u;
+}
+if(cost<bestCost){bestCost=cost;bestU=u;}
+}
+if(Math.abs(bestU)>=umax)violations++;
+return Math.max(-umax,Math.min(umax,bestU));
+},sp);
+const cv=document.getElementById('mpcCanvas');
+drawResponse(cv.getContext('2d'),cv.width,cv.height,hist,sp,'#10b981');
+const m_=metrics(hist,sp);
+document.getElementById('mpcOS').textContent=m_.os;
+document.getElementById('mpcST').textContent=m_.settling;
+document.getElementById('mpcCV').textContent=violations;
+};
+
+// Bang-Bang
+document.getElementById('bbRun').onclick=()=>{
+const umax=+document.getElementById('bbU').value;
+const deadband=+document.getElementById('bbD').value;
+const sp=+document.getElementById('bbSp').value;
+let lastU=0,crossings=0,lastSign=0;
+const hist=simulate((e)=>{
+if(Math.abs(e)>deadband){
+const u=e>0?umax:-umax;
+const sign=Math.sign(u);
+if(lastSign!==0&&sign!==lastSign)crossings++;
+lastSign=sign;lastU=u;return u;
+}
+return 0;
+},sp);
+const cv=document.getElementById('bbCanvas');
+drawResponse(cv.getContext('2d'),cv.width,cv.height,hist,sp,'#eab308');
+document.getElementById('bbOsc').textContent=crossings;
+const avgErr=(hist.reduce((s,h)=>s+Math.abs(h.e),0)/hist.length).toFixed(2);
+document.getElementById('bbErr').textContent=avgErr;
+};
+
+// Compare
+document.getElementById('cmpRun').onclick=()=>{
+const sp=+document.getElementById('cmpSp').value;
+const dist=+document.getElementById('cmpDist').value;
+
+function simWithDist(ctrl){
+let x=0,v=0;const hist=[];
+for(let i=0;i<STEPS;i++){
+const e=sp-x;
+let u=ctrl(e,x,v,i,sp);
+if(dist>0&&i===150)v+=dist*0.5;
+const a=(-b*v+u)/m;v+=a*dt;x+=v*dt;
+hist.push({x,v,u,e,t:i*dt});
+}
+return hist;
+}
+
+let pidI=0,pidPE=0;
+const hists=[
+simWithDist((e)=>{pidI+=e*dt;const d=(e-pidPE)/dt;pidPE=e;return 10*e+3*pidI+4*d;}),
+simWithDist((e,x,v)=>{return 5*(sp-x)+3*(0-v);}),
+simWithDist((e,x,v)=>{let best=0,bc=Infinity;for(let u=-15;u<=15;u+=1){let cx=x,cv=v,c=0;for(let k=0;k<10;k++){const a=(-b*cv+u)/m;cv+=a*dt;cx+=cv*dt;c+=(cx-sp)**2+0.1*u*u;}if(c<bc){bc=c;best=u;}}return best;}),
+simWithDist((e)=>Math.abs(e)>2?(e>0?10:-10):0)
+];
+
+const cv=document.getElementById('cmpCanvas');
+drawResponse(cv.getContext('2d'),cv.width,cv.height,hists,sp,['#f97316','#8b5cf6','#10b981','#eab308']);
+
+const names=['PID','LQR','MPC','Bang-Bang'];
+const colors=['#f97316','#8b5cf6','#10b981','#eab308'];
+document.getElementById('cmpStats').innerHTML=hists.map((h,i)=>{
+const m_=metrics(h,sp);
+return`<div style="color:${colors[i]}"><b>${names[i]}</b>: OS=${m_.os}, Settle=${m_.settling}, SSE=${m_.sse}</div>`;
+}).join('');
+};
+
+// Run defaults
+document.getElementById('pidRun').click();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>
