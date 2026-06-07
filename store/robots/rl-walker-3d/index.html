@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D RL Walker — Neuroevolution | FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;overflow:hidden}
+    #app{width:100vw;height:100vh;position:relative}
+    canvas{display:block}
+    #hud{position:fixed;top:1rem;left:1rem;font-size:.78rem;color:#525252;line-height:1.7;z-index:10}
+    #hud span{color:#f97316;font-weight:600}
+    #hud .g{color:#10b981}
+    #panel{position:fixed;right:1rem;top:1rem;background:rgba(23,23,23,.95);border:1px solid #262626;border-radius:12px;padding:1rem;width:220px;z-index:10;backdrop-filter:blur(8px)}
+    #panel h3{font-size:.78rem;color:#737373;margin:.5rem 0 .25rem;text-transform:uppercase;letter-spacing:.05em}
+    button{padding:.35rem .7rem;border-radius:6px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit;width:100%;margin:.15rem 0}
+    button:hover{border-color:#f97316;color:#f97316}
+    button.primary{background:#f97316;border-color:#f97316;color:#fff}
+    .stat{display:flex;justify-content:space-between;font-size:.75rem;margin:.1rem 0}
+    .stat-label{color:#525252}
+    .stat-val{color:#f97316;font-weight:600;font-family:'JetBrains Mono',monospace}
+    canvas.chart{border:1px solid #1a1a1a;border-radius:6px;margin-top:.5rem}
+    a{color:#404040;text-decoration:none;position:fixed;bottom:.5rem;right:.5rem;font-size:.68rem;z-index:10}
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <span>3D RL Walker</span> — Neuroevolution<br>
+    Gen: <span id="gen">0</span> | Best: <span class="g" id="best">0.00</span>m<br>
+    Pop: <span id="pop">20</span> | Alive: <span id="alive">20</span>
+  </div>
+  <div id="panel">
+    <h3>Evolution</h3>
+    <button class="primary" id="btn-evolve">Evolve Next Gen</button>
+    <button id="btn-auto">Auto-Evolve</button>
+    <button id="btn-reset">Reset</button>
+    <h3>Speed</h3>
+    <button id="btn-1x">1x</button>
+    <button id="btn-5x">5x</button>
+    <button id="btn-10x">10x</button>
+    <button id="btn-50x">50x (no render)</button>
+    <h3>Stats</h3>
+    <div class="stat"><span class="stat-label">Generation</span><span class="stat-val" id="s-gen">0</span></div>
+    <div class="stat"><span class="stat-label">Best distance</span><span class="stat-val" id="s-best">0.00</span></div>
+    <div class="stat"><span class="stat-label">Avg distance</span><span class="stat-val" id="s-avg">0.00</span></div>
+    <div class="stat"><span class="stat-label">Best ever</span><span class="stat-val" id="s-ever">0.00</span></div>
+    <h3>Fitness Chart</h3>
+    <canvas id="chart" class="chart" width="200" height="80"></canvas>
+  </div>
+  <a href="https://freerobotstore.pages.dev">FreeRobotStore</a>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+// Scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a0a);
+scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 200);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+document.getElementById('app').prepend(renderer.domElement);
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const sun = new THREE.DirectionalLight(0xffffff, 1);
+sun.position.set(10, 20, 10); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
+sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
+scene.add(sun);
+
+// Ground
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 200, 40, 40),
+  new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.9})
+);
+ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+
+// Grid
+const grid = new THREE.GridHelper(200, 100, 0x1a1a1a, 0x141414);
+scene.add(grid);
+
+// Distance markers
+for (let d = 5; d <= 50; d += 5) {
+  const marker = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.5, 0.1),
+    new THREE.MeshBasicMaterial({color: 0x262626, side: THREE.DoubleSide})
+  );
+  marker.position.set(d, 0.01, 0);
+  marker.rotation.x = -Math.PI/2;
+  scene.add(marker);
+}
+
+// Neural Network
+class NeuralNet {
+  constructor(layers) {
+    this.weights = [];
+    this.biases = [];
+    for (let i = 0; i < layers.length - 1; i++) {
+      this.weights.push(Array.from({length: layers[i+1]}, () =>
+        Array.from({length: layers[i]}, () => (Math.random() - 0.5) * 2)
+      ));
+      this.biases.push(Array.from({length: layers[i+1]}, () => (Math.random() - 0.5) * 0.5));
+    }
+  }
+
+  forward(inputs) {
+    let x = inputs;
+    for (let l = 0; l < this.weights.length; l++) {
+      const newX = [];
+      for (let j = 0; j < this.weights[l].length; j++) {
+        let sum = this.biases[l][j];
+        for (let i = 0; i < x.length; i++) sum += this.weights[l][j][i] * x[i];
+        newX.push(l < this.weights.length - 1 ? Math.tanh(sum) : Math.tanh(sum));
+      }
+      x = newX;
+    }
+    return x;
+  }
+
+  clone() {
+    const nn = new NeuralNet([1]);
+    nn.weights = this.weights.map(l => l.map(r => [...r]));
+    nn.biases = this.biases.map(l => [...l]);
+    return nn;
+  }
+
+  mutate(rate) {
+    for (let l = 0; l < this.weights.length; l++) {
+      for (let j = 0; j < this.weights[l].length; j++) {
+        for (let i = 0; i < this.weights[l][j].length; i++) {
+          if (Math.random() < rate) this.weights[l][j][i] += (Math.random() - 0.5) * 0.5;
+        }
+        if (Math.random() < rate) this.biases[l][j] += (Math.random() - 0.5) * 0.3;
+      }
+    }
+  }
+}
+
+// Creature (3D biped)
+class Creature {
+  constructor(brain) {
+    // 8 inputs: body angle (2), angular vel (2), 4 joint angles
+    // 4 outputs: hip torques (2), knee torques (2)
+    this.brain = brain || new NeuralNet([8, 16, 8, 4]);
+    this.group = new THREE.Group();
+    this.alive = true;
+    this.fitness = 0;
+    this.time = 0;
+
+    // Physics state
+    this.x = 0; this.y = 1.2; this.z = 0;
+    this.vx = 0; this.vy = 0; this.vz = 0;
+    this.pitch = 0; this.roll = 0;
+    this.vPitch = 0; this.vRoll = 0;
+
+    // Joint angles
+    this.hipL = 0; this.hipR = 0;
+    this.kneeL = 0.3; this.kneeR = 0.3;
+    this.phase = Math.random() * Math.PI * 2;
+
+    // Build mesh
+    const bodyMat = new THREE.MeshStandardMaterial({color: 0xf97316, roughness: 0.4});
+    const jointMat = new THREE.MeshStandardMaterial({color: 0x525252, roughness: 0.5});
+    const limbMat = new THREE.MeshStandardMaterial({color: 0xea580c, roughness: 0.4});
+
+    // Body
+    this.body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.4), bodyMat);
+    this.body.castShadow = true;
+    this.group.add(this.body);
+
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), bodyMat);
+    head.position.y = 0.4; head.castShadow = true;
+    this.body.add(head);
+
+    // Eyes
+    const eyeMat = new THREE.MeshBasicMaterial({color: 0x10b981});
+    const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), eyeMat);
+    eyeL.position.set(-0.06, 0.42, 0.13);
+    this.body.add(eyeL);
+    const eyeR = eyeL.clone(); eyeR.position.x = 0.06;
+    this.body.add(eyeR);
+
+    // Left leg
+    this.upperL = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6), limbMat);
+    this.upperL.position.set(-0.15, -0.5, 0); this.upperL.castShadow = true;
+    this.body.add(this.upperL);
+    this.lowerL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.45, 6), limbMat);
+    this.lowerL.position.y = -0.45; this.lowerL.castShadow = true;
+    this.upperL.add(this.lowerL);
+    const footL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 0.1), jointMat);
+    footL.position.set(0.03, -0.25, 0);
+    this.lowerL.add(footL);
+
+    // Right leg
+    this.upperR = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6), limbMat);
+    this.upperR.position.set(0.15, -0.5, 0); this.upperR.castShadow = true;
+    this.body.add(this.upperR);
+    this.lowerR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.45, 6), limbMat);
+    this.lowerR.position.y = -0.45; this.lowerR.castShadow = true;
+    this.upperR.add(this.lowerR);
+    const footR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 0.1), jointMat);
+    footR.position.set(-0.03, -0.25, 0);
+    this.lowerR.add(footR);
+
+    scene.add(this.group);
+  }
+
+  step(dt) {
+    if (!this.alive) return;
+    this.time += dt;
+
+    // Neural net inputs
+    const inputs = [
+      this.pitch / Math.PI,
+      this.roll / Math.PI,
+      this.vPitch * 0.1,
+      this.vRoll * 0.1,
+      Math.sin(this.phase),
+      Math.cos(this.phase),
+      this.hipL / Math.PI,
+      this.kneeL / Math.PI,
+    ];
+
+    const outputs = this.brain.forward(inputs);
+
+    // Apply torques to joints
+    const torqueScale = 3;
+    this.hipL += outputs[0] * torqueScale * dt;
+    this.hipR += outputs[1] * torqueScale * dt;
+    this.kneeL += outputs[2] * torqueScale * dt;
+    this.kneeR += outputs[3] * torqueScale * dt;
+
+    // Clamp joints
+    this.hipL = Math.max(-1.2, Math.min(1.2, this.hipL));
+    this.hipR = Math.max(-1.2, Math.min(1.2, this.hipR));
+    this.kneeL = Math.max(0, Math.min(2, this.kneeL));
+    this.kneeR = Math.max(0, Math.min(2, this.kneeR));
+
+    this.phase += 4 * dt;
+
+    // Simplified walking physics
+    const stride = (Math.sin(this.hipL) - Math.sin(this.hipR)) * 0.3;
+    this.vx += stride * dt * 5;
+    this.vx *= 0.98;
+
+    // Balance
+    const balanceForce = -this.pitch * 8 - this.vPitch * 3;
+    this.vPitch += (balanceForce + (outputs[0] + outputs[1]) * 0.5) * dt;
+    this.pitch += this.vPitch * dt;
+    this.vPitch *= 0.99;
+
+    // Gravity + ground
+    this.vy -= 15 * dt;
+    this.y += this.vy * dt;
+    if (this.y < 1.2) { this.y = 1.2; this.vy = 0; }
+
+    this.x += this.vx * dt;
+
+    // Fall detection
+    if (Math.abs(this.pitch) > 1.2 || Math.abs(this.roll) > 1.0 || this.time > 15) {
+      this.alive = false;
+    }
+
+    this.fitness = Math.max(0, this.x);
+
+    // Update mesh
+    this.group.position.set(this.x, this.y, this.z);
+    this.body.rotation.z = this.pitch;
+    this.body.rotation.x = this.roll;
+    this.upperL.rotation.x = this.hipL;
+    this.upperR.rotation.x = this.hipR;
+    this.lowerL.rotation.x = -this.kneeL;
+    this.lowerR.rotation.x = -this.kneeR;
+  }
+
+  destroy() {
+    scene.remove(this.group);
+    this.group.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    });
+  }
+}
+
+// Evolution
+const POP_SIZE = 20;
+let creatures = [];
+let generation = 0;
+let bestEver = 0;
+let bestHistory = [];
+let avgHistory = [];
+let speed = 1;
+let autoEvolving = false;
+let simTime = 0;
+
+function spawnGeneration(brains) {
+  creatures.forEach(c => c.destroy());
+  creatures = [];
+  simTime = 0;
+  for (let i = 0; i < POP_SIZE; i++) {
+    const brain = brains ? brains[i] : null;
+    const c = new Creature(brain);
+    c.z = (i - POP_SIZE/2) * 0.8;
+    creatures.push(c);
+  }
+}
+
+function evolve() {
+  // Sort by fitness
+  creatures.sort((a, b) => b.fitness - a.fitness);
+  const best = creatures[0].fitness;
+  const avg = creatures.reduce((s, c) => s + c.fitness, 0) / POP_SIZE;
+
+  bestEver = Math.max(bestEver, best);
+  bestHistory.push(best);
+  avgHistory.push(avg);
+  if (bestHistory.length > 50) { bestHistory.shift(); avgHistory.shift(); }
+
+  generation++;
+
+  // Select top 5, breed next generation
+  const elite = creatures.slice(0, 5).map(c => c.brain);
+  const newBrains = [];
+  for (let i = 0; i < POP_SIZE; i++) {
+    const parent = elite[i % elite.length].clone();
+    parent.mutate(0.15);
+    newBrains.push(parent);
+  }
+  // Keep best unchanged
+  newBrains[0] = elite[0].clone();
+
+  spawnGeneration(newBrains);
+  updateStats(best, avg);
+}
+
+function updateStats(best, avg) {
+  document.getElementById('gen').textContent = generation;
+  document.getElementById('s-gen').textContent = generation;
+  document.getElementById('best').textContent = (best || 0).toFixed(2);
+  document.getElementById('s-best').textContent = (best || 0).toFixed(2);
+  document.getElementById('s-avg').textContent = (avg || 0).toFixed(2);
+  document.getElementById('s-ever').textContent = bestEver.toFixed(2);
+  document.getElementById('alive').textContent = creatures.filter(c => c.alive).length;
+
+  // Chart
+  const chart = document.getElementById('chart');
+  const ctx = chart.getContext('2d');
+  ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, 200, 80);
+  if (bestHistory.length > 1) {
+    const maxVal = Math.max(...bestHistory, 1);
+    // Best line
+    ctx.strokeStyle = '#f97316'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < bestHistory.length; i++) {
+      const x = (i / (bestHistory.length-1)) * 200;
+      const y = 75 - (bestHistory[i] / maxVal) * 70;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    // Avg line
+    ctx.strokeStyle = '#525252'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < avgHistory.length; i++) {
+      const x = (i / (avgHistory.length-1)) * 200;
+      const y = 75 - (avgHistory[i] / maxVal) * 70;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+// Controls
+document.getElementById('btn-evolve').addEventListener('click', evolve);
+document.getElementById('btn-auto').addEventListener('click', function() {
+  autoEvolving = !autoEvolving;
+  this.textContent = autoEvolving ? 'Stop Auto' : 'Auto-Evolve';
+});
+document.getElementById('btn-reset').addEventListener('click', () => {
+  generation = 0; bestEver = 0; bestHistory = []; avgHistory = [];
+  autoEvolving = false;
+  spawnGeneration();
+  updateStats(0, 0);
+});
+document.getElementById('btn-1x').addEventListener('click', () => speed = 1);
+document.getElementById('btn-5x').addEventListener('click', () => speed = 5);
+document.getElementById('btn-10x').addEventListener('click', () => speed = 10);
+document.getElementById('btn-50x').addEventListener('click', () => speed = 50);
+
+// Camera
+let camAngle = 0.5, camHeight = 3, camDist = 8;
+let drag = false, px = 0, py = 0;
+renderer.domElement.addEventListener('mousedown', e => { drag = true; px = e.clientX; py = e.clientY; });
+addEventListener('mousemove', e => {
+  if (!drag) return;
+  camAngle += (e.clientX - px) * 0.005;
+  camHeight = Math.max(0.5, Math.min(10, camHeight - (e.clientY - py) * 0.03));
+  px = e.clientX; py = e.clientY;
+});
+addEventListener('mouseup', () => drag = false);
+renderer.domElement.addEventListener('wheel', e => {
+  e.preventDefault();
+  camDist = Math.max(3, Math.min(20, camDist + e.deltaY * 0.01));
+}, {passive: false});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// Init
+spawnGeneration();
+updateStats(0, 0);
+
+// Main loop
+const dt = 1/60;
+function animate() {
+  requestAnimationFrame(animate);
+
+  const steps = Math.min(speed, 50);
+  for (let s = 0; s < steps; s++) {
+    simTime += dt;
+    for (const c of creatures) c.step(dt);
+    document.getElementById('alive').textContent = creatures.filter(c => c.alive).length;
+
+    // Auto-evolve when all dead or timeout
+    if (autoEvolving && (creatures.every(c => !c.alive) || simTime > 15)) {
+      evolve();
+    }
+  }
+
+  // Camera follows best alive creature
+  const bestAlive = creatures.filter(c => c.alive).sort((a, b) => b.x - a.x)[0];
+  const target = bestAlive ? new THREE.Vector3(bestAlive.x, 1.5, bestAlive.z) : new THREE.Vector3(0, 1.5, 0);
+
+  camera.position.set(
+    target.x + Math.sin(camAngle) * camDist,
+    target.y + camHeight,
+    target.z + Math.cos(camAngle) * camDist
+  );
+  camera.lookAt(target);
+
+  // Sun follows
+  sun.position.set(target.x + 10, 20, target.z + 10);
+  sun.target.position.copy(target);
+
+  if (speed <= 10) renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

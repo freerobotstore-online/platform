@@ -49,6 +49,11 @@
     th{background:var(--panel);color:var(--ink);font-weight:700}
     td{color:#a3a3a3}
     footer{border-top:1px solid var(--line);padding:1.5rem 0;text-align:center;font-size:.75rem;color:#525252}
+    .kids-explain{display:none;background:#1a1a2e;border:1px solid #2d2d5e;border-radius:10px;padding:.75rem 1rem;margin:.75rem 0;font-size:.85rem;line-height:1.6}
+    .kids-explain .emoji{font-size:1.2rem;margin-right:.35rem}
+    .kids-explain b{color:#fbbf24}
+    body.kids-mode .kids-explain{display:block}
+    body.kids-mode .section h2::after{content:" \1F9D2";font-size:.8em}
   </style>
 </head>
 <body>
@@ -66,6 +71,7 @@
         <a href="/institute/planning">Planning</a>
         <a href="/institute/learning">Learning</a>
         <a href="/">Simulations</a>
+        <button onclick="document.body.classList.toggle('kids-mode');this.textContent=document.body.classList.contains('kids-mode')?'\uD83C\uDF93 Expert':'\uD83E\uDDD2 Kids'" style="padding:.25rem .6rem;border-radius:6px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit">\uD83E\uDDD2 Kids</button>
       </nav>
     </div>
   </header>
@@ -128,6 +134,7 @@
         <li><strong>Real-time constraints</strong> — perception must keep up with the robot's control loop. A self-driving car at 60 mph travels 27 meters per second; perception must process data in milliseconds.</li>
         <li><strong>Open-world problem</strong> — unlike controlled industrial settings, real-world environments contain an unbounded variety of objects, materials, and conditions.</li>
       </ul>
+      <div class="kids-explain"><span class="emoji">&#128064;</span> <b>Robot perception</b> is giving robots eyes, ears, and touch. Cameras are robot eyes. LiDAR is like echolocation (what bats use) — it shoots laser beams and listens for them to bounce back. Together, they help robots understand "what's around me?" and "where am I?"</div>
     </section>
 
     <!-- Cameras -->
@@ -341,6 +348,7 @@
 
       <h3>Loop Closure</h3>
       <p>When the robot revisits a previously mapped location, loop closure detects this and corrects the accumulated drift. Without loop closure, SLAM drift grows without bound. Methods: bag-of-words image retrieval (DBoW2 in ORB-SLAM), scan context for LiDAR (Kim & Kim, 2018), and learned place recognition (NetVLAD, Patch-NetVLAD).</p>
+      <div class="kids-explain"><span class="emoji">&#128506;&#65039;</span> <b>SLAM</b> is like being dropped in a dark cave with a flashlight. You don't have a map, and you don't know where you are. As you walk around shining your flashlight, you build a map AND figure out where you are at the same time. That's exactly what robots do with their cameras and lasers!</div>
     </section>
 
     <!-- Sensor Fusion -->

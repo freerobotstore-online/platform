@@ -49,6 +49,11 @@
     th{background:var(--panel);color:var(--ink);font-weight:700}
     td{color:#a3a3a3}
     footer{border-top:1px solid var(--line);padding:1.5rem 0;text-align:center;font-size:.75rem;color:#525252}
+    .kids-explain{display:none;background:#1a1a2e;border:1px solid #2d2d5e;border-radius:10px;padding:.75rem 1rem;margin:.75rem 0;font-size:.85rem;line-height:1.6}
+    .kids-explain .emoji{font-size:1.2rem;margin-right:.35rem}
+    .kids-explain b{color:#fbbf24}
+    body.kids-mode .kids-explain{display:block}
+    body.kids-mode .section h2::after{content:" \1F9D2";font-size:.8em}
   </style>
 </head>
 <body>
@@ -66,6 +71,7 @@
         <a href="/institute/planning">Planning</a>
         <a href="/institute/learning" class="active">Learning</a>
         <a href="/">Simulations</a>
+        <button onclick="document.body.classList.toggle('kids-mode');this.textContent=document.body.classList.contains('kids-mode')?'\uD83C\uDF93 Expert':'\uD83E\uDDD2 Kids'" style="padding:.25rem .6rem;border-radius:6px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit">\uD83E\uDDD2 Kids</button>
       </nav>
     </div>
   </header>
@@ -110,6 +116,7 @@
 
       <h3>The Data Challenge</h3>
       <p>Unlike computer vision or NLP, robotics data is expensive and slow to collect. Each data point requires physical interaction with the real world. A robot arm can perform at most ~1000 grasps per day. Training a policy that requires millions of interactions is impractical on real hardware. This fundamental bottleneck drives two major research directions: simulation-based training (sim-to-real) and data-efficient learning (few-shot, meta-learning).</p>
+      <div class="kids-explain"><span class="emoji">&#129504;</span> <b>Robot learning</b> is like teaching a puppy tricks. Instead of writing exact instructions for every situation, you let the robot try things, make mistakes, and get better over time. Just like how you learned to ride a bike — you fell down a lot, but eventually your brain figured out how to balance!</div>
     </section>
 
     <!-- RL Fundamentals -->
@@ -331,6 +338,7 @@
         <tr><td><a href="https://github.com/bulletphysics/bullet3">PyBullet</a></td><td>Free, OpenAI Gym integration, URDF support</td><td>Google Brain, educational</td></tr>
         <tr><td><a href="https://github.com/ARISE-Initiative/robosuite">robosuite</a></td><td>MuJoCo-based manipulation benchmark, standardized tasks</td><td>Stanford ILIAD, many</td></tr>
       </table>
+      <div class="kids-explain"><span class="emoji">&#127918;</span> <b>Sim-to-real</b> is like learning to play basketball in a video game first, then playing for real. The video game isn't perfect — the ball bounces a little differently in real life. So scientists make the video game slightly random each time (heavier ball, slippery floor) so the robot gets used to surprises. Then when it plays for real, it's ready!</div>
     </section>
 
     <!-- Foundation Models -->

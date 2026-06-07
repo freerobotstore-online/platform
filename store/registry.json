@@ -1,6 +1,18 @@
 {
   "robots": [
     {
+      "id": "rl-walker-3d",
+      "name": "3D RL Walker",
+      "description": "20 3D creatures evolve walking gaits via neuroevolution. Neural net brains, Three.js rendering. Camera follows best creature. 50x speed.",
+      "storeType": "behavior",
+      "category": "learning",
+      "icon": "\ud83e\uddec",
+      "iconBg": "#f97316",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
       "id": "rl-walker",
       "name": "RL Walker",
       "description": "Watch creatures evolve walking gaits via neuroevolution. 20 stick figures, neural network brains, survival of the fittest.",
