@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robot Autonomous Navigation Pipeline</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f0a06;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;padding:20px;min-height:100vh}
+h1{text-align:center;color:#f97316;font-size:1.8rem;margin-bottom:8px}
+.subtitle{text-align:center;color:#94a3b8;margin-bottom:24px;font-size:0.9rem}
+.pipeline-flow{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:32px;flex-wrap:wrap}
+.pipeline-stage{background:#1f1508;border:2px solid #2f2010;border-radius:12px;padding:10px 14px;text-align:center;min-width:120px;transition:all .3s}
+.pipeline-stage.active{border-color:#f97316;box-shadow:0 0 20px #f9731633}
+.pipeline-stage.done{border-color:#fb923c;box-shadow:0 0 12px #fb923c33}
+.pipeline-stage .label{font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:1px}
+.pipeline-stage .name{font-size:0.85rem;color:#e2e8f0;font-weight:600;margin-top:2px}
+.arrow{color:#f97316;font-size:1.2rem;font-weight:bold}
+.steps{display:flex;flex-direction:column;gap:24px;max-width:940px;margin:0 auto}
+.step{background:#110d06;border:1px solid #2f2010;border-radius:16px;padding:24px;transition:all .3s}
+.step.active{border-color:#f97316}
+.step.done{border-color:#fb923c44}
+.step-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.step-num{width:32px;height:32px;border-radius:50%;background:#1f1508;color:#f97316;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:0.9rem;border:2px solid #f9731644}
+.step.done .step-num{background:#fb923c22;color:#fb923c;border-color:#fb923c}
+.step-title{font-size:1.1rem;font-weight:600}
+.step-desc{color:#94a3b8;font-size:0.85rem;margin-bottom:16px}
+button{background:#f97316;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:500;transition:all .2s}
+button:hover{background:#ea580c}
+button:disabled{opacity:0.4;cursor:default}
+button.secondary{background:#1f1508;border:1px solid #2f2010;color:#94a3b8}
+button.secondary:hover{border-color:#f97316;color:#fdba74}
+button.run-all{background:linear-gradient(135deg,#f97316,#fb923c);padding:14px 32px;font-size:1rem;font-weight:600;display:block;margin:24px auto 0;color:#451a03}
+.controls{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;align-items:center}
+.output-box{background:#0a0704;border:1px solid #2f2010;border-radius:8px;padding:12px 16px;margin-top:12px;font-family:'Courier New',monospace;font-size:0.82rem;line-height:1.6;max-height:200px;overflow-y:auto;white-space:pre-wrap}
+.feed-arrow{text-align:center;color:#f97316;font-size:1.2rem;margin:4px 0;opacity:0;transition:opacity .3s}
+.feed-arrow.visible{opacity:1}
+canvas{display:block;margin:12px auto;border:1px solid #2f2010;border-radius:8px;background:#0a0704}
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.stat{background:#1f1508;border:1px solid #2f2010;border-radius:8px;padding:8px 14px;text-align:center;flex:1;min-width:100px}
+.stat-label{font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:1px}
+.stat-val{font-size:1.1rem;color:#fb923c;font-weight:700;margin-top:2px;font-family:monospace}
+.stat-unit{font-size:0.7rem;color:#64748b}
+.grid-legend{display:flex;gap:16px;margin:8px 0;font-size:0.8rem;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:4px}
+.legend-swatch{width:14px;height:14px;border-radius:3px}
+select{background:#0a0704;border:1px solid #2f2010;border-radius:6px;padding:8px 12px;color:#e2e8f0;font-size:0.9rem}
+</style>
+</head>
+<body>
+<h1>Robot Autonomous Navigation Pipeline</h1>
+<p class="subtitle">LiDAR Scan &rarr; Occupancy Grid &rarr; A* Path &rarr; PID Control &rarr; Movement</p>
+
+<div class="pipeline-flow">
+  <div class="pipeline-stage" id="ps1"><div class="label">Step 1</div><div class="name">LiDAR Scan</div></div>
+  <div class="arrow">&rarr;</div>
+  <div class="pipeline-stage" id="ps2"><div class="label">Step 2</div><div class="name">A* Path</div></div>
+  <div class="arrow">&rarr;</div>
+  <div class="pipeline-stage" id="ps3"><div class="label">Step 3</div><div class="name">PID Follow</div></div>
+</div>
+
+<div class="steps">
+  <!-- Step 1: LiDAR + Occupancy Grid -->
+  <div class="step" id="step1">
+    <div class="step-header"><div class="step-num">1</div><div class="step-title">LiDAR Scan &rarr; Occupancy Grid</div></div>
+    <p class="step-desc">The robot emits LiDAR beams in all directions. Hits on obstacles build an occupancy grid map. Choose an environment preset or randomize.</p>
+    <div class="controls" style="margin-top:0;margin-bottom:12px">
+      <select id="env-select">
+        <option value="maze">Maze</option>
+        <option value="rooms">Rooms</option>
+        <option value="random">Random Obstacles</option>
+      </select>
+      <button onclick="runStep1()">Scan Environment</button>
+      <button class="secondary" onclick="randomizeEnv()">Randomize</button>
+    </div>
+    <canvas id="lidar-canvas" width="600" height="400"></canvas>
+    <div class="grid-legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:#1f1508"></div> Free</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f97316"></div> Obstacle</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#22c55e"></div> Robot</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#ef4444"></div> Goal</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f9731644"></div> LiDAR beam</div>
+    </div>
+    <div class="output-box" id="step1-output" style="display:none"></div>
+  </div>
+
+  <div class="feed-arrow" id="feed1">&darr; Occupancy grid feeds into path planning</div>
+
+  <!-- Step 2: A* Path Planning -->
+  <div class="step" id="step2">
+    <div class="step-header"><div class="step-num">2</div><div class="step-title">A* Pathfinding</div></div>
+    <p class="step-desc">A* searches the occupancy grid from robot to goal. Blue cells show the explored frontier; yellow shows the optimal path found.</p>
+    <canvas id="path-canvas" width="600" height="400"></canvas>
+    <div class="controls">
+      <button onclick="runStep2()" id="btn-step2" disabled>Find Path</button>
+    </div>
+    <div class="output-box" id="step2-output" style="display:none"></div>
+  </div>
+
+  <div class="feed-arrow" id="feed2">&darr; Path waypoints feed into PID controller</div>
+
+  <!-- Step 3: PID Control -->
+  <div class="step" id="step3">
+    <div class="step-header"><div class="step-num">3</div><div class="step-title">PID Controller &rarr; Robot Follows Path</div></div>
+    <p class="step-desc">A PID controller steers the robot along the planned path. Watch it correct for heading errors and navigate to the goal.</p>
+    <canvas id="pid-canvas" width="600" height="400"></canvas>
+    <div id="pid-stats"></div>
+    <div class="controls">
+      <button onclick="runStep3()" id="btn-step3" disabled>Execute Navigation</button>
+    </div>
+    <div class="output-box" id="step3-output" style="display:none"></div>
+  </div>
+</div>
+
+<button class="run-all" onclick="runPipeline()">Run Full Pipeline</button>
+
+<script>
+const COLS = 30, ROWS = 20, CELL = 20;
+let grid = [];
+let robotPos = { x: 1, y: 1 };
+let goalPos = { x: 28, y: 18 };
+let path = [];
+let explored = [];
+let scanTime = 0, planTime = 0;
+
+const ENVS = {
+  maze: () => {
+    const g = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    // Border walls
+    for (let x = 0; x < COLS; x++) { g[0][x] = 1; g[ROWS-1][x] = 1; }
+    for (let y = 0; y < ROWS; y++) { g[y][0] = 1; g[y][COLS-1] = 1; }
+    // Maze walls
+    const walls = [[3,2,3,12],[7,4,7,16],[11,2,11,10],[11,12,11,18],[15,4,15,14],[19,2,19,16],[23,6,23,18],[27,2,27,12]];
+    walls.forEach(([x,y1,_,y2]) => { for (let y = y1; y <= Math.min(y2, ROWS-2); y++) if (x < COLS-1) g[y][x] = 1; });
+    // Openings
+    [[3,5],[7,10],[11,15],[11,5],[15,8],[19,12],[23,10],[27,6]].forEach(([x,y]) => { if (y < ROWS && x < COLS) g[y][x] = 0; });
+    return g;
+  },
+  rooms: () => {
+    const g = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    for (let x = 0; x < COLS; x++) { g[0][x] = 1; g[ROWS-1][x] = 1; }
+    for (let y = 0; y < ROWS; y++) { g[y][0] = 1; g[y][COLS-1] = 1; }
+    // Room dividers
+    for (let x = 0; x < COLS; x++) { g[7][x] = 1; g[13][x] = 1; }
+    for (let y = 0; y < ROWS; y++) { g[y][10] = 1; g[y][20] = 1; }
+    // Doors
+    [[5,7],[15,7],[25,7],[5,13],[15,13],[25,13],[10,4],[10,10],[10,16],[20,4],[20,10],[20,16]].forEach(([x,y]) => {
+      if (y < ROWS && x < COLS) { g[y][x] = 0; if (y+1 < ROWS) g[y][x] = 0; }
+    });
+    return g;
+  },
+  random: () => {
+    const g = Array.from({length: ROWS}, () => Array(COLS).fill(0));
+    for (let x = 0; x < COLS; x++) { g[0][x] = 1; g[ROWS-1][x] = 1; }
+    for (let y = 0; y < ROWS; y++) { g[y][0] = 1; g[y][COLS-1] = 1; }
+    for (let i = 0; i < 80; i++) {
+      const x = 2 + Math.floor(Math.random() * (COLS - 4));
+      const y = 2 + Math.floor(Math.random() * (ROWS - 4));
+      g[y][x] = 1;
+      if (Math.random() > 0.5 && x + 1 < COLS - 1) g[y][x+1] = 1;
+      if (Math.random() > 0.5 && y + 1 < ROWS - 1) g[y+1][x] = 1;
+    }
+    g[robotPos.y][robotPos.x] = 0;
+    g[goalPos.y][goalPos.x] = 0;
+    return g;
+  }
+};
+
+function randomizeEnv() {
+  document.getElementById('env-select').value = 'random';
+  runStep1();
+}
+
+function drawGrid(ctx, g, extras = {}) {
+  ctx.fillStyle = '#0a0704';
+  ctx.fillRect(0, 0, COLS * CELL, ROWS * CELL);
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const px = x * CELL, py = y * CELL;
+      if (g[y][x] === 1) {
+        ctx.fillStyle = '#f97316';
+        ctx.fillRect(px, py, CELL - 1, CELL - 1);
+      } else {
+        ctx.fillStyle = '#1a1208';
+        ctx.fillRect(px, py, CELL - 1, CELL - 1);
+      }
+    }
+  }
+  if (extras.explored) {
+    extras.explored.forEach(([x, y]) => {
+      ctx.fillStyle = '#1e3a5f88';
+      ctx.fillRect(x * CELL, y * CELL, CELL - 1, CELL - 1);
+    });
+  }
+  if (extras.path) {
+    extras.path.forEach(([x, y]) => {
+      ctx.fillStyle = '#eab30899';
+      ctx.fillRect(x * CELL + 3, y * CELL + 3, CELL - 7, CELL - 7);
+    });
+  }
+  if (extras.trail) {
+    extras.trail.forEach(([tx, ty], i) => {
+      const alpha = 0.2 + 0.6 * (i / extras.trail.length);
+      ctx.fillStyle = `rgba(56,189,248,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(tx, ty, 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  // Goal
+  ctx.fillStyle = '#ef4444';
+  ctx.fillRect(goalPos.x * CELL + 2, goalPos.y * CELL + 2, CELL - 5, CELL - 5);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('G', goalPos.x * CELL + CELL / 2, goalPos.y * CELL + CELL / 2 + 3);
+  // Robot
+  const rx = extras.robotPx || robotPos.x * CELL + CELL / 2;
+  const ry = extras.robotPy || robotPos.y * CELL + CELL / 2;
+  ctx.beginPath();
+  ctx.arc(rx, ry, CELL / 2 - 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#22c55e';
+  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.font = '9px sans-serif';
+  ctx.fillText('R', rx, ry + 3);
+
+  if (extras.heading !== undefined) {
+    ctx.beginPath();
+    ctx.moveTo(rx, ry);
+    ctx.lineTo(rx + Math.cos(extras.heading) * 12, ry + Math.sin(extras.heading) * 12);
+    ctx.strokeStyle = '#86efac';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function runStep1() {
+  const envType = document.getElementById('env-select').value;
+  grid = ENVS[envType]();
+  grid[robotPos.y][robotPos.x] = 0;
+  grid[goalPos.y][goalPos.x] = 0;
+  path = [];
+  explored = [];
+
+  const t0 = performance.now();
+  const canvas = document.getElementById('lidar-canvas');
+  const ctx = canvas.getContext('2d');
+  drawGrid(ctx, grid);
+
+  // LiDAR beams
+  const rx = robotPos.x * CELL + CELL / 2;
+  const ry = robotPos.y * CELL + CELL / 2;
+  const NUM_BEAMS = 64;
+  let hits = 0;
+  for (let i = 0; i < NUM_BEAMS; i++) {
+    const angle = (i / NUM_BEAMS) * Math.PI * 2;
+    const maxRange = 300;
+    let endX = rx, endY = ry;
+    for (let d = 1; d < maxRange; d += 2) {
+      const bx = rx + Math.cos(angle) * d;
+      const by = ry + Math.sin(angle) * d;
+      const gx = Math.floor(bx / CELL);
+      const gy = Math.floor(by / CELL);
+      if (gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) { endX = bx; endY = by; break; }
+      if (grid[gy][gx] === 1) { endX = bx; endY = by; hits++; break; }
+      endX = bx; endY = by;
+    }
+    ctx.beginPath();
+    ctx.moveTo(rx, ry);
+    ctx.lineTo(endX, endY);
+    ctx.strokeStyle = '#f9731622';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Hit dot
+    ctx.beginPath();
+    ctx.arc(endX, endY, 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#f97316';
+    ctx.fill();
+  }
+  scanTime = (performance.now() - t0).toFixed(1);
+
+  const obstacles = grid.flat().filter(c => c === 1).length;
+  const free = COLS * ROWS - obstacles;
+
+  const out = document.getElementById('step1-output');
+  out.style.display = 'block';
+  out.innerHTML = `<span style="color:#f97316">LiDAR Scan Complete</span>\nBeams: ${NUM_BEAMS} | Hits: ${hits} | Scan time: ${scanTime} ms\nGrid: ${COLS}x${ROWS} = ${COLS*ROWS} cells\nObstacles: ${obstacles} cells (${(obstacles/(COLS*ROWS)*100).toFixed(1)}%)\nFree space: ${free} cells\nRobot: (${robotPos.x}, ${robotPos.y}) | Goal: (${goalPos.x}, ${goalPos.y})`;
+
+  document.getElementById('step1').classList.add('done');
+  document.getElementById('ps1').classList.add('done');
+  document.getElementById('feed1').classList.add('visible');
+  document.getElementById('btn-step2').disabled = false;
+}
+
+function astar() {
+  const open = [{ x: robotPos.x, y: robotPos.y, g: 0, h: 0, f: 0, parent: null }];
+  const closed = new Set();
+  const key = (x, y) => `${x},${y}`;
+  const gMap = {};
+  gMap[key(robotPos.x, robotPos.y)] = 0;
+  explored = [];
+
+  while (open.length > 0) {
+    open.sort((a, b) => a.f - b.f);
+    const current = open.shift();
+    const ck = key(current.x, current.y);
+    if (closed.has(ck)) continue;
+    closed.add(ck);
+    explored.push([current.x, current.y]);
+
+    if (current.x === goalPos.x && current.y === goalPos.y) {
+      const p = [];
+      let node = current;
+      while (node) { p.unshift([node.x, node.y]); node = node.parent; }
+      return p;
+    }
+
+    const dirs = [[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
+    for (const [dx, dy] of dirs) {
+      const nx = current.x + dx, ny = current.y + dy;
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      if (grid[ny][nx] === 1) continue;
+      const nk = key(nx, ny);
+      if (closed.has(nk)) continue;
+      const moveCost = (dx !== 0 && dy !== 0) ? 1.414 : 1;
+      const ng = current.g + moveCost;
+      if (gMap[nk] !== undefined && ng >= gMap[nk]) continue;
+      gMap[nk] = ng;
+      const h = Math.sqrt((nx - goalPos.x) ** 2 + (ny - goalPos.y) ** 2);
+      open.push({ x: nx, y: ny, g: ng, h, f: ng + h, parent: current });
+    }
+  }
+  return [];
+}
+
+function runStep2() {
+  const t0 = performance.now();
+  path = astar();
+  planTime = (performance.now() - t0).toFixed(1);
+
+  const canvas = document.getElementById('path-canvas');
+  const ctx = canvas.getContext('2d');
+  drawGrid(ctx, grid, { explored, path });
+
+  const out = document.getElementById('step2-output');
+  out.style.display = 'block';
+  if (path.length === 0) {
+    out.innerHTML = '<span style="color:#ef4444">No path found! Goal is unreachable.</span>';
+  } else {
+    let pathDist = 0;
+    for (let i = 1; i < path.length; i++) {
+      pathDist += Math.sqrt((path[i][0] - path[i-1][0]) ** 2 + (path[i][1] - path[i-1][1]) ** 2);
+    }
+    out.innerHTML = `<span style="color:#f97316">A* Pathfinding Complete</span>\nNodes explored: ${explored.length}\nPath length: ${path.length} waypoints (${pathDist.toFixed(1)} grid units)\nPlanning time: ${planTime} ms\nDirect distance: ${Math.sqrt((goalPos.x - robotPos.x)**2 + (goalPos.y - robotPos.y)**2).toFixed(1)}\nPath efficiency: ${(Math.sqrt((goalPos.x - robotPos.x)**2 + (goalPos.y - robotPos.y)**2) / pathDist * 100).toFixed(1)}%`;
+  }
+
+  document.getElementById('step2').classList.add('done');
+  document.getElementById('ps2').classList.add('done');
+  document.getElementById('feed2').classList.add('visible');
+  document.getElementById('btn-step3').disabled = path.length > 0;
+}
+
+function runStep3() {
+  if (path.length === 0) return;
+  const canvas = document.getElementById('pid-canvas');
+  const ctx = canvas.getContext('2d');
+
+  let rx = robotPos.x * CELL + CELL / 2;
+  let ry = robotPos.y * CELL + CELL / 2;
+  let heading = 0;
+  let wpIdx = 1;
+  let integral = 0;
+  let prevError = 0;
+  const Kp = 2.0, Ki = 0.02, Kd = 0.8;
+  const speed = 2.5;
+  const trail = [];
+  let totalError = 0;
+  let steps = 0;
+  let animId;
+
+  function tick() {
+    if (wpIdx >= path.length) {
+      cancelAnimationFrame(animId);
+      showNavStats(steps, totalError, trail.length);
+      return;
+    }
+
+    const tx = path[wpIdx][0] * CELL + CELL / 2;
+    const ty = path[wpIdx][1] * CELL + CELL / 2;
+    const dx = tx - rx, dy = ty - ry;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 6) {
+      wpIdx++;
+      integral = 0;
+      prevError = 0;
+      if (wpIdx >= path.length) {
+        cancelAnimationFrame(animId);
+        showNavStats(steps, totalError, trail.length);
+        return;
+      }
+    }
+
+    const targetAngle = Math.atan2(dy, dx);
+    let error = targetAngle - heading;
+    while (error > Math.PI) error -= 2 * Math.PI;
+    while (error < -Math.PI) error += 2 * Math.PI;
+
+    integral += error;
+    integral = Math.max(-50, Math.min(50, integral));
+    const derivative = error - prevError;
+    prevError = error;
+
+    const steer = Kp * error + Ki * integral + Kd * derivative;
+    heading += Math.max(-0.3, Math.min(0.3, steer));
+
+    rx += Math.cos(heading) * speed;
+    ry += Math.sin(heading) * speed;
+    trail.push([rx, ry]);
+    totalError += Math.abs(error);
+    steps++;
+
+    drawGrid(ctx, grid, { path, trail, robotPx: rx, robotPy: ry, heading });
+
+    // Status overlay
+    ctx.fillStyle = '#1f1508dd';
+    ctx.fillRect(430, 10, 160, 100);
+    ctx.strokeStyle = '#2f2010';
+    ctx.strokeRect(430, 10, 160, 100);
+    ctx.fillStyle = '#f97316';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('PID Controller', 440, 26);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '9px monospace';
+    ctx.fillText(`Waypoint: ${wpIdx}/${path.length-1}`, 440, 42);
+    ctx.fillText(`Heading:  ${(heading * 180 / Math.PI).toFixed(1)} deg`, 440, 55);
+    ctx.fillText(`Error:    ${(error * 180 / Math.PI).toFixed(1)} deg`, 440, 68);
+    ctx.fillText(`Steer:    ${steer.toFixed(3)}`, 440, 81);
+    ctx.fillText(`Steps:    ${steps}`, 440, 94);
+
+    animId = requestAnimationFrame(tick);
+  }
+
+  if (animId) cancelAnimationFrame(animId);
+  tick();
+}
+
+function showNavStats(steps, totalError, trailLen) {
+  const avgError = (totalError / steps * 180 / Math.PI).toFixed(2);
+  let pathDist = 0;
+  for (let i = 1; i < path.length; i++) {
+    pathDist += Math.sqrt((path[i][0] - path[i-1][0]) ** 2 + (path[i][1] - path[i-1][1]) ** 2);
+  }
+
+  document.getElementById('pid-stats').innerHTML = `
+    <div class="stat-row">
+      <div class="stat"><div class="stat-label">Scan Time</div><div class="stat-val">${scanTime}</div><div class="stat-unit">ms</div></div>
+      <div class="stat"><div class="stat-label">Plan Time</div><div class="stat-val">${planTime}</div><div class="stat-unit">ms</div></div>
+      <div class="stat"><div class="stat-label">Path Length</div><div class="stat-val">${(pathDist * CELL / 10).toFixed(0)}</div><div class="stat-unit">cm</div></div>
+      <div class="stat"><div class="stat-label">Tracking Error</div><div class="stat-val">${avgError}</div><div class="stat-unit">deg avg</div></div>
+      <div class="stat"><div class="stat-label">Steps</div><div class="stat-val">${steps}</div><div class="stat-unit">ticks</div></div>
+    </div>`;
+
+  const out = document.getElementById('step3-output');
+  out.style.display = 'block';
+  out.innerHTML = `<span style="color:#22c55e">Navigation Complete - Robot reached goal!</span>\n\nPID gains: Kp=2.0  Ki=0.02  Kd=0.8\nTotal steps: ${steps}\nAvg tracking error: ${avgError} degrees\nPath waypoints: ${path.length}\nTrail points: ${trailLen}`;
+
+  document.getElementById('step3').classList.add('done');
+  document.getElementById('ps3').classList.add('done');
+}
+
+async function runPipeline() {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('done', 'active'));
+  document.querySelectorAll('.pipeline-stage').forEach(s => s.classList.remove('done', 'active'));
+  document.querySelectorAll('.feed-arrow').forEach(a => a.classList.remove('visible'));
+  ['step1-output','step2-output','step3-output'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('pid-stats').innerHTML = '';
+
+  document.getElementById('ps1').classList.add('active');
+  document.getElementById('step1').classList.add('active');
+  await sleep(400);
+  runStep1();
+  document.getElementById('step1').classList.remove('active');
+  await sleep(800);
+  document.getElementById('ps2').classList.add('active');
+  document.getElementById('step2').classList.add('active');
+  await sleep(400);
+  runStep2();
+  document.getElementById('step2').classList.remove('active');
+  await sleep(800);
+  document.getElementById('ps3').classList.add('active');
+  document.getElementById('step3').classList.add('active');
+  await sleep(400);
+  runStep3();
+  document.getElementById('step3').classList.remove('active');
+  document.getElementById('ps3').classList.remove('active');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
