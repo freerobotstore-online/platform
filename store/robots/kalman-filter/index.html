@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kalman Filter - FreeRobotStore</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e0e0e0;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+h1{color:#f97316;margin:18px 0 6px;font-size:1.4rem}
+.desc{color:#999;font-size:.85rem;margin-bottom:12px}
+canvas{background:#111;border:1px solid #333;border-radius:6px}
+.controls{display:flex;gap:14px;margin:12px 0;flex-wrap:wrap;justify-content:center}
+.controls label{font-size:.8rem;color:#aaa}
+.controls input[type=range]{width:90px;accent-color:#f97316}
+.controls button{background:#f97316;color:#000;border:none;padding:4px 12px;border-radius:4px;font-size:.8rem;cursor:pointer;font-weight:600}
+.legend{display:flex;gap:16px;font-size:.75rem;margin:4px}
+.legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.leg-true::before{background:#666}.leg-meas::before{background:#ef4444}.leg-est::before{background:#f97316}
+footer{margin-top:auto;padding:12px;font-size:.7rem;color:#555}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<h1>Kalman Filter</h1>
+<p class="desc">Noisy GPS tracking smoothed by a 1D Kalman filter</p>
+<canvas id="c" width="760" height="380"></canvas>
+<div class="controls">
+<label>Process Noise (Q) <input type="range" id="q" min="0.01" max="5" step="0.01" value="0.5"><span id="qV">0.5</span></label>
+<label>Meas. Noise (R) <input type="range" id="r" min="0.5" max="30" step="0.5" value="8"><span id="rV">8</span></label>
+<label>Speed <input type="range" id="spd" min="1" max="10" value="3"><span id="spdV">3</span></label>
+<button id="reset">Reset</button>
+</div>
+<div class="legend">
+<span class="leg-true">True Position</span>
+<span class="leg-meas">Noisy Measurement</span>
+<span class="leg-est">Kalman Estimate</span>
+</div>
+<footer><a href="/robots/">FreeRobotStore</a></footer>
+<script>
+const C=document.getElementById('c'),ctx=C.getContext('2d');
+const W=760,H=380;
+let Q=0.5,R=8,speed=3;
+let truePos=[],measurements=[],estimates=[],kalmanP=[],kalmanX=0,P=10;
+let t=0,trueX=H/2,trueV=0;
+
+function bind(id,v,cb){document.getElementById(id).addEventListener('input',e=>{cb(+e.value);document.getElementById(v).textContent=e.value});}
+bind('q','qV',v=>Q=v); bind('r','rV',v=>R=v); bind('spd','spdV',v=>speed=v);
+document.getElementById('reset').addEventListener('click',reset);
+
+function reset(){
+  truePos=[];measurements=[];estimates=[];kalmanP=[];
+  kalmanX=H/2;P=10;t=0;trueX=H/2;trueV=0;
+}
+
+function step(){
+  // true position follows a smooth path
+  trueV+=((Math.random()-0.5)*2)*0.3;
+  trueV*=0.98;
+  trueX+=trueV*speed*0.2;
+  if(trueX<40) trueV=Math.abs(trueV);
+  if(trueX>H-40) trueV=-Math.abs(trueV);
+  trueX=Math.max(20,Math.min(H-20,trueX));
+  // noisy measurement
+  const z=trueX+(Math.random()-0.5)*2*R;
+  // Kalman predict
+  const xPred=kalmanX; // simple: x_k = x_{k-1}
+  const pPred=P+Q;
+  // Kalman update
+  const K=pPred/(pPred+R);
+  kalmanX=xPred+K*(z-xPred);
+  P=(1-K)*pPred;
+  truePos.push(trueX);
+  measurements.push(z);
+  estimates.push(kalmanX);
+  kalmanP.push(P);
+  if(truePos.length>W) {truePos.shift();measurements.shift();estimates.shift();kalmanP.shift();}
+  t++;
+}
+
+function draw(){
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#1a1a1a';ctx.lineWidth=1;
+  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  const n=truePos.length;if(n<2) return;
+  const dx=W/n;
+  // uncertainty band
+  ctx.fillStyle='rgba(249,115,22,0.08)';
+  ctx.beginPath();
+  for(let i=0;i<n;i++){
+    const x=i*dx,s=Math.sqrt(kalmanP[i])*2;
+    ctx.lineTo(x,estimates[i]-s);
+  }
+  for(let i=n-1;i>=0;i--){
+    const x=i*dx,s=Math.sqrt(kalmanP[i])*2;
+    ctx.lineTo(x,estimates[i]+s);
+  }
+  ctx.fill();
+  // measurements as dots
+  ctx.fillStyle='#ef444488';
+  for(let i=0;i<n;i++){
+    ctx.beginPath();ctx.arc(i*dx,measurements[i],2,0,Math.PI*2);ctx.fill();
+  }
+  // true path
+  ctx.strokeStyle='#666';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);ctx.beginPath();
+  for(let i=0;i<n;i++) i===0?ctx.moveTo(0,truePos[0]):ctx.lineTo(i*dx,truePos[i]);
+  ctx.stroke();ctx.setLineDash([]);
+  // Kalman estimate
+  ctx.strokeStyle='#f97316';ctx.lineWidth=2.5;ctx.beginPath();
+  for(let i=0;i<n;i++) i===0?ctx.moveTo(0,estimates[0]):ctx.lineTo(i*dx,estimates[i]);
+  ctx.stroke();
+  // stats
+  ctx.fillStyle='#888';ctx.font='11px system-ui';
+  ctx.fillText(`Kalman Gain: ${(kalmanP.length?kalmanP[kalmanP.length-1]/(kalmanP[kalmanP.length-1]+R):0).toFixed(3)}`,10,18);
+  ctx.fillText(`P: ${P.toFixed(2)}`,200,18);
+  ctx.fillText(`Samples: ${n}`,310,18);
+}
+
+function loop(){
+  for(let i=0;i<speed;i++) step();
+  draw();requestAnimationFrame(loop);
+}
+reset();loop();
+</script>
+</body>
+</html>

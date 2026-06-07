@@ -99,6 +99,19 @@
       <h2>What is Robot Perception?</h2>
       <p>Perception is the process of converting raw sensor data into actionable information about the environment. It answers fundamental questions: Where am I? What is around me? Where are the objects I need to interact with? Is it safe to move? Perception is the bridge between the physical world and the robot's decision-making systems.</p>
 
+      <!-- Diagram: Sensor fusion pipeline -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:.4rem;margin:1.5rem 0;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:.3rem">
+          <div style="background:#1c1007;border:1px solid #f97316;border-radius:6px;padding:.3rem .6rem;color:#fb923c;font-size:.72rem;font-weight:600">Camera</div>
+          <div style="background:#1c1007;border:1px solid #f97316;border-radius:6px;padding:.3rem .6rem;color:#fb923c;font-size:.72rem;font-weight:600">LiDAR</div>
+          <div style="background:#1c1007;border:1px solid #f97316;border-radius:6px;padding:.3rem .6rem;color:#fb923c;font-size:.72rem;font-weight:600">IMU</div>
+        </div>
+        <span style="color:#404040;font-size:1.2rem">&rarr;</span>
+        <div style="background:#1c1007;border:2px solid #f97316;border-radius:8px;padding:.6rem .8rem;color:#fb923c;font-size:.78rem;font-weight:700">Sensor Fusion<br><span style="font-size:.65rem;font-weight:400;color:#737373">EKF / Factor Graph</span></div>
+        <span style="color:#404040;font-size:1.2rem">&rarr;</span>
+        <div style="background:#0f3d0f;border:1px solid #4ade80;border-radius:8px;padding:.6rem .8rem;color:#4ade80;font-size:.78rem;font-weight:600">State Estimate<br><span style="font-size:.65rem;font-weight:400;color:#737373">Pose + Map</span></div>
+      </div>
+
       <h3>The Perception Pipeline</h3>
       <ul>
         <li><strong>Sensing</strong> — raw data acquisition from cameras, LiDAR, IMUs, encoders, force/torque sensors, microphones, tactile sensors.</li>
@@ -283,6 +296,20 @@
     <section class="section" id="slam">
       <h2>SLAM — Simultaneous Localization and Mapping</h2>
       <p>SLAM is the process of building a map of an unknown environment while simultaneously tracking the robot's position within that map. It is one of the most important problems in mobile robotics, studied intensively since the 1986 paper by Smith, Self, and Cheeseman.</p>
+
+      <!-- Diagram: SLAM loop -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:.4rem;margin:1.5rem 0;flex-wrap:wrap">
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.4rem .7rem;color:#fb923c;font-size:.75rem;font-weight:600">Sense</div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.4rem .7rem;color:#fb923c;font-size:.75rem;font-weight:600">Extract Features</div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.4rem .7rem;color:#fb923c;font-size:.75rem;font-weight:600">Update Map</div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.4rem .7rem;color:#fb923c;font-size:.75rem;font-weight:600">Localize</div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.4rem .7rem;color:#fb923c;font-size:.75rem;font-weight:600">Move</div>
+      </div>
+      <div style="text-align:center;font-size:.7rem;color:#525252">&larr; repeat continuously &rarr;</div>
 
       <h3>The SLAM Problem</h3>
       <p>The robot moves through an unknown environment, making noisy observations of landmarks. It must estimate both its own trajectory and the positions of all landmarks. The key insight: landmark observations are correlated through the robot's trajectory — observing the same landmark from two locations constrains the robot's motion between those observations.</p>

@@ -99,8 +99,30 @@
       <h2>What is Robot Control?</h2>
       <p>Robot control is the science of commanding a robot to perform desired motions while handling real-world disturbances: gravity, friction, payload changes, sensor noise, and model uncertainty. A controller computes the actuator commands (motor voltages, torques, or pressures) needed to track a desired trajectory or maintain a desired force/position relationship.</p>
 
+      <!-- Diagram: PID control loop -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:.4rem;margin:1.5rem 0;flex-wrap:wrap">
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.4rem .7rem;color:#fb923c;font-size:.75rem;font-weight:600">Setpoint r(t)</div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#141414;border:1px solid #f97316;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:#fb923c;font-size:.8rem;font-weight:700">&Sigma;</div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.4rem .7rem;color:#fb923c;font-size:.75rem;font-weight:600">PID Controller</div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.4rem .7rem;color:#fb923c;font-size:.75rem;font-weight:600">Robot (Plant)</div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#0f3d0f;border:1px solid #4ade80;border-radius:8px;padding:.4rem .7rem;color:#4ade80;font-size:.75rem;font-weight:600">Output y(t)</div>
+      </div>
+      <div style="text-align:center;font-size:.7rem;color:#525252">&larr; Sensor feedback (encoder, IMU) &rarr;</div>
+
       <h3>The Control Problem</h3>
       <p>Given a desired trajectory q_d(t) (joint positions over time), the controller must compute torques tau(t) so that the actual joint positions q(t) track q_d(t) as closely as possible. The tracking error e(t) = q_d(t) - q(t) should converge to zero quickly, without oscillation, and stay bounded even under disturbances.</p>
+
+      <!-- Diagram: Control hierarchy layers -->
+      <div style="max-width:400px;margin:1.5rem auto">
+        <div style="background:#f97316;color:white;padding:.4rem;text-align:center;border-radius:8px 8px 0 0;font-size:.78rem;font-weight:600">Task / Mission &mdash; 1-10 Hz</div>
+        <div style="background:#ea580c;color:white;padding:.4rem;text-align:center;font-size:.78rem;font-weight:600">Motion Planning &mdash; 10-100 Hz</div>
+        <div style="background:#c2410c;color:white;padding:.4rem;text-align:center;font-size:.78rem;font-weight:600">Task-Space Control &mdash; 100 Hz - 1 kHz</div>
+        <div style="background:#9a3412;color:white;padding:.4rem;text-align:center;border-radius:0 0 8px 8px;font-size:.78rem;font-weight:600">Joint-Level PID &mdash; 1-10 kHz</div>
+      </div>
 
       <h3>Control Architecture Levels</h3>
       <ul>
@@ -133,6 +155,22 @@
         <li><strong>Bode plots</strong> — plot gain and phase vs frequency. Gain margin and phase margin quantify how close the system is to instability. Typical targets: gain margin > 6 dB, phase margin > 45 degrees.</li>
         <li><strong>Root locus</strong> — plot of closed-loop poles as controller gain varies. Shows how stability changes with gain.</li>
       </ul>
+
+      <!-- Diagram: Step response characteristics -->
+      <div style="max-width:400px;margin:1.5rem auto;background:#141414;border:1px solid #262626;border-radius:8px;padding:1rem">
+        <div style="position:relative;height:100px;border-left:1px solid #404040;border-bottom:1px solid #404040;margin-bottom:.5rem">
+          <div style="position:absolute;bottom:55px;left:0;right:0;height:1px;border-top:1px dashed #f97316"></div>
+          <div style="position:absolute;bottom:70px;left:0;right:0;height:1px;border-top:1px dashed #f8717155"></div>
+          <div style="position:absolute;right:2px;bottom:72px;font-size:.55rem;color:#f87171">Overshoot</div>
+          <div style="position:absolute;right:2px;bottom:57px;font-size:.55rem;color:#f97316">Setpoint</div>
+          <div style="position:absolute;left:15%;bottom:0;width:1px;height:100%;border-left:1px dotted #525252"></div>
+          <div style="position:absolute;left:15%;bottom:-14px;font-size:.5rem;color:#525252">Rise</div>
+          <div style="position:absolute;left:55%;bottom:0;width:1px;height:100%;border-left:1px dotted #525252"></div>
+          <div style="position:absolute;left:55%;bottom:-14px;font-size:.5rem;color:#525252">Settling</div>
+          <div style="position:absolute;right:5px;bottom:48px;font-size:.5rem;color:#525252">&plusmn;2%</div>
+        </div>
+        <div style="text-align:center;font-size:.7rem;color:#737373">Step Response Characteristics</div>
+      </div>
 
       <h3>Performance Specifications</h3>
       <ul>

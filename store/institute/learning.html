@@ -127,6 +127,22 @@
         <li><strong>Discount factor gamma</strong> — 0 < gamma <= 1. Trades off immediate vs future rewards. Gamma = 0.99 is typical for robotics.</li>
       </ul>
 
+      <!-- Diagram: RL loop -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:.4rem;margin:1.5rem 0;flex-wrap:wrap">
+        <div style="background:#1c1007;border:2px solid #f97316;border-radius:8px;padding:.6rem .8rem;text-align:center">
+          <div style="font-size:.78rem;font-weight:700;color:#fb923c">Agent</div>
+          <div style="font-size:.65rem;color:#737373">Policy &pi;(a|s)</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.3rem;align-items:center">
+          <div style="font-size:.65rem;color:#fb923c">action a &rarr;</div>
+          <div style="font-size:.65rem;color:#4ade80">&larr; reward r, state s'</div>
+        </div>
+        <div style="background:#141414;border:2px solid #404040;border-radius:8px;padding:.6rem .8rem;text-align:center">
+          <div style="font-size:.78rem;font-weight:700;color:#fafafa">Environment</div>
+          <div style="font-size:.65rem;color:#737373">Robot + World</div>
+        </div>
+      </div>
+
       <h3>The Objective</h3>
       <div class="formula">
         Maximize: E[sum_{t=0}^{infinity} gamma^t * r(s_t, a_t)]
@@ -262,6 +278,29 @@
     <section class="section" id="sim2real">
       <h2>Sim-to-Real Transfer</h2>
       <p>Training in simulation is fast, safe, parallelizable, and cheap. But simulations are imperfect: physics engines approximate contact dynamics, rendering engines approximate visual appearance, and sensor models approximate noise characteristics. Policies trained in simulation often fail when deployed on real robots — the "reality gap." Sim-to-real transfer is the art of bridging this gap.</p>
+
+      <!-- Diagram: Sim-to-real pipeline -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:.4rem;margin:1.5rem 0;flex-wrap:wrap">
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.5rem .7rem;text-align:center">
+          <div style="font-size:.75rem;font-weight:700;color:#fb923c">Simulation</div>
+          <div style="font-size:.62rem;color:#737373">MuJoCo / Isaac</div>
+        </div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.5rem .7rem;text-align:center">
+          <div style="font-size:.75rem;font-weight:700;color:#fb923c">Domain Rand.</div>
+          <div style="font-size:.62rem;color:#737373">Friction, mass, viz</div>
+        </div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#1c1007;border:1px solid #f97316;border-radius:8px;padding:.5rem .7rem;text-align:center">
+          <div style="font-size:.75rem;font-weight:700;color:#fb923c">Train Policy</div>
+          <div style="font-size:.62rem;color:#737373">PPO / SAC</div>
+        </div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#0f3d0f;border:1px solid #4ade80;border-radius:8px;padding:.5rem .7rem;text-align:center">
+          <div style="font-size:.75rem;font-weight:700;color:#4ade80">Real Robot</div>
+          <div style="font-size:.62rem;color:#737373">Deploy + fine-tune</div>
+        </div>
+      </div>
 
       <h3>Domain Randomization</h3>
       <p>The most successful sim-to-real technique. During training, randomize simulation parameters so the policy experiences a wide distribution of environments. If the real world falls within this distribution, the policy will work. Parameters to randomize:</p>

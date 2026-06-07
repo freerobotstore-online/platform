@@ -123,6 +123,29 @@
       <h2>Configuration Space</h2>
       <p>The configuration space (C-space), introduced by Tomas Lozano-Perez (1983), is the space of all possible configurations of the robot. Each point in C-space represents a complete specification of the robot's position — typically the vector of joint angles for a manipulator or (x, y, theta) for a planar mobile robot.</p>
 
+      <!-- Diagram: Configuration space concept -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0">
+        <div style="background:#141414;border:1px solid #262626;border-radius:8px;padding:1rem;text-align:center">
+          <div style="font-size:.78rem;font-weight:700;color:#fafafa;margin-bottom:.4rem">Workspace (Physical)</div>
+          <div style="position:relative;width:120px;height:80px;margin:0 auto;border:1px solid #404040;border-radius:4px">
+            <div style="position:absolute;top:20px;left:30px;width:25px;height:25px;background:#404040;border-radius:3px"></div>
+            <div style="position:absolute;top:45px;left:70px;width:20px;height:20px;background:#404040;border-radius:3px"></div>
+            <div style="position:absolute;top:10px;left:10px;width:8px;height:8px;background:#f97316;border-radius:50%"></div>
+          </div>
+          <div style="font-size:.65rem;color:#525252;margin-top:.3rem">Robot + obstacles in 3D</div>
+        </div>
+        <div style="background:#141414;border:1px solid #262626;border-radius:8px;padding:1rem;text-align:center">
+          <div style="font-size:.78rem;font-weight:700;color:#fafafa;margin-bottom:.4rem">C-Space (Abstract)</div>
+          <div style="position:relative;width:120px;height:80px;margin:0 auto;border:1px solid #404040;border-radius:4px;background:rgba(249,115,22,0.03)">
+            <div style="position:absolute;top:15px;left:25px;width:30px;height:30px;background:#251616;border:1px solid #f87171;border-radius:3px"></div>
+            <div style="position:absolute;top:40px;left:65px;width:25px;height:25px;background:#251616;border:1px solid #f87171;border-radius:3px"></div>
+            <div style="position:absolute;top:8px;left:8px;width:6px;height:6px;background:#4ade80;border-radius:50%"></div>
+            <div style="position:absolute;bottom:8px;right:8px;width:6px;height:6px;background:#f97316;border-radius:50%"></div>
+          </div>
+          <div style="font-size:.65rem;color:#525252;margin-top:.3rem"><span style="color:#4ade80">start</span> &rarr; C-free &rarr; <span style="color:#f97316">goal</span></div>
+        </div>
+      </div>
+
       <h3>C-Space Decomposition</h3>
       <ul>
         <li><strong>C-free</strong> — the set of configurations where the robot does not collide with any obstacle or itself. This is where the robot can safely exist.</li>
@@ -277,6 +300,34 @@
                 return extract_path(T, q_start, q_new)
     return FAILURE</code></pre>
 
+      <!-- Diagram: RRT tree growth concept -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin:1.5rem 0;flex-wrap:wrap">
+        <div style="background:#141414;border:1px solid #262626;border-radius:8px;padding:.6rem .8rem;text-align:center">
+          <div style="font-size:.72rem;font-weight:700;color:#4ade80">q_start</div>
+          <div style="font-size:.6rem;color:#525252">Root node</div>
+        </div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#141414;border:1px solid #262626;border-radius:8px;padding:.6rem .8rem;text-align:center">
+          <div style="font-size:.72rem;font-weight:700;color:#fb923c">Random sample</div>
+          <div style="font-size:.6rem;color:#525252">q_rand</div>
+        </div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#141414;border:1px solid #262626;border-radius:8px;padding:.6rem .8rem;text-align:center">
+          <div style="font-size:.72rem;font-weight:700;color:#fb923c">Nearest + Steer</div>
+          <div style="font-size:.6rem;color:#525252">q_new</div>
+        </div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#141414;border:1px solid #262626;border-radius:8px;padding:.6rem .8rem;text-align:center">
+          <div style="font-size:.72rem;font-weight:700;color:#fb923c">Collision-free?</div>
+          <div style="font-size:.6rem;color:#525252">Add to tree</div>
+        </div>
+        <span style="color:#404040;font-size:1rem">&rarr;</span>
+        <div style="background:#141414;border:1px solid #f97316;border-radius:8px;padding:.6rem .8rem;text-align:center">
+          <div style="font-size:.72rem;font-weight:700;color:#f97316">Goal reached?</div>
+          <div style="font-size:.6rem;color:#525252">Extract path</div>
+        </div>
+      </div>
+
       <h3>Key Properties</h3>
       <ul>
         <li><strong>Voronoi bias</strong> — nodes with larger Voronoi regions (less explored areas) are more likely to be selected as q_near, causing the tree to grow preferentially toward unexplored space.</li>
@@ -401,6 +452,13 @@
         <li><strong>Predicted trajectories</strong> — estimate future obstacle positions using constant-velocity, constant-acceleration, or learned motion models. Plan in space-time (x, y, t) to avoid predicted positions.</li>
         <li><strong>Safety guarantees</strong> — Hamilton-Jacobi reachability analysis computes the set of states from which the robot can always avoid collision, regardless of obstacle behavior. Conservative but provably safe.</li>
       </ul>
+
+      <!-- Diagram: Planning frequency hierarchy -->
+      <div style="max-width:400px;margin:1.5rem auto">
+        <div style="background:#f97316;color:white;padding:.4rem;text-align:center;border-radius:8px 8px 0 0;font-size:.78rem;font-weight:600">Global Planner &mdash; 1-10 Hz &mdash; A*, RRT</div>
+        <div style="background:#ea580c;color:white;padding:.4rem;text-align:center;font-size:.78rem;font-weight:600">Local Planner &mdash; 10-50 Hz &mdash; DWA, TEB</div>
+        <div style="background:#9a3412;color:white;padding:.4rem;text-align:center;border-radius:0 0 8px 8px;font-size:.78rem;font-weight:600">Reactive Layer &mdash; 100-1000 Hz &mdash; E-stop, potential fields</div>
+      </div>
 
       <h3>Planning Frequency Hierarchy</h3>
       <ul>

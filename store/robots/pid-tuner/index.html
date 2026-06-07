@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PID Tuner - FreeRobotStore</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e0e0e0;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+h1{color:#f97316;margin:18px 0 6px;font-size:1.4rem}
+.desc{color:#999;font-size:.85rem;margin-bottom:12px}
+canvas{background:#111;border:1px solid #333;border-radius:6px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0;justify-content:center;align-items:center}
+.controls label{font-size:.8rem;color:#aaa}
+.controls input[type=range]{width:100px;accent-color:#f97316}
+.controls select,.controls button{background:#222;color:#e0e0e0;border:1px solid #444;padding:4px 10px;border-radius:4px;font-size:.8rem;cursor:pointer}
+.controls button{background:#f97316;color:#000;font-weight:600}
+.controls button:hover{background:#fb923c}
+.stats{font-size:.75rem;color:#888;margin:4px 0;display:flex;gap:16px}
+footer{margin-top:auto;padding:12px;font-size:.7rem;color:#555}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<h1>PID Tuner</h1>
+<p class="desc">Tune Kp/Ki/Kd gains and observe step response</p>
+<canvas id="c" width="760" height="340"></canvas>
+<div class="controls">
+<label>Plant: <select id="plant"><option value="motor">Motor</option><option value="heater">Heater</option><option value="tank">Tank</option></select></label>
+<label>Kp <input type="range" id="kp" min="0" max="50" step="0.5" value="10"><span id="kpV">10</span></label>
+<label>Ki <input type="range" id="ki" min="0" max="20" step="0.1" value="2"><span id="kiV">2</span></label>
+<label>Kd <input type="range" id="kd" min="0" max="20" step="0.1" value="5"><span id="kdV">5</span></label>
+<label>Setpoint <input type="range" id="sp" min="10" max="90" step="1" value="50"><span id="spV">50</span></label>
+<button id="auto">Ziegler-Nichols</button>
+<button id="reset">Reset</button>
+</div>
+<div class="stats">
+<span>Overshoot: <b id="os">0%</b></span>
+<span>Settling: <b id="st">-</b></span>
+<span>SS Error: <b id="sse">-</b></span>
+</div>
+<footer><a href="/robots/">FreeRobotStore</a></footer>
+<script>
+const C=document.getElementById('c'),ctx=C.getContext('2d');
+const W=C.width,H=C.height;
+let Kp=10,Ki=2,Kd=5,setpoint=50,plantType='motor';
+let history=[],integral=0,prevErr=0,pv=0,t=0;
+const plants={motor:{tau:0.3,gain:1},heater:{tau:1.2,gain:0.6},tank:{tau:0.8,gain:0.8}};
+
+function bind(id,cb){const e=document.getElementById(id);e.addEventListener('input',()=>{cb(e);reset()});}
+bind('kp',e=>{Kp=+e.value;document.getElementById('kpV').textContent=Kp});
+bind('ki',e=>{Ki=+e.value;document.getElementById('kiV').textContent=Ki});
+bind('kd',e=>{Kd=+e.value;document.getElementById('kdV').textContent=Kd});
+bind('sp',e=>{setpoint=+e.value;document.getElementById('spV').textContent=setpoint});
+document.getElementById('plant').addEventListener('change',e=>{plantType=e.target.value;reset()});
+
+document.getElementById('auto').addEventListener('click',()=>{
+  const p=plants[plantType];
+  const Ku=4/(Math.PI*p.gain), Tu=2*Math.PI*p.tau;
+  Kp=+(0.6*Ku).toFixed(1); Ki=+(1.2*Ku/Tu).toFixed(1); Kd=+(0.075*Ku*Tu).toFixed(1);
+  document.getElementById('kp').value=Kp; document.getElementById('kpV').textContent=Kp;
+  document.getElementById('ki').value=Ki; document.getElementById('kiV').textContent=Ki;
+  document.getElementById('kd').value=Kd; document.getElementById('kdV').textContent=Kd;
+  reset();
+});
+document.getElementById('reset').addEventListener('click',reset);
+
+function reset(){history=[];integral=0;prevErr=0;pv=0;t=0;}
+
+function step(){
+  const dt=0.02,p=plants[plantType];
+  const err=setpoint-pv;
+  integral+=err*dt;
+  integral=Math.max(-100,Math.min(100,integral));
+  const deriv=(err-prevErr)/dt;
+  let u=Kp*err+Ki*integral+Kd*deriv;
+  u=Math.max(-100,Math.min(100,u));
+  pv+=(u*p.gain-pv)/p.tau*dt*10;
+  prevErr=err;
+  history.push({t,pv,sp:setpoint});
+  if(history.length>W) history.shift();
+  t+=dt;
+}
+
+function calcStats(){
+  if(history.length<20) return;
+  let maxPV=0,settled=-1;
+  const sp=setpoint;
+  for(const h of history) if(h.pv>maxPV) maxPV=h.pv;
+  const overshoot=sp>0?Math.max(0,((maxPV-sp)/sp)*100):0;
+  document.getElementById('os').textContent=overshoot.toFixed(1)+'%';
+  const tol=sp*0.02;
+  for(let i=history.length-1;i>=0;i--){
+    if(Math.abs(history[i].pv-sp)>tol){settled=history[i].t;break;}
+  }
+  document.getElementById('st').textContent=settled>0?(settled).toFixed(2)+'s':'settled';
+  const sse=Math.abs(history[history.length-1].pv-sp).toFixed(2);
+  document.getElementById('sse').textContent=sse;
+}
+
+function draw(){
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='#222';ctx.lineWidth=1;
+  for(let y=0;y<=100;y+=10){const py=H-y/100*H;ctx.beginPath();ctx.moveTo(0,py);ctx.lineTo(W,py);ctx.stroke();}
+  // setpoint line
+  const spy=H-setpoint/100*H;
+  ctx.strokeStyle='#f9731644';ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(0,spy);ctx.lineTo(W,spy);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#f97316';ctx.font='11px system-ui';ctx.fillText('Setpoint: '+setpoint,W-100,spy-6);
+  // PV line
+  if(history.length>1){
+    ctx.strokeStyle='#f97316';ctx.lineWidth=2;ctx.beginPath();
+    for(let i=0;i<history.length;i++){
+      const x=i*(W/history.length);
+      const y=H-history[i].pv/100*H;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+  }
+  // labels
+  ctx.fillStyle='#666';ctx.font='10px system-ui';
+  ctx.fillText('0',2,H-4);ctx.fillText('100',2,14);
+  ctx.fillText('Process Variable',W/2-40,14);
+}
+
+function loop(){
+  for(let i=0;i<4;i++) step();
+  calcStats();draw();
+  requestAnimationFrame(loop);
+}
+reset();loop();
+</script>
+</body>
+</html>

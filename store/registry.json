@@ -311,6 +311,66 @@
       "creator": "serge-ivo",
       "creatorName": "Serge",
       "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "pid-tuner",
+      "name": "PID Tuner",
+      "description": "Interactive PID tuning workbench. Motor/heater/tank plants. Step response, Ziegler-Nichols auto-tune.",
+      "storeType": "behavior",
+      "category": "control",
+      "icon": "\ud83c\udf9b\ufe0f",
+      "iconBg": "#f97316",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "lidar-scan",
+      "name": "LiDAR Scanner",
+      "description": "2D LiDAR simulation. Rotating laser beam builds point cloud. Occupancy grid forms in real time.",
+      "storeType": "behavior",
+      "category": "perception",
+      "icon": "\ud83d\udce1",
+      "iconBg": "#f97316",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "inverse-kinematics",
+      "name": "Inverse Kinematics",
+      "description": "3-joint robot arm. Click anywhere \u2014 arm reaches using CCD IK. Workspace boundary, adjustable links.",
+      "storeType": "behavior",
+      "category": "manipulation",
+      "icon": "\ud83c\udfaf",
+      "iconBg": "#f97316",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "kalman-filter",
+      "name": "Kalman Filter",
+      "description": "Noisy GPS tracking smoothed by Kalman filter. Adjust process/measurement noise. See uncertainty converge.",
+      "storeType": "behavior",
+      "category": "estimation",
+      "icon": "\ud83d\udcca",
+      "iconBg": "#f97316",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "motor-sim",
+      "name": "DC Motor Sim",
+      "description": "DC motor physics: voltage, back-EMF, torque, angular velocity. Apply load. Current limiting. Animated rotor.",
+      "storeType": "behavior",
+      "category": "actuators",
+      "icon": "\u26a1",
+      "iconBg": "#f97316",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
     }
   ]
 }

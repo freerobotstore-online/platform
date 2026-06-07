@@ -102,6 +102,28 @@
       <h3>Why It Matters</h3>
       <p>Every robot controller needs kinematics. When you command a robot arm to move its gripper to a specific location in space, the controller must solve an inverse kinematics problem: determine what joint angles produce the desired end-effector pose. When the robot reports its current joint angles, forward kinematics computes where the end-effector actually is. Without kinematics, you cannot plan paths, avoid obstacles, or coordinate multiple robots.</p>
 
+      <!-- Diagram: FK vs IK flow -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0">
+        <div style="background:#141414;border:1px solid #262626;border-radius:8px;padding:1rem;text-align:center">
+          <div style="font-size:.82rem;font-weight:700;color:#fafafa;margin-bottom:.5rem">Forward Kinematics</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:.4rem">
+            <div style="background:#1c1007;border:1px solid #f97316;border-radius:6px;padding:.3rem .6rem;color:#fb923c;font-size:.72rem;font-weight:600">Joint Angles q</div>
+            <span style="color:#404040;font-size:1rem">&rarr;</span>
+            <div style="background:#1c1007;border:1px solid #f97316;border-radius:6px;padding:.3rem .6rem;color:#fb923c;font-size:.72rem;font-weight:600">Pose T</div>
+          </div>
+          <div style="font-size:.65rem;color:#525252;margin-top:.4rem">Always unique, O(n)</div>
+        </div>
+        <div style="background:#141414;border:1px solid #262626;border-radius:8px;padding:1rem;text-align:center">
+          <div style="font-size:.82rem;font-weight:700;color:#fafafa;margin-bottom:.5rem">Inverse Kinematics</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:.4rem">
+            <div style="background:#1c1007;border:1px solid #f97316;border-radius:6px;padding:.3rem .6rem;color:#fb923c;font-size:.72rem;font-weight:600">Pose T</div>
+            <span style="color:#404040;font-size:1rem">&rarr;</span>
+            <div style="background:#1c1007;border:1px solid #f97316;border-radius:6px;padding:.3rem .6rem;color:#fb923c;font-size:.72rem;font-weight:600">q&#8321;, q&#8322;, ...</div>
+          </div>
+          <div style="font-size:.65rem;color:#525252;margin-top:.4rem">0, 1, or many solutions</div>
+        </div>
+      </div>
+
       <h3>Two Central Problems</h3>
       <ul>
         <li><strong>Forward Kinematics (FK)</strong> — Given joint variables (angles for revolute joints, displacements for prismatic joints), compute the position and orientation of the end-effector. This is always solvable and has a unique solution.</li>
@@ -321,6 +343,18 @@
         <li><strong>Dexterous workspace</strong> — the set of points reachable with any arbitrary orientation. This is a subset of the reachable workspace and is typically much smaller.</li>
         <li><strong>Cross-section workspace</strong> — a 2D slice through the 3D workspace, useful for visualization.</li>
       </ul>
+
+      <!-- Diagram: 2-Link arm workspace (annulus) -->
+      <div style="display:flex;justify-content:center;margin:1.5rem 0">
+        <div style="position:relative;width:200px;height:200px">
+          <div style="position:absolute;top:10px;left:10px;width:180px;height:180px;border:2px solid #f97316;border-radius:50%;background:rgba(249,115,22,0.05)"></div>
+          <div style="position:absolute;top:55px;left:55px;width:90px;height:90px;border:2px dashed #404040;border-radius:50%;background:#0a0a0a"></div>
+          <div style="position:absolute;top:92px;left:92px;width:16px;height:16px;border-radius:50%;background:#f97316"></div>
+          <div style="position:absolute;top:2px;right:10px;font-size:.6rem;color:#f97316">L1+L2</div>
+          <div style="position:absolute;top:50px;left:60px;font-size:.55rem;color:#525252">|L1-L2|</div>
+          <div style="position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:.65rem;color:#737373">Reachable workspace</div>
+        </div>
+      </div>
 
       <h3>Workspace Geometry</h3>
       <p>For a 2-link planar arm with link lengths L1 and L2 (L1 > L2), the reachable workspace is an annulus (ring) with inner radius |L1 - L2| and outer radius L1 + L2. For a 6-DOF anthropomorphic arm (like the PUMA 560 or KUKA KR series), the workspace is roughly a hollow sphere, with exclusion zones caused by joint limits, self-collisions, and singularity surfaces.</p>

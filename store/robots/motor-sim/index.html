@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DC Motor Simulator - FreeRobotStore</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e0e0e0;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+h1{color:#f97316;margin:18px 0 6px;font-size:1.4rem}
+.desc{color:#999;font-size:.85rem;margin-bottom:12px}
+.layout{display:flex;gap:12px;margin:8px 0;flex-wrap:wrap;justify-content:center}
+canvas{background:#111;border:1px solid #333;border-radius:6px}
+.controls{display:flex;gap:12px;margin:10px 0;flex-wrap:wrap;justify-content:center}
+.controls label{font-size:.8rem;color:#aaa}
+.controls input[type=range]{width:80px;accent-color:#f97316}
+.controls button{background:#f97316;color:#000;border:none;padding:4px 10px;border-radius:4px;font-size:.8rem;cursor:pointer;font-weight:600}
+.stats{display:flex;gap:14px;font-size:.75rem;color:#888;margin:4px}
+footer{margin-top:auto;padding:12px;font-size:.7rem;color:#555}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<h1>DC Motor Simulator</h1>
+<p class="desc">Voltage, back-EMF, torque, speed with animated rotor</p>
+<div class="layout">
+<canvas id="motor" width="200" height="200"></canvas>
+<canvas id="plot" width="540" height="200"></canvas>
+</div>
+<div class="controls">
+<label>Voltage <input type="range" id="volt" min="0" max="24" step="0.5" value="12"><span id="voltV">12</span>V</label>
+<label>Load Torque <input type="range" id="load" min="0" max="5" step="0.1" value="0"><span id="loadV">0</span>Nm</label>
+<label>Resistance <input type="range" id="res" min="0.5" max="5" step="0.1" value="1"><span id="resV">1</span>ohm</label>
+<label>Inertia <input type="range" id="J" min="0.01" max="0.5" step="0.01" value="0.05"><span id="JV">0.05</span></label>
+<button id="reset">Reset</button>
+</div>
+<div class="stats">
+<span>Speed: <b id="spd">0</b> rad/s</span>
+<span>Current: <b id="cur">0</b> A</span>
+<span>Back-EMF: <b id="bemf">0</b> V</span>
+<span>Torque: <b id="torq">0</b> Nm</span>
+</div>
+<footer><a href="/robots/">FreeRobotStore</a></footer>
+<script>
+const mc=document.getElementById('motor'),mctx=mc.getContext('2d');
+const pc=document.getElementById('plot'),pctx=pc.getContext('2d');
+const Ke=0.01,Kt=0.01,B=0.001;
+let V=12,TL=0,Ra=1,J=0.05;
+let omega=0,theta=0,current=0;
+let hist={spd:[],cur:[],bemf:[]};
+const maxHist=540;
+
+function bind(id,sp,cb){document.getElementById(id).addEventListener('input',e=>{cb(+e.value);document.getElementById(sp).textContent=e.value});}
+bind('volt','voltV',v=>V=v); bind('load','loadV',v=>TL=v);
+bind('res','resV',v=>Ra=v); bind('J','JV',v=>J=v);
+document.getElementById('reset').addEventListener('click',()=>{omega=0;theta=0;current=0;hist={spd:[],cur:[],bemf:[]};});
+
+function step(dt){
+  const backEMF=Ke*omega;
+  current=(V-backEMF)/Ra;
+  const maxI=20; current=Math.max(-maxI,Math.min(maxI,current));
+  const Te=Kt*current;
+  const alpha=(Te-TL-B*omega)/J;
+  omega+=alpha*dt;
+  if(omega<0) omega=0;
+  theta+=omega*dt;
+  hist.spd.push(omega);hist.cur.push(current);hist.bemf.push(backEMF);
+  if(hist.spd.length>maxHist){hist.spd.shift();hist.cur.shift();hist.bemf.shift();}
+}
+
+function drawMotor(){
+  mctx.fillStyle='#111';mctx.fillRect(0,0,200,200);
+  const cx=100,cy=100,r=60;
+  // stator
+  mctx.strokeStyle='#444';mctx.lineWidth=4;
+  mctx.beginPath();mctx.arc(cx,cy,r+10,0,Math.PI*2);mctx.stroke();
+  // rotor
+  mctx.save();mctx.translate(cx,cy);mctx.rotate(theta);
+  mctx.fillStyle='#f97316';
+  for(let i=0;i<4;i++){
+    mctx.save();mctx.rotate(i*Math.PI/2);
+    mctx.fillRect(-4,-r+5,8,r-10);
+    mctx.restore();
+  }
+  // center
+  mctx.fillStyle='#888';mctx.beginPath();mctx.arc(0,0,12,0,Math.PI*2);mctx.fill();
+  mctx.fillStyle='#444';mctx.beginPath();mctx.arc(0,0,5,0,Math.PI*2);mctx.fill();
+  mctx.restore();
+  // shaft indicator
+  const sx=cx+20*Math.cos(theta),sy=cy+20*Math.sin(theta);
+  mctx.fillStyle='#fff';mctx.beginPath();mctx.arc(sx,sy,3,0,Math.PI*2);mctx.fill();
+  // labels
+  mctx.fillStyle='#f97316';mctx.font='bold 11px system-ui';mctx.fillText('DC Motor',60,20);
+}
+
+function drawPlot(){
+  pctx.fillStyle='#111';pctx.fillRect(0,0,540,200);
+  pctx.strokeStyle='#1a1a1a';pctx.lineWidth=1;
+  for(let y=0;y<200;y+=40){pctx.beginPath();pctx.moveTo(0,y);pctx.lineTo(540,y);pctx.stroke();}
+  const n=hist.spd.length; if(n<2) return;
+  // find max for normalization
+  let maxS=1,maxC=1;
+  for(let i=0;i<n;i++){maxS=Math.max(maxS,hist.spd[i]);maxC=Math.max(maxC,Math.abs(hist.cur[i]));}
+  // speed
+  pctx.strokeStyle='#f97316';pctx.lineWidth=2;pctx.beginPath();
+  for(let i=0;i<n;i++){const x=i*(540/n),y=190-hist.spd[i]/maxS*170;i?pctx.lineTo(x,y):pctx.moveTo(x,y);}
+  pctx.stroke();
+  // current
+  pctx.strokeStyle='#3b82f6';pctx.lineWidth=1.5;pctx.beginPath();
+  for(let i=0;i<n;i++){const x=i*(540/n),y=190-hist.cur[i]/maxC*170;i?pctx.lineTo(x,y):pctx.moveTo(x,y);}
+  pctx.stroke();
+  // back-EMF
+  pctx.strokeStyle='#22c55e';pctx.lineWidth=1;pctx.setLineDash([3,3]);pctx.beginPath();
+  const maxB=V||1;
+  for(let i=0;i<n;i++){const x=i*(540/n),y=190-hist.bemf[i]/maxB*170;i?pctx.lineTo(x,y):pctx.moveTo(x,y);}
+  pctx.stroke();pctx.setLineDash([]);
+  // legend
+  pctx.font='10px system-ui';
+  pctx.fillStyle='#f97316';pctx.fillText('Speed',10,14);
+  pctx.fillStyle='#3b82f6';pctx.fillText('Current',60,14);
+  pctx.fillStyle='#22c55e';pctx.fillText('Back-EMF',120,14);
+}
+
+function loop(){
+  for(let i=0;i<5;i++) step(0.005);
+  drawMotor();drawPlot();
+  document.getElementById('spd').textContent=omega.toFixed(1);
+  document.getElementById('cur').textContent=current.toFixed(2);
+  document.getElementById('bemf').textContent=(Ke*omega).toFixed(2);
+  document.getElementById('torq').textContent=(Kt*current).toFixed(3);
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

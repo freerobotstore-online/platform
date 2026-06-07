@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inverse Kinematics - FreeRobotStore</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e0e0e0;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+h1{color:#f97316;margin:18px 0 6px;font-size:1.4rem}
+.desc{color:#999;font-size:.85rem;margin-bottom:12px}
+canvas{background:#111;border:1px solid #333;border-radius:6px;cursor:crosshair}
+.controls{display:flex;gap:14px;margin:12px 0;flex-wrap:wrap;justify-content:center}
+.controls label{font-size:.8rem;color:#aaa}
+.controls input[type=range]{width:80px;accent-color:#f97316}
+.info{font-size:.75rem;color:#666;margin:4px}
+footer{margin-top:auto;padding:12px;font-size:.7rem;color:#555}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<h1>Inverse Kinematics</h1>
+<p class="desc">Click anywhere to move the 3-joint robot arm using CCD IK</p>
+<canvas id="c" width="600" height="500"></canvas>
+<div class="controls">
+<label>Link 1 <input type="range" id="l1" min="30" max="150" value="100"><span id="l1V">100</span></label>
+<label>Link 2 <input type="range" id="l2" min="30" max="120" value="80"><span id="l2V">80</span></label>
+<label>Link 3 <input type="range" id="l3" min="20" max="80" value="50"><span id="l3V">50</span></label>
+</div>
+<p class="info">Gray circle = workspace boundary | Orange = reachable target | Red = unreachable</p>
+<footer><a href="/robots/">FreeRobotStore</a></footer>
+<script>
+const C=document.getElementById('c'),ctx=C.getContext('2d');
+const W=600,H=500;
+const base={x:W/2,y:H-60};
+let links=[100,80,50],angles=[-.8,-.3,-.2];
+let target={x:base.x+80,y:base.y-180};
+let animTarget=null;
+
+for(const id of['l1','l2','l3']){
+  document.getElementById(id).addEventListener('input',e=>{
+    const i=id==='l1'?0:id==='l2'?1:2;
+    links[i]=+e.value;
+    document.getElementById(id+'V').textContent=e.value;
+  });
+}
+
+C.addEventListener('click',e=>{
+  const r=C.getBoundingClientRect();
+  target={x:e.clientX-r.left,y:e.clientY-r.top};
+  animTarget={...target};
+});
+C.addEventListener('mousemove',e=>{
+  if(e.buttons){
+    const r=C.getBoundingClientRect();
+    target={x:e.clientX-r.left,y:e.clientY-r.top};
+    animTarget={...target};
+  }
+});
+
+function fk(){
+  const pts=[{...base}];
+  let a=0;
+  for(let i=0;i<3;i++){
+    a+=angles[i];
+    pts.push({x:pts[i].x+links[i]*Math.cos(a),y:pts[i].y+links[i]*Math.sin(a)});
+  }
+  return pts;
+}
+
+function solveCCD(tx,ty,iters=20){
+  for(let iter=0;iter<iters;iter++){
+    for(let i=2;i>=0;i--){
+      const pts=fk();
+      const jx=pts[i].x,jy=pts[i].y;
+      const ex=pts[3].x,ey=pts[3].y;
+      const toEnd=Math.atan2(ey-jy,ex-jx);
+      const toTarget=Math.atan2(ty-jy,tx-jx);
+      let da=toTarget-toEnd;
+      while(da>Math.PI) da-=2*Math.PI;
+      while(da<-Math.PI) da+=2*Math.PI;
+      angles[i]+=da*0.8;
+    }
+  }
+}
+
+function draw(){
+  ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+  // workspace circle
+  const maxR=links[0]+links[1]+links[2];
+  ctx.strokeStyle='#222';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(base.x,base.y,maxR,0,Math.PI*2);ctx.stroke();
+  // inner boundary
+  const minR=Math.abs(links[0]-links[1]-links[2]);
+  if(minR>5){ctx.beginPath();ctx.arc(base.x,base.y,minR,0,Math.PI*2);ctx.stroke();}
+  // target
+  const dx=target.x-base.x,dy=target.y-base.y;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  const reachable=dist<=maxR;
+  ctx.fillStyle=reachable?'#f97316':'#ef4444';
+  ctx.beginPath();ctx.arc(target.x,target.y,6,0,Math.PI*2);ctx.fill();
+  // solve
+  solveCCD(target.x,target.y);
+  const pts=fk();
+  // draw links
+  ctx.lineWidth=8;ctx.lineCap='round';
+  const colors=['#f97316','#fb923c','#fdba74'];
+  for(let i=0;i<3;i++){
+    ctx.strokeStyle=colors[i];ctx.beginPath();
+    ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[i+1].x,pts[i+1].y);ctx.stroke();
+  }
+  // joints
+  for(let i=0;i<=3;i++){
+    ctx.fillStyle=i===0?'#fff':'#ddd';
+    ctx.beginPath();ctx.arc(pts[i].x,pts[i].y,i===0?8:5,0,Math.PI*2);ctx.fill();
+  }
+  // end effector
+  ctx.fillStyle='#f97316';ctx.beginPath();ctx.arc(pts[3].x,pts[3].y,4,0,Math.PI*2);ctx.fill();
+  // base
+  ctx.fillStyle='#444';ctx.fillRect(base.x-20,base.y+4,40,10);
+  // angles display
+  ctx.fillStyle='#666';ctx.font='11px system-ui';
+  for(let i=0;i<3;i++){
+    ctx.fillText(`J${i+1}: ${(angles[i]*180/Math.PI).toFixed(1)}deg`,10,20+i*16);
+  }
+  ctx.fillText(`Reach: ${dist.toFixed(0)}/${maxR.toFixed(0)}`,10,70);
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

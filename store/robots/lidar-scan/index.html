@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LiDAR Scanner - FreeRobotStore</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#e0e0e0;font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+h1{color:#f97316;margin:18px 0 6px;font-size:1.4rem}
+.desc{color:#999;font-size:.85rem;margin-bottom:12px}
+.wrap{display:flex;gap:12px;margin:8px 0}
+canvas{background:#111;border:1px solid #333;border-radius:6px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0;justify-content:center}
+.controls label{font-size:.8rem;color:#aaa}
+.controls input[type=range]{width:90px;accent-color:#f97316}
+.controls button{background:#f97316;color:#000;border:none;padding:4px 12px;border-radius:4px;font-size:.8rem;cursor:pointer;font-weight:600}
+footer{margin-top:auto;padding:12px;font-size:.7rem;color:#555}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<h1>LiDAR Scanner</h1>
+<p class="desc">2D LiDAR with rotating laser, point cloud, and occupancy grid</p>
+<div class="wrap">
+<canvas id="scene" width="370" height="370"></canvas>
+<canvas id="grid" width="370" height="370"></canvas>
+</div>
+<div class="controls">
+<label>Scan Rate <input type="range" id="rate" min="1" max="20" value="8"><span id="rateV">8</span> Hz</label>
+<label>Range <input type="range" id="range" min="50" max="180" value="140"><span id="rangeV">140</span></label>
+<label>Noise <input type="range" id="noise" min="0" max="15" value="3"><span id="noiseV">3</span></label>
+<button id="reset">Clear Grid</button>
+</div>
+<footer><a href="/robots/">FreeRobotStore</a></footer>
+<script>
+const sc=document.getElementById('scene'),gc=document.getElementById('grid');
+const sctx=sc.getContext('2d'),gctx=gc.getContext('2d');
+const S=370,GS=74;
+let angle=0,scanRate=8,maxRange=140,noiseLevel=3;
+const robot={x:S/2,y:S/2};
+const obstacles=[
+  {x:60,y:60,w:80,h:20},{x:250,y:40,w:20,h:100},{x:100,y:250,w:120,h:20},
+  {x:280,y:200,w:20,h:120},{x:40,y:150,w:20,h:80},{x:180,y:120,w:60,h:15}
+];
+const walls=[{x:10,y:10,w:S-20,h:10},{x:10,y:10,w:10,h:S-20},{x:10,y:S-20,w:S-20,h:10},{x:S-20,y:10,w:10,h:S-20}];
+const allObs=[...obstacles,...walls];
+let points=[],occGrid=new Float32Array(GS*GS).fill(0.5);
+
+document.getElementById('rate').addEventListener('input',e=>{scanRate=+e.value;document.getElementById('rateV').textContent=scanRate});
+document.getElementById('range').addEventListener('input',e=>{maxRange=+e.value;document.getElementById('rangeV').textContent=maxRange});
+document.getElementById('noise').addEventListener('input',e=>{noiseLevel=+e.value;document.getElementById('noiseV').textContent=noiseLevel});
+document.getElementById('reset').addEventListener('click',()=>{occGrid.fill(0.5);points=[]});
+
+function raycast(ox,oy,a){
+  const dx=Math.cos(a),dy=Math.sin(a);
+  let minD=maxRange;
+  for(const ob of allObs){
+    for(let edge=0;edge<4;edge++){
+      let ex1,ey1,ex2,ey2;
+      if(edge===0){ex1=ob.x;ey1=ob.y;ex2=ob.x+ob.w;ey2=ob.y;}
+      else if(edge===1){ex1=ob.x+ob.w;ey1=ob.y;ex2=ob.x+ob.w;ey2=ob.y+ob.h;}
+      else if(edge===2){ex1=ob.x;ey1=ob.y+ob.h;ex2=ob.x+ob.w;ey2=ob.y+ob.h;}
+      else{ex1=ob.x;ey1=ob.y;ex2=ob.x;ey2=ob.y+ob.h;}
+      const d=raySegment(ox,oy,dx,dy,ex1,ey1,ex2,ey2);
+      if(d>0&&d<minD) minD=d;
+    }
+  }
+  return minD;
+}
+
+function raySegment(ox,oy,dx,dy,x1,y1,x2,y2){
+  const sx=x2-x1,sy=y2-y1;
+  const den=dx*sy-dy*sx;
+  if(Math.abs(den)<1e-8) return -1;
+  const t=((x1-ox)*sy-(y1-oy)*sx)/den;
+  const u=((x1-ox)*dy-(y1-oy)*dx)/den;
+  if(t>0&&u>=0&&u<=1) return t;
+  return -1;
+}
+
+function updateGrid(hx,hy,hit){
+  const gx=Math.floor(hx/S*GS),gy=Math.floor(hy/S*GS);
+  if(gx>=0&&gx<GS&&gy>=0&&gy<GS){
+    const idx=gy*GS+gx;
+    occGrid[idx]=Math.min(1,occGrid[idx]+0.05);
+  }
+  // free space along ray
+  const steps=20;
+  for(let i=0;i<steps;i++){
+    const fx=robot.x+(hx-robot.x)*i/steps;
+    const fy=robot.y+(hy-robot.y)*i/steps;
+    const gi=Math.floor(fx/S*GS),gj=Math.floor(fy/S*GS);
+    if(gi>=0&&gi<GS&&gj>=0&&gj<GS){
+      const idx=gj*GS+gi;
+      occGrid[idx]=Math.max(0,occGrid[idx]-0.01);
+    }
+  }
+}
+
+function drawScene(){
+  sctx.fillStyle='#111';sctx.fillRect(0,0,S,S);
+  sctx.fillStyle='#333';
+  for(const o of allObs) sctx.fillRect(o.x,o.y,o.w,o.h);
+  // points
+  for(const p of points){
+    sctx.fillStyle=`rgba(249,115,22,${p.a})`;
+    sctx.fillRect(p.x-1,p.y-1,2,2);
+    p.a-=0.001;
+  }
+  points=points.filter(p=>p.a>0);
+  // laser
+  const lx=robot.x+maxRange*Math.cos(angle),ly=robot.y+maxRange*Math.sin(angle);
+  sctx.strokeStyle='#f9731633';sctx.lineWidth=1;sctx.beginPath();sctx.moveTo(robot.x,robot.y);sctx.lineTo(lx,ly);sctx.stroke();
+  // robot
+  sctx.fillStyle='#f97316';sctx.beginPath();sctx.arc(robot.x,robot.y,6,0,Math.PI*2);sctx.fill();
+  sctx.fillStyle='#fff';sctx.font='10px system-ui';sctx.fillText('Scene',8,16);
+}
+
+function drawGrid(){
+  gctx.fillStyle='#111';gctx.fillRect(0,0,S,S);
+  const cs=S/GS;
+  for(let y=0;y<GS;y++) for(let x=0;x<GS;x++){
+    const v=occGrid[y*GS+x];
+    if(v>0.52){
+      const b=Math.floor(v*255);
+      gctx.fillStyle=`rgb(${b},${Math.floor(b*0.45)},0)`;
+      gctx.fillRect(x*cs,y*cs,cs,cs);
+    } else if(v<0.48){
+      gctx.fillStyle=`rgba(50,50,50,${1-v*2})`;
+      gctx.fillRect(x*cs,y*cs,cs,cs);
+    }
+  }
+  gctx.fillStyle='#fff';gctx.font='10px system-ui';gctx.fillText('Occupancy Grid',8,16);
+}
+
+function loop(){
+  const raysPerFrame=Math.max(1,Math.floor(scanRate*2));
+  for(let i=0;i<raysPerFrame;i++){
+    const d=raycast(robot.x,robot.y,angle);
+    const noise=(Math.random()-0.5)*noiseLevel;
+    const md=Math.min(d+noise,maxRange);
+    if(md<maxRange-1){
+      const hx=robot.x+md*Math.cos(angle),hy=robot.y+md*Math.sin(angle);
+      points.push({x:hx,y:hy,a:1});
+      updateGrid(hx,hy,true);
+    }
+    angle+=Math.PI*2/(360);
+    if(angle>Math.PI*2) angle-=Math.PI*2;
+  }
+  drawScene();drawGrid();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
