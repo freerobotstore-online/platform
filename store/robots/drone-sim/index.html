@@ -30,10 +30,12 @@
     Throttle: <span class="g" id="thr">0</span>% | Battery: <span class="g" id="bat">100</span>%
   </div>
   <div id="help">
-    <span class="key">W</span><span class="key">S</span> Pitch
-    <span class="key">A</span><span class="key">D</span> Roll<br>
-    <span class="key">Space</span> Throttle up <span class="key">Shift</span> Down<br>
-    <span class="key">Q</span><span class="key">E</span> Yaw
+    <span class="key">W</span><span class="key">↑</span> Forward
+    <span class="key">S</span><span class="key">↓</span> Back<br>
+    <span class="key">A</span><span class="key">←</span> Strafe left
+    <span class="key">D</span><span class="key">→</span> Right<br>
+    <span class="key">Space</span> Up <span class="key">Shift</span> Down
+    <span class="key">Q</span><span class="key">E</span> Rotate<br>
     <span class="key">R</span> Reset
   </div>
   <div id="controls">
@@ -100,7 +102,7 @@ padH.rotation.x = -Math.PI/2; padH.position.y = 0.09; scene.add(padH);
 // Buildings
 const buildingMat = new THREE.MeshStandardMaterial({color:0x374151,roughness:0.7});
 const windowMat = new THREE.MeshStandardMaterial({color:0x60a5fa,emissive:0x1e3a5f,emissiveIntensity:0.5});
-function addBuilding(x,z,w,d,h){
+function addBuilding(x,z,w,d,h,hasArch){
   const b = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), buildingMat);
   b.position.set(x,h/2,z); b.castShadow=true; b.receiveShadow=true; scene.add(b);
   // Windows
@@ -114,12 +116,27 @@ function addBuilding(x,z,w,d,h){
   // Rooftop detail
   const ac = new THREE.Mesh(new THREE.BoxGeometry(1.5,.8,1), new THREE.MeshStandardMaterial({color:0x6b7280}));
   ac.position.set(x+w/4,h+.4,z); scene.add(ac);
+  // Fly-through arch
+  if(hasArch){
+    const archW=3, archH=4;
+    const arch = new THREE.Mesh(new THREE.BoxGeometry(archW,archH,d+.1), new THREE.MeshStandardMaterial({color:0x0a0a0a}));
+    arch.position.set(x,archH/2,z); scene.add(arch);
+    // Arch ring (visual indicator)
+    const archRing = new THREE.Mesh(new THREE.TorusGeometry(1.8,.08,8,16), new THREE.MeshStandardMaterial({color:0xf97316,emissive:0xf97316,emissiveIntensity:.5}));
+    archRing.position.set(x,archH/2,z-d/2-.1);
+    scene.add(archRing);
+    const archRing2 = archRing.clone(); archRing2.position.z = z+d/2+.1; scene.add(archRing2);
+  }
 }
-addBuilding(-35, -25, 8, 6, 15);
-addBuilding(-25, -30, 6, 8, 22);
-addBuilding(-30, -18, 10, 5, 10);
-addBuilding(40, 30, 7, 7, 18);
-addBuilding(48, 25, 5, 9, 12);
+addBuilding(-35, -25, 8, 6, 15, true);
+addBuilding(-25, -30, 6, 8, 22, false);
+addBuilding(-30, -18, 10, 5, 10, true);
+addBuilding(40, 30, 7, 7, 18, true);
+addBuilding(48, 25, 5, 9, 12, false);
+// Extra buildings for a bigger city
+addBuilding(-40, -35, 5, 5, 8, false);
+addBuilding(55, 35, 6, 6, 25, true);
+addBuilding(35, 40, 8, 5, 14, false);
 
 // Roads
 const roadMat = new THREE.MeshStandardMaterial({color:0x1f2937, roughness:0.8});
@@ -259,64 +276,78 @@ const dt = 1/60, gravity = -9.81;
 function physics(){
   if(keys.r || keys.R) resetDrone();
 
-  // Throttle
-  if(keys[' '] || keys.Space) drone.throttle = Math.min(100, drone.throttle + 2);
-  else if(keys.shift || keys.Shift || keys.ShiftLeft) drone.throttle = Math.max(0, drone.throttle - 2);
-  else if(hoverAssist && drone.y > 1) drone.throttle += (50 - drone.throttle) * .02; // auto-hover
+  // Throttle: Space=up, Shift=down
+  if(keys[' '] || keys.Space) drone.throttle = Math.min(100, drone.throttle + 2.5);
+  else if(keys.shift || keys.Shift || keys.ShiftLeft) drone.throttle = Math.max(0, drone.throttle - 2.5);
+  else if(hoverAssist && drone.y > 1) drone.throttle += (52 - drone.throttle) * .03;
 
-  // Attitude input
-  const pitchIn = (keys.w?1:0) - (keys.s?1:0);
-  const rollIn = (keys.d?1:0) - (keys.a?1:0);
+  // Movement: WASD/Arrows = forward/back/strafe, Q/E = yaw (slow rotation)
+  const fwd = (keys.w||keys.arrowup?1:0) - (keys.s||keys.arrowdown?1:0);
+  const strafe = (keys.d||keys.arrowright?1:0) - (keys.a||keys.arrowleft?1:0);
   const yawIn = (keys.e?1:0) - (keys.q?1:0);
 
-  if(hoverAssist){
-    drone.vPitch += (pitchIn * .8 - drone.pitch * 3 - drone.vPitch * 4) * dt;
-    drone.vRoll += (rollIn * .8 - drone.roll * 3 - drone.vRoll * 4) * dt;
-  } else {
-    drone.vPitch += pitchIn * 2 * dt;
-    drone.vRoll += rollIn * 2 * dt;
-    drone.vPitch *= .98; drone.vRoll *= .98;
-  }
-  drone.vYaw += (yawIn * 3 - drone.vYaw * 2) * dt;
-
-  drone.pitch += drone.vPitch;
-  drone.roll += drone.vRoll;
+  // Yaw rotation (slow and smooth)
+  drone.vYaw += (yawIn * 1.5 - drone.vYaw * 3) * dt;
   drone.yaw += drone.vYaw;
 
-  // Thrust
-  const thrust = drone.throttle / 100 * 15;
-  const cp = Math.cos(drone.pitch), sp = Math.sin(drone.pitch);
-  const cr = Math.cos(drone.roll), sr = Math.sin(drone.roll);
+  // Convert WASD to world-space velocity along drone's facing direction
   const cy = Math.cos(drone.yaw), sy = Math.sin(drone.yaw);
+  const moveSpeed = 0.8;
+  const targetVx = (fwd * sy + strafe * cy) * moveSpeed;
+  const targetVz = (fwd * cy - strafe * sy) * moveSpeed;
 
-  drone.vy += (thrust * cp * cr + gravity) * dt;
-  drone.vx += (-thrust * sp * cy + thrust * sr * sy) * dt;
-  drone.vz += (-thrust * sp * sy - thrust * sr * cy) * dt;
+  if(hoverAssist){
+    // Smooth acceleration toward target velocity
+    drone.vx += (targetVx - drone.vx) * 0.08;
+    drone.vz += (targetVz - drone.vz) * 0.08;
+    // Tilt drone visually based on movement (cosmetic, not physics-driven)
+    const targetPitch = -fwd * 0.2;
+    const targetRoll = strafe * 0.15;
+    drone.pitch += (targetPitch - drone.pitch) * 0.08;
+    drone.roll += (targetRoll - drone.roll) * 0.08;
+  } else {
+    // Acro: pitch/roll controls thrust direction (original behavior but faster)
+    const pitchIn = fwd;
+    const rollIn = strafe;
+    drone.vPitch += pitchIn * 3 * dt;
+    drone.vRoll += rollIn * 3 * dt;
+    drone.vPitch *= .97; drone.vRoll *= .97;
+    drone.pitch += drone.vPitch;
+    drone.roll += drone.vRoll;
+    const cp=Math.cos(drone.pitch), sp=Math.sin(drone.pitch);
+    const cr=Math.cos(drone.roll), sr=Math.sin(drone.roll);
+    const thrust = drone.throttle / 100 * 20;
+    drone.vx += (-thrust * sp * cy + thrust * sr * sy) * dt;
+    drone.vz += (-thrust * sp * sy - thrust * sr * cy) * dt;
+  }
+
+  // Vertical thrust
+  const thrust = drone.throttle / 100 * 18;
+  drone.vy += (thrust * Math.cos(drone.pitch) * Math.cos(drone.roll) + gravity) * dt;
 
   // Wind
   if(windEnabled){
     const wt = performance.now() * .001;
-    drone.vx += Math.sin(wt * .7) * .02;
-    drone.vz += Math.cos(wt * .5) * .015;
-    drone.vPitch += Math.sin(wt * 1.3) * .001;
+    drone.vx += Math.sin(wt * .7) * .015;
+    drone.vz += Math.cos(wt * .5) * .01;
   }
 
   // Drag
-  drone.vx *= .99; drone.vy *= .995; drone.vz *= .99;
+  drone.vx *= .985; drone.vy *= .995; drone.vz *= .985;
 
-  drone.x += drone.vx * dt;
+  drone.x += drone.vx;
   drone.y += drone.vy * dt;
-  drone.z += drone.vz * dt;
+  drone.z += drone.vz;
 
   // Ground
   if(drone.y < .3){
     drone.y = .3; drone.vy = Math.max(0, drone.vy);
-    drone.vx *= .9; drone.vz *= .9;
+    drone.vx *= .85; drone.vz *= .85;
     if(hoverAssist){ drone.pitch *= .9; drone.roll *= .9; }
   }
 
   // Ceiling
-  if(drone.y > 50) { drone.y = 50; drone.vy = 0; }
+  if(drone.y > 60) { drone.y = 60; drone.vy = 0; }
 
   // Battery
   battery = Math.max(0, battery - drone.throttle * .0003);

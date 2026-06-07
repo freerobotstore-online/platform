@@ -24,7 +24,7 @@
 </head>
 <body>
   <h1>Inverted <span>Pendulum</span></h1>
-  <p class="sub">Classic control systems demo. A PID controller keeps a pendulum balanced upright on a cart. Tune gains, add disturbances, learn control theory.</p>
+  <p class="sub">A PID controller balances a stick on a cart. Press <b>P</b> to push it. <b>R</b> to reset. Tune the Kp/Ki/Kd sliders — bad settings = it falls. Click <b>Auto-tune</b> for good defaults.</p>
 
   <canvas id="sim" width="800" height="400"></canvas>
 
@@ -81,6 +81,21 @@
     document.getElementById('btn-auto').addEventListener('click', () => {
       sliders.kp.value = 50; sliders.ki.value = 2; sliders.kd.value = 25;
       vals.kp.textContent = '50'; vals.ki.textContent = '2'; vals.kd.textContent = '25';
+    });
+
+    // Keyboard shortcuts
+    addEventListener('keydown', e => {
+      if (e.key === 'p' || e.key === 'P') {
+        thetaDot += (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3);
+      }
+      if (e.key === 'r' || e.key === 'R') reset();
+      if (e.key === 'a' || e.key === 'A') {
+        sliders.kp.value = 50; sliders.ki.value = 2; sliders.kd.value = 25;
+        vals.kp.textContent = '50'; vals.ki.textContent = '2'; vals.kd.textContent = '25';
+      }
+      // Left/Right arrows = manual cart push
+      if (e.key === 'ArrowLeft') xDot -= 3;
+      if (e.key === 'ArrowRight') xDot += 3;
     });
 
     function physics(force) {
