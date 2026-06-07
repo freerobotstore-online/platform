@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Soccer — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;overflow:hidden}
+    canvas{display:block;width:100vw;height:100vh}
+    #hud{position:fixed;top:0;left:50%;transform:translateX(-50%);display:flex;gap:2rem;align-items:center;z-index:10;background:rgba(10,10,10,.9);padding:.5rem 1.5rem;border-radius:0 0 12px 12px;border:1px solid #262626;border-top:0}
+    .score{font-size:2rem;font-weight:700;min-width:2rem;text-align:center}
+    .score.orange{color:#f97316}
+    .score.blue{color:#3b82f6}
+    .vs{color:#525252;font-size:.85rem}
+    .timer{color:#737373;font-size:.85rem}
+    #controls{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);display:flex;gap:.5rem;z-index:10}
+    button{padding:.4rem .8rem;border-radius:6px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    #help{position:fixed;bottom:3.5rem;left:50%;transform:translateX(-50%);font-size:.7rem;color:#404040;z-index:10}
+    .key{display:inline-block;padding:.08rem .3rem;border-radius:3px;border:1px solid #404040;background:#1f1f1f;font-size:.62rem;font-family:monospace;color:#737373}
+    a{color:#404040;text-decoration:none;position:fixed;bottom:.5rem;right:.5rem;font-size:.68rem;z-index:10}
+  </style>
+</head>
+<body>
+  <canvas id="sim"></canvas>
+  <div id="hud">
+    <span class="score orange" id="score-o">0</span>
+    <span class="vs">vs</span>
+    <span class="score blue" id="score-b">0</span>
+    <span class="timer" id="timer">2:00</span>
+  </div>
+  <div id="help"><span class="key">WASD</span> Move <span class="key">Space</span> Boost <span class="key">R</span> Reset</div>
+  <div id="controls">
+    <button id="btn-reset">Reset Match</button>
+    <button id="btn-ai">AI: Easy</button>
+    <button id="btn-2p">2 Player</button>
+  </div>
+  <a href="https://freerobotstore.pages.dev">FreeRobotStore</a>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    let W, H, fieldW, fieldH, fieldX, fieldY;
+    function resize(){
+      W = canvas.width = innerWidth; H = canvas.height = innerHeight;
+      fieldW = Math.min(W - 60, 900); fieldH = Math.min(H - 100, 500);
+      fieldX = (W - fieldW) / 2; fieldY = (H - fieldH) / 2 + 15;
+    }
+    resize(); addEventListener('resize', resize);
+
+    const goalW = 10, goalH = 100;
+    let ball, player, bots, scoreO, scoreB, matchTime, aiLevel, twoPlayer;
+
+    function resetBall() {
+      ball = { x: W/2, y: H/2, vx: 0, vy: 0, r: 8 };
+    }
+
+    function resetMatch() {
+      scoreO = 0; scoreB = 0; matchTime = 120;
+      player = { x: fieldX + fieldW * 0.25, y: H/2, vx: 0, vy: 0, r: 14, team: 'orange', boost: 100 };
+      bots = [
+        // Orange team (AI teammates)
+        { x: fieldX + fieldW * 0.15, y: fieldY + fieldH * 0.3, vx: 0, vy: 0, r: 12, team: 'orange', role: 'defend' },
+        { x: fieldX + fieldW * 0.35, y: fieldY + fieldH * 0.7, vx: 0, vy: 0, r: 12, team: 'orange', role: 'attack' },
+        // Blue team (AI opponents)
+        { x: fieldX + fieldW * 0.75, y: H/2, vx: 0, vy: 0, r: 13, team: 'blue', role: 'attack' },
+        { x: fieldX + fieldW * 0.85, y: fieldY + fieldH * 0.3, vx: 0, vy: 0, r: 12, team: 'blue', role: 'defend' },
+        { x: fieldX + fieldW * 0.65, y: fieldY + fieldH * 0.7, vx: 0, vy: 0, r: 12, team: 'blue', role: 'attack' },
+      ];
+      if (twoPlayer) {
+        bots.push({ x: fieldX + fieldW * 0.75, y: H/2, vx: 0, vy: 0, r: 14, team: 'blue', role: 'player2', isP2: true });
+      }
+      resetBall();
+      document.getElementById('score-o').textContent = '0';
+      document.getElementById('score-b').textContent = '0';
+    }
+
+    aiLevel = 1;
+    twoPlayer = false;
+
+    document.getElementById('btn-reset').addEventListener('click', resetMatch);
+    document.getElementById('btn-ai').addEventListener('click', function() {
+      aiLevel = aiLevel === 1 ? 2 : aiLevel === 2 ? 3 : 1;
+      this.textContent = `AI: ${['Easy','Medium','Hard'][aiLevel-1]}`;
+    });
+    document.getElementById('btn-2p').addEventListener('click', function() {
+      twoPlayer = !twoPlayer;
+      this.textContent = twoPlayer ? '2P: On' : '2 Player';
+      resetMatch();
+    });
+
+    const keys = {};
+    addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(e.key===' ')e.preventDefault(); });
+    addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+    function moveBot(bot, speed) {
+      const aiSpeed = speed * (0.5 + aiLevel * 0.25);
+      const goalX = bot.team === 'orange' ? fieldX + fieldW : fieldX;
+      const ownGoalX = bot.team === 'orange' ? fieldX : fieldX + fieldW;
+
+      let tx, ty;
+      if (bot.role === 'attack') {
+        // Chase ball, try to push toward opponent goal
+        const toBallX = ball.x - bot.x, toBallY = ball.y - bot.y;
+        const ballToGoalX = goalX - ball.x;
+        // Position behind ball relative to goal
+        tx = ball.x - Math.sign(ballToGoalX) * 30;
+        ty = ball.y;
+      } else {
+        // Defend: stay between ball and own goal
+        tx = ownGoalX + (ball.x - ownGoalX) * 0.3;
+        ty = ball.y;
+        // Clamp to defensive zone
+        if (bot.team === 'orange') tx = Math.min(tx, fieldX + fieldW * 0.4);
+        else tx = Math.max(tx, fieldX + fieldW * 0.6);
+      }
+
+      const dx = tx - bot.x, dy = ty - bot.y;
+      const d = Math.max(1, Math.hypot(dx, dy));
+      bot.vx += dx / d * aiSpeed * 0.15;
+      bot.vy += dy / d * aiSpeed * 0.15;
+    }
+
+    let lastTime = 0, timerAccum = 0;
+
+    function update(now) {
+      const dt = Math.min(32, now - lastTime); lastTime = now;
+
+      // Timer
+      timerAccum += dt;
+      if (timerAccum > 1000) { timerAccum -= 1000; matchTime = Math.max(0, matchTime - 1); }
+      const mins = Math.floor(matchTime / 60), secs = matchTime % 60;
+      document.getElementById('timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+      // Player input
+      const spd = keys[' '] && player.boost > 0 ? 1.2 : 0.6;
+      if (keys[' '] && player.boost > 0) player.boost = Math.max(0, player.boost - 0.5);
+      else player.boost = Math.min(100, player.boost + 0.15);
+
+      if (keys.w || keys.arrowup) player.vy -= spd;
+      if (keys.s || keys.arrowdown) player.vy += spd;
+      if (keys.a || keys.arrowleft) player.vx -= spd;
+      if (keys.d || keys.arrowright) player.vx += spd;
+
+      // Player 2
+      const p2 = bots.find(b => b.isP2);
+      if (p2) {
+        if (keys.i) p2.vy -= 0.6; if (keys.k) p2.vy += 0.6;
+        if (keys.j) p2.vx -= 0.6; if (keys.l) p2.vx += 0.6;
+      }
+
+      // AI bots
+      for (const bot of bots) {
+        if (bot.isP2) continue;
+        moveBot(bot, 0.8);
+      }
+
+      // Physics for all entities
+      const all = [player, ...bots, ball];
+      for (const e of all) {
+        e.vx *= 0.94; e.vy *= 0.94;
+        e.x += e.vx; e.y += e.vy;
+
+        // Field bounds
+        if (e !== ball || true) {
+          e.x = Math.max(fieldX + e.r, Math.min(fieldX + fieldW - e.r, e.x));
+          e.y = Math.max(fieldY + e.r, Math.min(fieldY + fieldH - e.r, e.y));
+        }
+      }
+
+      // Ball-player collisions
+      const players = [player, ...bots];
+      for (const p of players) {
+        const dx = ball.x - p.x, dy = ball.y - p.y;
+        const dist = Math.hypot(dx, dy);
+        const minDist = ball.r + p.r;
+        if (dist < minDist && dist > 0) {
+          const nx = dx / dist, ny = dy / dist;
+          const overlap = minDist - dist;
+          ball.x += nx * overlap; ball.y += ny * overlap;
+          // Transfer velocity
+          const relVx = p.vx - ball.vx, relVy = p.vy - ball.vy;
+          const impulse = (relVx * nx + relVy * ny) * 1.5;
+          ball.vx += nx * impulse;
+          ball.vy += ny * impulse;
+        }
+      }
+
+      // Player-player collisions
+      for (let i = 0; i < players.length; i++) {
+        for (let j = i + 1; j < players.length; j++) {
+          const a = players[i], b = players[j];
+          const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+          const minD = a.r + b.r;
+          if (d < minD && d > 0) {
+            const nx = dx/d, ny = dy/d, overlap = (minD-d)/2;
+            a.x -= nx*overlap; a.y -= ny*overlap;
+            b.x += nx*overlap; b.y += ny*overlap;
+            const rv = (a.vx-b.vx)*nx + (a.vy-b.vy)*ny;
+            a.vx -= rv*nx*.5; a.vy -= rv*ny*.5;
+            b.vx += rv*nx*.5; b.vy += rv*ny*.5;
+          }
+        }
+      }
+
+      // Goal detection
+      const goalYmin = H/2 - goalH/2, goalYmax = H/2 + goalH/2;
+      if (ball.x <= fieldX + ball.r && ball.y > goalYmin && ball.y < goalYmax) {
+        scoreB++; document.getElementById('score-b').textContent = scoreB; resetBall();
+      }
+      if (ball.x >= fieldX + fieldW - ball.r && ball.y > goalYmin && ball.y < goalYmax) {
+        scoreO++; document.getElementById('score-o').textContent = scoreO; resetBall();
+      }
+
+      if (keys.r) resetMatch();
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, 0, W, H);
+
+      // Field
+      ctx.fillStyle = '#0f2010';
+      ctx.fillRect(fieldX, fieldY, fieldW, fieldH);
+      ctx.strokeStyle = '#1a3a1a'; ctx.lineWidth = 2;
+      ctx.strokeRect(fieldX, fieldY, fieldW, fieldH);
+      // Center line
+      ctx.beginPath(); ctx.moveTo(W/2, fieldY); ctx.lineTo(W/2, fieldY + fieldH); ctx.stroke();
+      // Center circle
+      ctx.beginPath(); ctx.arc(W/2, H/2, 50, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(W/2, H/2, 3, 0, Math.PI*2); ctx.fillStyle = '#1a3a1a'; ctx.fill();
+
+      // Goals
+      const goalYmin = H/2 - goalH/2;
+      ctx.fillStyle = 'rgba(249,115,22,0.15)';
+      ctx.fillRect(fieldX - goalW, goalYmin, goalW, goalH);
+      ctx.strokeStyle = '#f97316'; ctx.lineWidth = 2;
+      ctx.strokeRect(fieldX - goalW, goalYmin, goalW, goalH);
+
+      ctx.fillStyle = 'rgba(59,130,246,0.15)';
+      ctx.fillRect(fieldX + fieldW, goalYmin, goalW, goalH);
+      ctx.strokeStyle = '#3b82f6';
+      ctx.strokeRect(fieldX + fieldW, goalYmin, goalW, goalH);
+
+      // Ball shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath(); ctx.ellipse(ball.x+2, ball.y+2, ball.r, ball.r*.6, 0, 0, Math.PI*2); ctx.fill();
+
+      // Ball
+      ctx.fillStyle = '#fafafa';
+      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.stroke();
+
+      // Bots
+      for (const bot of bots) {
+        const color = bot.team === 'orange' ? '#f97316' : '#3b82f6';
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(bot.x, bot.y, bot.r, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = bot.isP2 ? '#fff' : 'rgba(255,255,255,0.3)';
+        ctx.lineWidth = bot.isP2 ? 2 : 1;
+        ctx.beginPath(); ctx.arc(bot.x, bot.y, bot.r, 0, Math.PI*2); ctx.stroke();
+        // Direction indicator
+        const angle = Math.atan2(bot.vy, bot.vx);
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.beginPath(); ctx.arc(bot.x + Math.cos(angle)*bot.r*.6, bot.y + Math.sin(angle)*bot.r*.6, 2, 0, Math.PI*2); ctx.fill();
+      }
+
+      // Player (with boost ring)
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(player.x, player.y, player.r, 0, Math.PI*2); ctx.stroke();
+      // Boost meter ring
+      ctx.strokeStyle = `rgba(16,185,129,${player.boost/100})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(player.x, player.y, player.r + 4, -Math.PI/2, -Math.PI/2 + Math.PI*2*player.boost/100); ctx.stroke();
+      // Arrow
+      const pa = Math.atan2(player.vy, player.vx);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(player.x + Math.cos(pa)*player.r*.5, player.y + Math.sin(pa)*player.r*.5, 3, 0, Math.PI*2); ctx.fill();
+
+      // "YOU" label
+      ctx.fillStyle = '#f97316'; ctx.font = '600 9px Manrope'; ctx.textAlign = 'center';
+      ctx.fillText('YOU', player.x, player.y - player.r - 5);
+
+      if (bots.find(b=>b.isP2)) {
+        const p2 = bots.find(b=>b.isP2);
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillText('P2', p2.x, p2.y - p2.r - 5);
+      }
+      ctx.textAlign = 'start';
+    }
+
+    function loop(now) {
+      requestAnimationFrame(loop);
+      update(now || 0);
+      draw();
+    }
+    resetMatch();
+    loop();
+  </script>
+</body>
+</html>

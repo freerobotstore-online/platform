@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tower Crane — FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;overflow:hidden}
+    canvas{display:block;width:100vw;height:100vh}
+    #hud{position:fixed;top:1rem;left:1rem;font-size:.78rem;color:#525252;line-height:1.7;z-index:10}
+    #hud span{color:#f97316;font-weight:600}
+    #help{position:fixed;top:1rem;right:1rem;font-size:.7rem;color:#404040;z-index:10;text-align:right;line-height:1.8}
+    .key{display:inline-block;padding:.08rem .3rem;border-radius:3px;border:1px solid #404040;background:#1f1f1f;font-size:.62rem;font-family:monospace;color:#737373}
+    #score{position:fixed;top:1rem;left:50%;transform:translateX(-50%);font-size:1.2rem;font-weight:700;color:#f97316;z-index:10}
+    #controls{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);display:flex;gap:.5rem;z-index:10}
+    button{padding:.35rem .8rem;border-radius:6px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.72rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    a{color:#404040;text-decoration:none;position:fixed;bottom:.5rem;right:.5rem;font-size:.68rem;z-index:10}
+  </style>
+</head>
+<body>
+  <canvas id="sim"></canvas>
+  <div id="hud">
+    <span>Tower Crane</span><br>
+    Swing: <span id="swing">0.0</span>&deg;<br>
+    Cable: <span id="cable">0</span>m<br>
+    Load: <span id="load">None</span>
+  </div>
+  <div id="score">Score: <span id="pts">0</span></div>
+  <div id="help">
+    <span class="key">A</span><span class="key">D</span> Rotate crane<br>
+    <span class="key">W</span><span class="key">S</span> Trolley in/out<br>
+    <span class="key">Q</span><span class="key">E</span> Cable up/down<br>
+    <span class="key">Space</span> Grab/Release<br>
+    <span class="key">R</span> Reset
+  </div>
+  <div id="controls">
+    <button id="btn-reset">Reset</button>
+    <button id="btn-wind">Wind: Off</button>
+  </div>
+  <a href="https://freerobotstore.pages.dev">FreeRobotStore</a>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+    function resize(){ W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+    resize(); addEventListener('resize', resize);
+
+    const groundY = () => H * 0.85;
+    let crane, crates, targets, score, wind;
+
+    function init() {
+      crane = {
+        rotation: 0, // base rotation (radians)
+        trolleyPos: 0.5, // 0=base, 1=tip of boom
+        cableLen: 100, // pixels
+        hookSwingAngle: 0, hookSwingVel: 0,
+        grabbed: null,
+      };
+      score = 0;
+      wind = false;
+
+      // Crates to pick up
+      crates = [];
+      for (let i = 0; i < 5; i++) {
+        crates.push({
+          x: 100 + Math.random() * (W - 200),
+          y: groundY() - 15,
+          w: 25 + Math.random() * 15,
+          h: 25 + Math.random() * 15,
+          color: ['#f97316','#3b82f6','#10b981','#a855f7','#eab308'][i],
+          grabbed: false,
+        });
+      }
+
+      // Target zones
+      targets = [
+        { x: W * 0.15, y: groundY(), w: 60, h: 4, label: 'Zone A' },
+        { x: W * 0.85, y: groundY(), w: 60, h: 4, label: 'Zone B' },
+      ];
+
+      document.getElementById('pts').textContent = '0';
+    }
+
+    const keys = {};
+    addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(e.key===' ')e.preventDefault(); });
+    addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+    document.getElementById('btn-reset').addEventListener('click', init);
+    document.getElementById('btn-wind').addEventListener('click', function() {
+      wind = !wind; this.textContent = `Wind: ${wind ? 'On' : 'Off'}`;
+    });
+
+    const boomLen = 250, craneBaseX = () => W / 2, craneBaseY = () => groundY(), towerH = 300;
+
+    function getTrolleyPos() {
+      const angle = crane.rotation;
+      const tx = craneBaseX() + Math.cos(angle) * boomLen * crane.trolleyPos;
+      const ty = craneBaseY() - towerH;
+      return { x: tx, y: ty };
+    }
+
+    function getHookPos() {
+      const t = getTrolleyPos();
+      const hookX = t.x + Math.sin(crane.hookSwingAngle) * crane.cableLen;
+      const hookY = t.y + Math.cos(crane.hookSwingAngle) * crane.cableLen;
+      return { x: hookX, y: hookY };
+    }
+
+    function update() {
+      if (keys.r) init();
+
+      // Crane controls
+      if (keys.a || keys.arrowleft) crane.rotation -= 0.015;
+      if (keys.d || keys.arrowright) crane.rotation += 0.015;
+      if (keys.w || keys.arrowup) crane.trolleyPos = Math.min(1, crane.trolleyPos + 0.005);
+      if (keys.s || keys.arrowdown) crane.trolleyPos = Math.max(0.1, crane.trolleyPos - 0.005);
+      if (keys.q) crane.cableLen = Math.max(30, crane.cableLen - 1.5);
+      if (keys.e) crane.cableLen = Math.min(250, crane.cableLen + 1.5);
+
+      // Grab/release
+      if (keys[' ']) {
+        keys[' '] = false;
+        if (crane.grabbed !== null) {
+          // Release
+          const crate = crane.grabbed;
+          crate.grabbed = false;
+          crane.grabbed = null;
+
+          // Check if on target
+          const hook = getHookPos();
+          for (const t of targets) {
+            if (Math.abs(hook.x - t.x) < t.w/2 && hook.y > groundY() - 40) {
+              score += 100;
+              document.getElementById('pts').textContent = score;
+            }
+          }
+        } else {
+          // Try to grab
+          const hook = getHookPos();
+          for (const c of crates) {
+            if (!c.grabbed && Math.abs(hook.x - c.x) < c.w && Math.abs(hook.y - (c.y - c.h/2)) < c.h) {
+              c.grabbed = true;
+              crane.grabbed = c;
+              break;
+            }
+          }
+        }
+      }
+
+      // Pendulum physics for hook
+      const g = 0.001;
+      const trolleyAccel = (keys.a ? 0.015 : keys.d ? -0.015 : 0) * crane.trolleyPos;
+      crane.hookSwingVel += (-g * Math.sin(crane.hookSwingAngle) + trolleyAccel) / Math.max(30, crane.cableLen) * 50;
+
+      // Wind
+      if (wind) {
+        crane.hookSwingVel += Math.sin(performance.now() * 0.001) * 0.0003;
+      }
+
+      crane.hookSwingVel *= 0.998; // damping
+      crane.hookSwingAngle += crane.hookSwingVel;
+
+      // Move grabbed crate
+      if (crane.grabbed) {
+        const hook = getHookPos();
+        crane.grabbed.x = hook.x;
+        crane.grabbed.y = hook.y + crane.grabbed.h / 2;
+      }
+
+      // Gravity for released crates
+      for (const c of crates) {
+        if (!c.grabbed && c.y < groundY() - c.h/2) {
+          c.y = Math.min(groundY() - c.h/2, c.y + 3);
+        }
+      }
+
+      // HUD
+      document.getElementById('swing').textContent = (crane.hookSwingAngle * 180 / Math.PI).toFixed(1);
+      document.getElementById('cable').textContent = Math.round(crane.cableLen / 10);
+      document.getElementById('load').textContent = crane.grabbed ? 'Carrying' : 'None';
+    }
+
+    function draw() {
+      // Sky
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY());
+      skyGrad.addColorStop(0, '#0a0f1a');
+      skyGrad.addColorStop(1, '#0a0a0a');
+      ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, H);
+
+      // Ground
+      ctx.fillStyle = '#141414';
+      ctx.fillRect(0, groundY(), W, H - groundY());
+
+      // Target zones
+      for (const t of targets) {
+        ctx.fillStyle = 'rgba(16,185,129,0.15)';
+        ctx.fillRect(t.x - t.w/2, t.y - 30, t.w, 30);
+        ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2; ctx.setLineDash([4,4]);
+        ctx.strokeRect(t.x - t.w/2, t.y - 30, t.w, 30);
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#10b981'; ctx.font = '10px Manrope'; ctx.textAlign = 'center';
+        ctx.fillText(t.label, t.x, t.y - 35);
+      }
+      ctx.textAlign = 'start';
+
+      // Crates
+      for (const c of crates) {
+        ctx.fillStyle = c.color;
+        ctx.fillRect(c.x - c.w/2, c.y - c.h, c.w, c.h);
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
+        ctx.strokeRect(c.x - c.w/2, c.y - c.h, c.w, c.h);
+      }
+
+      const bx = craneBaseX(), by = craneBaseY();
+
+      // Tower
+      ctx.strokeStyle = '#404040'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(bx - 8, by); ctx.lineTo(bx - 5, by - towerH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx + 8, by); ctx.lineTo(bx + 5, by - towerH); ctx.stroke();
+      // Cross braces
+      for (let i = 0; i < 6; i++) {
+        const y1 = by - i * towerH/6, y2 = by - (i+1) * towerH/6;
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(bx - 7 + i*.3, y1); ctx.lineTo(bx + 6 - (i+1)*.3, y2); ctx.stroke();
+      }
+
+      // Boom
+      const boomEndX = bx + Math.cos(crane.rotation) * boomLen;
+      const boomEndY = by - towerH;
+      const boomStartX = bx - Math.cos(crane.rotation) * 40; // counter-boom
+
+      ctx.strokeStyle = '#f97316'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(boomStartX, boomEndY); ctx.lineTo(boomEndX, boomEndY); ctx.stroke();
+
+      // Counterweight
+      ctx.fillStyle = '#525252';
+      ctx.fillRect(boomStartX - 15, boomEndY, 20, 15);
+
+      // Trolley
+      const t = getTrolleyPos();
+      ctx.fillStyle = '#737373';
+      ctx.fillRect(t.x - 8, t.y - 4, 16, 8);
+
+      // Cable
+      const hook = getHookPos();
+      ctx.strokeStyle = '#a3a3a3'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(t.x, t.y + 4); ctx.lineTo(hook.x, hook.y); ctx.stroke();
+
+      // Hook
+      ctx.fillStyle = crane.grabbed ? '#10b981' : '#f97316';
+      ctx.beginPath(); ctx.arc(hook.x, hook.y, 5, 0, Math.PI * 2); ctx.fill();
+      // Hook prongs
+      ctx.strokeStyle = crane.grabbed ? '#10b981' : '#f97316'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(hook.x - 6, hook.y); ctx.lineTo(hook.x - 6, hook.y + 8);
+      ctx.moveTo(hook.x + 6, hook.y); ctx.lineTo(hook.x + 6, hook.y + 8);
+      ctx.stroke();
+
+      // Support cables (tower to boom tip)
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(bx, by - towerH - 20); ctx.lineTo(boomEndX, boomEndY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx, by - towerH - 20); ctx.lineTo(boomStartX, boomEndY); ctx.stroke();
+      // Top of tower
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath(); ctx.arc(bx, by - towerH - 20, 4, 0, Math.PI*2); ctx.fill();
+
+      // Base
+      ctx.fillStyle = '#333';
+      ctx.fillRect(bx - 25, by, 50, 8);
+    }
+
+    function loop() { requestAnimationFrame(loop); update(); draw(); }
+    init(); loop();
+  </script>
+</body>
+</html>
