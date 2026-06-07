@@ -3,843 +3,297 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FreeRobotStore — Robot firmware, models & simulations</title>
-  <meta name="description" content="Curated robot software — firmware, perception models, and interactive physics simulations. Try robot behaviors in your browser. Free, open source.">
-  <meta property="og:title" content="FreeRobotStore — Robot firmware, models & simulations">
-  <meta property="og:description" content="Try robot behaviors in your browser. Physics simulations, perception models, and firmware for Arduino, ESP32, and Pi. Free forever.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://freerobotstore.online">
-  <meta name="twitter:card" content="summary">
-  <meta property="og:image" content="https://freerobotstore.online/icon-512.png">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <!-- manifest removed -->
-  <meta name="theme-color" content="#f97316">
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"FreeRobotStore","url":"https://freerobotstore.online","description":"Robot firmware, models, and interactive simulations"}</script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <title>FreeRobotStore — Robot Simulations & AI</title>
+  <meta name="description" content="Interactive robot simulations — drone, robot arm, walking robot, car physics, fluid dynamics, swarm intelligence, and more. Free, open source.">
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-    :root{
-      --font-body:'Manrope',system-ui,sans-serif;
-      --font-display:'Fraunces',Georgia,serif;
-      --paper:#0a0a0a;--panel:#171717;--panel-alt:#1f1f1f;
-      --ink:#fafafa;--ink-strong:#ffffff;
-      --muted:#a3a3a3;--muted-soft:#737373;
-      --accent:#f97316;--accent-hover:#ea580c;--accent-soft:rgba(249,115,22,0.15);
-      --pro:#3b82f6;
-      --line:#262626;--line-strong:#404040;
-      --shadow:0 1px 3px rgba(0,0,0,0.3);
-      --shadow-lg:0 10px 25px -8px rgba(0,0,0,0.5);
-      --radius:0.75rem;
-    }
-    body{font-family:var(--font-body);background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh}
-    .container{max-width:1200px;margin:0 auto;padding:0 1.5rem}
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--accent:#f97316;--paper:#0a0a0a;--ink:#fafafa;--muted:#737373;--panel:#141414;--line:#1a1a1a}
+    body{font-family:'Manrope',system-ui,sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased}
     a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
-
-    /* Header */
-    header{border-bottom:1px solid var(--line)}
-    header .container{display:flex;align-items:center;gap:1.25rem;padding-top:0.75rem;padding-bottom:0.75rem}
-    .brand{display:flex;align-items:center;gap:0.6rem;text-decoration:none;color:var(--ink)}
-    .brand-mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.1rem}
-    .brand-name{font-family:var(--font-display);font-size:1.15rem;font-weight:700;color:var(--ink)}
-    .brand-tag{font-size:0.72rem;color:var(--muted);font-weight:500}
-    nav{display:flex;gap:1.25rem;font-size:0.88rem;font-weight:600;margin-left:auto}
-    nav a{color:var(--muted);text-decoration:none;transition:color 0.15s}
-    nav a:hover{color:var(--ink)}
-    nav a.pro{color:var(--pro)}
-
-    /* Hero */
-    .hero{text-align:center;padding:3rem 0 2rem}
-    .hero h1{font-family:var(--font-display);font-size:2.25rem;font-weight:700;margin-bottom:0.5rem}
-    .hero h1 span{color:#fb923c}
-    .hero p{color:var(--muted);font-size:1.05rem;max-width:560px;margin:0 auto;line-height:1.6}
-    .badges{display:flex;gap:0.5rem;justify-content:center;margin-top:1rem;flex-wrap:wrap}
-    .badge{padding:0.25rem 0.75rem;border-radius:999px;font-size:0.78rem;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
-    /* Tab bar */
-    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); margin-bottom: 1rem; }
-    .tab {
-      padding: 0.6rem 1.25rem; font-size: 0.9rem; font-weight: 600;
-      color: var(--muted); background: none; border: none; cursor: pointer;
-      border-bottom: 2px solid transparent; transition: all 0.15s;
-      font-family: var(--font-body);
-    }
-    .tab:hover { color: var(--ink); }
-    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-    .tab-count { font-size: 0.72rem; color: var(--muted-soft); margin-left: 0.25rem; }
-
-    /* Filter bar */
-    .toolbar{padding:1rem 0;display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center}
-    .filter-btn{padding:0.4rem 0.85rem;border-radius:100px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body)}
-    .filter-btn:hover{border-color:var(--accent);color:var(--accent)}
-    .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
-    .agent-count{margin-left:auto;font-size:0.82rem;color:var(--muted-soft)}
-
-    /* Agent grid */
-    .agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:0.75rem;padding-bottom:3rem}
-
-    /* Agent card */
-    .agent-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;display:flex;align-items:center;gap:0.85rem;transition:border-color 0.15s,transform 0.15s,box-shadow 0.15s;box-shadow:var(--shadow)}
-    .agent-card-body{display:flex;align-items:center;gap:0.85rem;flex:1;min-width:0;text-decoration:none;color:inherit}
-    .agent-card:hover{border-color:var(--line-strong);transform:translateY(-1px);box-shadow:var(--shadow-lg)}
-    .agent-icon{width:44px;height:44px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem}
-    .agent-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:0.15rem}
-    .agent-name{font-size:0.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .agent-desc{font-size:0.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .agent-meta{display:flex;gap:0.35rem;margin-top:0.2rem}
-    .tag{font-size:0.68rem;padding:0.1rem 0.4rem;border-radius:0.25rem;background:var(--accent-soft);color:#fb923c;font-weight:500}
-    .tag.heuristic{background:rgba(217,119,6,0.15);color:#fbbf24}
-    .agent-cta{display:inline-flex;align-items:center;gap:0.3rem;background:var(--accent);color:#fff;padding:0.4rem 0.85rem;border-radius:10px;font-size:0.8rem;font-weight:600;flex-shrink:0;text-decoration:none;transition:background 0.15s}
-    .agent-cta:hover{background:var(--accent-hover);text-decoration:none}
-    .agent-cta svg{width:12px;height:12px;fill:currentColor}
-
-    /* Footer */
-    footer{border-top:1px solid var(--line);padding:2rem 0}
-    footer .container{display:flex;flex-wrap:wrap;gap:2rem;justify-content:space-between;align-items:start}
-    .footer-brand{display:flex;flex-direction:column;gap:0.25rem}
-    .footer-brand .name{font-family:var(--font-display);font-size:1.1rem;font-weight:700;color:var(--ink)}
-    .footer-brand .name span{color:#fb923c}
-    .footer-brand p{font-size:0.8rem;color:var(--muted);max-width:280px;line-height:1.5}
-    .footer-links{display:flex;flex-wrap:wrap;gap:1.5rem;font-size:0.82rem}
-    .footer-links a{color:var(--muted);text-decoration:none}
-    .footer-links a:hover{color:var(--ink)}
-    .footer-links .pro{color:var(--pro)}
-    .footer-stores{display:flex;flex-direction:column;gap:0.3rem;font-size:0.78rem}
-    .footer-stores a{color:var(--muted-soft)}
-    .footer-stores a:hover{color:var(--muted)}
+    header{border-bottom:1px solid var(--line);padding:.6rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:.5rem;text-decoration:none;color:var(--ink)}
+    .brand-emoji{font-size:1.4rem}
+    .brand-name{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700}
+    nav{display:flex;gap:.85rem;font-size:.82rem;font-weight:600;margin-left:auto}
+    nav a{color:var(--muted)}nav a:hover{color:var(--ink);text-decoration:none}
+    .hero{text-align:center;padding:2.5rem 1.5rem 1.5rem}
+    .hero h1{font-family:'Fraunces',serif;font-size:2rem;font-weight:700;margin-bottom:.4rem}
+    .hero h1 span{color:var(--accent)}
+    .hero p{color:var(--muted);font-size:.95rem;max-width:550px;margin:0 auto .75rem}
+    .badge{display:inline-block;padding:.2rem .65rem;border-radius:99px;font-size:.75rem;font-weight:600;background:var(--panel);border:1px solid var(--line);color:var(--muted);margin:.15rem}
+    .grid{max-width:1100px;margin:0 auto;padding:0 1.5rem 3rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:.65rem}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:.9rem;display:flex;gap:.7rem;align-items:flex-start;transition:border-color .15s,transform .15s;text-decoration:none;color:inherit}
+    .card:hover{border-color:var(--accent);transform:translateY(-1px);text-decoration:none}
+    .card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
+    .card-body{flex:1;min-width:0}
+    .card-name{font-size:.9rem;font-weight:700;margin-bottom:.15rem}
+    .card-desc{font-size:.72rem;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .card-cta{font-size:.72rem;font-weight:600;color:var(--accent);white-space:nowrap;align-self:center}
+    footer{border-top:1px solid var(--line);padding:1.5rem;text-align:center;font-size:.72rem;color:#404040}
   </style>
 </head>
 <body>
   <header>
-    <div class="container">
-      <a href="/" class="brand">
-        <span class="brand-mark">🦾</span>
-        <span style="display:flex;flex-direction:column">
-          <span class="brand-name">RobotStore</span>
-          <span class="brand-tag">Free Robot Software</span>
-        </span>
-      </a>
-      <nav>
-        <a href="/">All Robots</a>
-        <a href="/robots/bouncing-ball/">Bouncing Ball</a>
-        <a href="/robots/line-follower/">Line Follower</a>
-        <a href="/robots/motor-controller/">Motor Controller</a>
-      <a href="/institute/">Institute</a><a href="/creators/">Creators</a><a href="/challenges/">Challenges</a><a href="/collections/">Paths</a></nav>
-      <div id="auth-ui" style="margin-left:0.5rem;display:flex;align-items:center">
-        <a href="/v1/auth/github" id="auth-login" style="display:none;padding:0.35rem 0.85rem;border-radius:8px;border:1px solid var(--line);color:var(--muted);font-size:0.82rem;font-weight:600;text-decoration:none;transition:border-color 0.15s,color 0.15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--ink)'" onmouseout="this.style.borderColor='var(--line)';this.style.color='var(--muted)'">Sign in</a>
-        <div id="auth-user" style="display:none;align-items:center;gap:0.5rem">
-          <img id="auth-avatar" src="" alt="" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--line)" />
-          <button id="auth-signout" style="padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:0.72rem;cursor:pointer;font-family:inherit">Sign out</button>
-        </div>
-      </div>
-      </div>
+    <a href="/" class="brand">
+      <span class="brand-emoji">🦾</span>
+      <span class="brand-name">FreeRobotStore</span>
+    </a>
+    <nav>
+      <a href="/">All</a>
+      <a href="/institute/">Institute</a>
+      <a href="/creators/">Creators</a>
+      <a href="/challenges/">Challenges</a>
+      <a href="/collections/">Paths</a>
+    </nav>
   </header>
 
-  <main class="container">
-    <section class="hero">
-      <h1>Free<span>Robot</span>Store</h1>
-      <p>Robot firmware, perception models, and interactive physics simulations. Try robot behaviors in your browser — no install, no setup. Open source, free forever.</p>
-      <div class="badges">
-        <span class="badge">Firmware</span>
-        <span class="badge">AI Models</span>
-        <span class="badge">Simulations</span>
-        <span class="badge">Open Source</span>
-        <span class="badge">Open Source</span>
-      </div>
-      <div style="display:flex;gap:0.75rem;justify-content:center;margin-top:1.25rem;flex-wrap:wrap">
-        <a href="/get-started/" style="padding:0.5rem 1.25rem;border-radius:10px;background:#f97316;color:white;font-weight:600;font-size:0.9rem;text-decoration:none">Get Started</a>
-        <a href="https://github.com/FreeRobotStore" style="padding:0.5rem 1.25rem;border-radius:10px;border:1px solid #262626;color:#a3a3a3;font-weight:600;font-size:0.9rem;text-decoration:none">GitHub</a>
-      </div>
-    </section>
-
-    <section style="max-width:900px;margin:0 auto;padding:0 1.5rem 2rem">
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem">
-        <div style="background:#171717;border:1px solid #262626;border-radius:12px;padding:1.25rem">
-          <div style="font-size:1.5rem;margin-bottom:0.5rem">&#x1f527;</div>
-          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:0.35rem">Firmware</h3>
-          <p style="color:#a3a3a3;font-size:0.82rem;line-height:1.5;margin:0">Motor controllers, sensor readers, PID loops, communication protocols. Arduino, ESP32, Raspberry Pi. Download and flash.</p>
-        </div>
-        <div style="background:#171717;border:1px solid #262626;border-radius:12px;padding:1.25rem">
-          <div style="font-size:1.5rem;margin-bottom:0.5rem">&#x1f9e0;</div>
-          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:0.35rem">Models</h3>
-          <p style="color:#a3a3a3;font-size:0.82rem;line-height:1.5;margin:0">AI perception models running in your browser. Object detection, depth estimation, pose recognition, SLAM. Powered by WebGPU.</p>
-        </div>
-        <div style="background:#171717;border:1px solid #262626;border-radius:12px;padding:1.25rem">
-          <div style="font-size:1.5rem;margin-bottom:0.5rem">&#x1f3ae;</div>
-          <h3 style="font-size:0.95rem;font-weight:600;margin-bottom:0.35rem">Behaviors</h3>
-          <p style="color:#a3a3a3;font-size:0.82rem;line-height:1.5;margin:0">Interactive physics simulations. Watch a robot arm pick up objects, a drone navigate obstacles, or a rover explore terrain. All in your browser.</p>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <div class="tabs">
-          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">26</span></button>
-          <button class="tab" onclick="switchTab('firmware')">Firmware <span class="tab-count">1</span></button>
-          <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">4</span></button>
-          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">21</span></button>
-        </div>
-
-        <div class="toolbar">
-        <button class="filter-btn active" onclick="filterCategory('all')">All</button>
-        <button class="filter-btn" onclick="filterCategory('learning')">Learning</button>
-        <button class="filter-btn" onclick="filterCategory('flight')">Flight</button>
-        <button class="filter-btn" onclick="filterCategory('simulation')">Simulation</button>
-        <button class="filter-btn" onclick="filterCategory('locomotion')">Locomotion</button>
-        <button class="filter-btn" onclick="filterCategory('coordination')">Coordination</button>
-        <button class="filter-btn" onclick="filterCategory('manipulation')">Manipulation</button>
-        <button class="filter-btn" onclick="filterCategory('localization')">Localization</button>
-        <button class="filter-btn" onclick="filterCategory('navigation')">Navigation</button>
-        <button class="filter-btn" onclick="filterCategory('control')">Control</button>
-        <button class="filter-btn" onclick="filterCategory('perception')">Perception</button>
-        <button class="filter-btn" onclick="filterCategory('actuators')">Actuators</button>
-        <button class="filter-btn" onclick="filterCategory('interaction')">Interaction</button>
-        <span class="agent-count" id="agentCount">26 agents</span>
-      </div>
-            <div class="agents-grid" id="agentsGrid">
-        <div class="agent-card" data-category="learning" data-store-type="behavior">
-          <a href="/robots/rl-walker/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🧬</div>
-            <div class="agent-body">
-              <span class="agent-name">RL Walker</span>
-              <span class="agent-desc">Watch creatures evolve walking gaits via neuroevolution. 20 ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/rl-walker/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="flight" data-store-type="behavior">
-          <a href="/robots/drone-sim/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🚁</div>
-            <div class="agent-body">
-              <span class="agent-name">Drone Simulator</span>
-              <span class="agent-desc">3D quadcopter — WASD flight, hover/acro mode, ring course, w...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/drone-sim/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="simulation" data-store-type="behavior">
-          <a href="/robots/fluid-sim/" class="agent-card-body">
-            <div class="agent-icon" style="background:#06b6d4">💧</div>
-            <div class="agent-body">
-              <span class="agent-name">Fluid Simulation</span>
-              <span class="agent-desc">SPH particle fluid — click to splash, dam break, obstacles. ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/fluid-sim/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="locomotion" data-store-type="behavior">
-          <a href="/robots/spider-robot/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🕷️</div>
-            <div class="agent-body">
-              <span class="agent-name">Spider Robot</span>
-              <span class="agent-desc">6-legged hexapod with IK — WASD walk, 3 gaits (tripod/wave/r...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/spider-robot/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="locomotion" data-store-type="behavior">
-          <a href="/robots/snake-robot/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🐍</div>
-            <div class="agent-body">
-              <span class="agent-name">Snake Robot</span>
-              <span class="agent-desc">16-segment serpentine robot — WASD steer, 3 locomotion modes...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/snake-robot/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="coordination" data-store-type="behavior">
-          <a href="/robots/robot-soccer/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">⚽</div>
-            <div class="agent-body">
-              <span class="agent-name">Robot Soccer</span>
-              <span class="agent-desc">3v3 robot soccer — WASD + boost, AI teammates, score goals, ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/robot-soccer/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="manipulation" data-store-type="behavior">
-          <a href="/robots/crane-sim/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🏗️</div>
-            <div class="agent-body">
-              <span class="agent-name">Tower Crane</span>
-              <span class="agent-desc">Operate a tower crane — rotate, trolley, cable controls. Pic...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/crane-sim/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="localization" data-store-type="behavior">
-          <a href="/robots/particle-filter/" class="agent-card-body">
-            <div class="agent-icon" style="background:#a855f7">📍</div>
-            <div class="agent-body">
-              <span class="agent-name">Particle Filter</span>
-              <span class="agent-desc">Robot localization demo — 500 particles converge on true pos...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/particle-filter/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="manipulation" data-store-type="behavior">
-          <a href="/robots/robot-arm/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🦾</div>
-            <div class="agent-body">
-              <span class="agent-name">Robot Arm</span>
-              <span class="agent-desc">5-DOF arm — keyboard (QWASDE), mouse orbit/zoom, pick/wave/s...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/robot-arm/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="locomotion" data-store-type="behavior">
-          <a href="/robots/car-physics/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🏎️</div>
-            <div class="agent-body">
-              <span class="agent-name">Car Physics</span>
-              <span class="agent-desc">Ackermann steering + tire friction — WASD, handbrake driftin...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/car-physics/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="coordination" data-store-type="behavior">
-          <a href="/robots/swarm/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🐝</div>
-            <div class="agent-body">
-              <span class="agent-name">Robot Swarm</span>
-              <span class="agent-desc">60-200 boids flocking — click to attract, separation/alignme...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/swarm/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="simulation" data-store-type="behavior">
-          <a href="/robots/spring-mass/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🫧</div>
-            <div class="agent-body">
-              <span class="agent-name">Soft Body Robot</span>
-              <span class="agent-desc">Spring-mass deformable body — drag nodes, 4 shapes (blob/wor...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/spring-mass/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="manipulation" data-store-type="behavior">
-          <a href="/robots/gripper-sim/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🤏</div>
-            <div class="agent-body">
-              <span class="agent-name">Gripper Force Sim</span>
-              <span class="agent-desc">Parallel-jaw gripper — force vs weight vs friction. Slip/cru...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/gripper-sim/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="locomotion" data-store-type="behavior">
-          <a href="/robots/walker/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🚶</div>
-            <div class="agent-body">
-              <span class="agent-name">Walking Robot</span>
-              <span class="agent-desc">Bipedal walker — W to walk, P to push, Space to jump. Tune g...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/walker/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="locomotion" data-store-type="behavior">
-          <a href="/robots/rover/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🔴</div>
-            <div class="agent-body">
-              <span class="agent-name">Mars Rover</span>
-              <span class="agent-desc">6-wheeled rover on Mars — WASD, collect samples, avoid rocks...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/rover/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="learning" data-store-type="behavior">
-          <a href="/robots/neural-network/" class="agent-card-body">
-            <div class="agent-icon" style="background:#a855f7">🧠</div>
-            <div class="agent-body">
-              <span class="agent-name">Neural Network Trainer</span>
-              <span class="agent-desc">Train a net to classify 2D points — decision boundary forms ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/neural-network/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="navigation" data-store-type="behavior">
-          <a href="/robots/maze-solver/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🧩</div>
-            <div class="agent-body">
-              <span class="agent-name">Maze Solver</span>
-              <span class="agent-desc">Robot navigates random mazes — A* vs BFS vs Wall Following, ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/maze-solver/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="control" data-store-type="behavior">
-          <a href="/robots/pendulum/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">⚖️</div>
-            <div class="agent-body">
-              <span class="agent-name">Inverted Pendulum</span>
-              <span class="agent-desc">PID control — balance pendulum on cart, tune Kp/Ki/Kd, push ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/pendulum/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="simulation" data-store-type="behavior">
-          <a href="/robots/bouncing-ball/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🏀</div>
-            <div class="agent-body">
-              <span class="agent-name">Bouncing Ball</span>
-              <span class="agent-desc">3D rigid-body physics (Rapier.js) — 5 gravity modes, click t...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/bouncing-ball/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="navigation" data-store-type="behavior">
-          <a href="/robots/line-follower/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🛤️</div>
-            <div class="agent-body">
-              <span class="agent-name">Line Follower</span>
-              <span class="agent-desc">PID line-following robot — draw your own track, tune Kp/Ki/K...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/line-follower/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="perception" data-store-type="model">
-          <a href="/robots/pose-tracker/" class="agent-card-body">
-            <div class="agent-icon" style="background:#10b981">🤸</div>
-            <div class="agent-body">
-              <span class="agent-name">Pose Tracker</span>
-              <span class="agent-desc">17-keypoint human pose estimation (MoveNet) — skeleton overl...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/pose-tracker/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="perception" data-store-type="model">
-          <a href="/robots/object-detector/" class="agent-card-body">
-            <div class="agent-icon" style="background:#10b981">👁️</div>
-            <div class="agent-body">
-              <span class="agent-name">Object Detector</span>
-              <span class="agent-desc">DETR real-time detection — 80 classes from webcam, bounding ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/object-detector/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="perception" data-store-type="model">
-          <a href="/robots/depth-camera/" class="agent-card-body">
-            <div class="agent-icon" style="background:#10b981">📐</div>
-            <div class="agent-body">
-              <span class="agent-name">Depth Camera</span>
-              <span class="agent-desc">Monocular depth estimation — distance from single camera, 3 ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/depth-camera/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="actuators" data-store-type="firmware">
-          <a href="/robots/motor-controller/" class="agent-card-body">
-            <div class="agent-icon" style="background:#3b82f6">⚙️</div>
-            <div class="agent-body">
-              <span class="agent-name">DC Motor Controller</span>
-              <span class="agent-desc">Arduino PID motor driver — wiring, encoder feedback, tuning ...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(59,130,246,0.15);color:#60a5fa">Firmware</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/motor-controller/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="perception" data-store-type="model">
-          <a href="/robots/segment-anything/" class="agent-card-body">
-            <div class="agent-icon" style="background:#10b981">✂️</div>
-            <div class="agent-body">
-              <span class="agent-name">Segment Anything (SAM)</span>
-              <span class="agent-desc">Click to segment any object in an image. Meta AI SAM model r...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/segment-anything/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-
-        <div class="agent-card" data-category="interaction" data-store-type="behavior">
-          <a href="/robots/voice-control/" class="agent-card-body">
-            <div class="agent-icon" style="background:#f97316">🎙️</div>
-            <div class="agent-body">
-              <span class="agent-name">Voice-Controlled Robot</span>
-              <span class="agent-desc">Talk to control a robot arm. Say left/right/up/down/grab/dro...</span>
-              <div class="agent-meta">
-                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
-                <span class="tag"></span>
-              </div>
-            </div>
-          </a>
-          <a href="/robots/voice-control/" class="agent-cta">
-            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
-            Open
-          </a>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- API_KEYS_SECTION -->
-
-  <section class="container" style="margin-top:2rem">
-    <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1.5rem;text-align:center">
-      <h2 style="font-family:var(--font-display);font-size:1.25rem;margin-bottom:0.5rem">Bring Your Own API Key</h2>
-      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;max-width:500px;margin-left:auto;margin-right:auto">
-        Some agents use AI providers (OpenAI, Claude, Gemini). Add your API key once —
-        the platform securely stores it and injects it for you. You pay your provider directly.
-      </p>
-      <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:1rem">
-        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">OpenAI</span>
-        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">Anthropic</span>
-        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">Google AI</span>
-        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">Groq</span>
-        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">OpenRouter</span>
-      </div>
-      <a href="/v1/keys" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1.25rem;border-radius:10px;background:var(--accent);color:white;font-weight:600;font-size:0.88rem;text-decoration:none">Manage API Keys</a>
-      <p style="color:var(--muted-soft);font-size:0.72rem;margin-top:0.5rem">Encrypted with AES-256-GCM. Keys never leave the platform server.</p>
-    </div>
+  <section class="hero">
+    <h1>Free<span>Robot</span>Store</h1>
+    <p>Interactive robot simulations, physics engines, and AI models — all running in your browser. Free forever, open source.</p>
+    <span class="badge">26 Simulations</span>
+    <span class="badge">6 AI Models</span>
+    <span class="badge">Open Source</span>
   </section>
 
-  <!-- Where everything lives -->
-  <section class="container" style="padding-top:2rem;padding-bottom:2rem">
-    <p style="text-align:center;color:var(--muted);font-size:0.9rem;margin-bottom:2rem">
-      Looking for apps? Visit <a href="https://freeappstore.online">FreeAppStore</a> — free-forever web apps.
-    </p>
+  <div class="grid">
 
-    <h2 style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;margin-bottom:0.4rem">Where everything lives</h2>
-    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1.25rem">A map of every URL across the agent stores. Bookmark this page.</p>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;font-size:0.82rem">
-      <div>
-        <strong style="color:var(--ink);display:block;margin-bottom:0.4rem">For users</strong>
-        <a href="https://freerobotstore.online" style="display:block;color:var(--muted)">freerobotstore.online — AI tools</a>
-        <a href="https://freeappstore.online" style="display:block;color:var(--muted)">freeappstore.online — free apps</a>
-        <a href="https://freegamestore.online" style="display:block;color:var(--muted)">freegamestore.online — free games</a>
-        <a href="https://freewebstore.online" style="display:block;color:var(--muted)">freewebstore.online — free sites</a>
+    <a href="/robots/rl-walker/" class="card">
+      <div class="card-icon" style="background:#f97316">🧬</div>
+      <div class="card-body">
+        <div class="card-name">RL Walker</div>
+        <div class="card-desc">Watch creatures evolve walking gaits via neuroevolution. 20 stick figures, neural network brains, survival of the fittest.</div>
       </div>
-      <div>
-        <strong style="color:var(--ink);display:block;margin-bottom:0.4rem">For developers</strong>
-        <a href="/console/" style="display:block;color:var(--muted)">console — creator dashboard</a>
-        <a href="/skills.md" style="display:block;color:var(--muted)">/skills.md — platform guide</a>
-        <a href="https://github.com/FreeRobotStore/platform" style="display:block;color:var(--muted)">github.com/FreeRobotStore — source</a>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/drone-sim/" class="card">
+      <div class="card-icon" style="background:#f97316">🚁</div>
+      <div class="card-body">
+        <div class="card-name">Drone Simulator</div>
+        <div class="card-desc">3D quadcopter — WASD flight, hover/acro mode, ring course, wind, first-person cam, trees + landscape</div>
       </div>
-      <div>
-        <strong style="color:var(--ink);display:block;margin-bottom:0.4rem">MCP / CLI</strong>
-        <code style="display:block;color:var(--muted);font-size:0.78rem">npx mcp-remote https://mcp.freerobotstore.online/mcp</code>
-        <code style="display:block;color:var(--muted);font-size:0.78rem;margin-top:0.3rem">npm i -g @freerobotstore/cli</code>
-        <code style="display:block;color:var(--muted);font-size:0.78rem;margin-top:0.1rem">frs init my-agent</code>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/fluid-sim/" class="card">
+      <div class="card-icon" style="background:#06b6d4">💧</div>
+      <div class="card-body">
+        <div class="card-name">Fluid Simulation</div>
+        <div class="card-desc">SPH particle fluid — click to splash, dam break, obstacles. Adjust gravity/viscosity/pressure. Velocity/pressure/density colormaps.</div>
       </div>
-      <div>
-        <strong style="color:var(--ink);display:block;margin-bottom:0.4rem">Pro tier</strong>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/spider-robot/" class="card">
+      <div class="card-icon" style="background:#f97316">🕷️</div>
+      <div class="card-body">
+        <div class="card-name">Spider Robot</div>
+        <div class="card-desc">6-legged hexapod with IK — WASD walk, 3 gaits (tripod/wave/ripple), 18 servo joints, adjustable height/stride/speed.</div>
       </div>
-    </div>
-  </section>
+      <span class="card-cta">Open →</span>
+    </a>
 
-  <footer>
-    <div class="container">
-      <div class="footer-brand">
-        <div class="name">Free<span>Agent</span>Store</div>
-        <p>49 AI tools — libraries, models, and agents. Free forever, open source, runs on your device.</p>
+    <a href="/robots/snake-robot/" class="card">
+      <div class="card-icon" style="background:#f97316">🐍</div>
+      <div class="card-body">
+        <div class="card-name">Snake Robot</div>
+        <div class="card-desc">16-segment serpentine robot — WASD steer, 3 locomotion modes (lateral/sidewind/rectilinear), adjustable amplitude/frequency.</div>
       </div>
-      <div class="footer-links">
-        <a href="/">Agents</a>
-        <a href="/about/">About</a>
-        <a href="/get-started/">Get Started</a>
-        <a href="/console/">Console</a>
-        <a href="/skills.md">Docs</a>
-        <a href="https://github.com/FreeRobotStore">GitHub</a>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/robot-soccer/" class="card">
+      <div class="card-icon" style="background:#f97316">⚽</div>
+      <div class="card-body">
+        <div class="card-name">Robot Soccer</div>
+        <div class="card-desc">3v3 robot soccer — WASD + boost, AI teammates, score goals, adjustable difficulty, 2-player mode (IJKL)</div>
       </div>
-      <div class="footer-stores">
-        <strong style="color:var(--muted);font-size:0.72rem">FreeStore Family</strong>
-        <a href="https://freeappstore.online">FreeAppStore</a>
-        <a href="https://freegamestore.online">FreeGameStore</a>
-        <a href="https://freewebstore.online">FreeWebStore</a>
-        <a href="https://freerobotstore.online"><strong style="color:var(--muted)">FreeRobotStore</strong></a>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/crane-sim/" class="card">
+      <div class="card-icon" style="background:#f97316">🏗️</div>
+      <div class="card-body">
+        <div class="card-name">Tower Crane</div>
+        <div class="card-desc">Operate a tower crane — rotate, trolley, cable controls. Pick up crates, deliver to zones. Pendulum physics + wind.</div>
       </div>
-    </div>
-  </footer>
+      <span class="card-cta">Open →</span>
+    </a>
 
-  <script>
-    var _tab = 'all';
-    var _category = 'all';
+    <a href="/robots/particle-filter/" class="card">
+      <div class="card-icon" style="background:#a855f7">📍</div>
+      <div class="card-body">
+        <div class="card-name">Particle Filter</div>
+        <div class="card-desc">Robot localization demo — 500 particles converge on true position using landmarks. Drive and watch it localize.</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
 
-    function switchTab(tab) {
-      _tab = tab;
-      document.querySelectorAll('.tab').forEach(function(t) {
-        var label = t.textContent.trim().split(' ')[0].toLowerCase();
-        t.classList.toggle('active', label === tab || (tab === 'all' && label === 'all'));
-      });
-      applyFilters();
-    }
+    <a href="/robots/robot-arm/" class="card">
+      <div class="card-icon" style="background:#f97316">🦾</div>
+      <div class="card-body">
+        <div class="card-name">Robot Arm</div>
+        <div class="card-desc">5-DOF arm — keyboard (QWASDE), mouse orbit/zoom, pick/wave/scan presets, add scene objects</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
 
-    function filterCategory(cat) {
-      _category = cat;
-      document.querySelectorAll('.toolbar .filter-btn').forEach(function(b) {
-        b.classList.toggle('active', b.textContent.toLowerCase() === cat || (cat === 'all' && b.textContent === 'All'));
-      });
-      applyFilters();
-    }
+    <a href="/robots/car-physics/" class="card">
+      <div class="card-icon" style="background:#f97316">🏎️</div>
+      <div class="card-body">
+        <div class="card-name">Car Physics</div>
+        <div class="card-desc">Ackermann steering + tire friction — WASD, handbrake drifting, tire marks, track mode, speedometer</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
 
-    function applyFilters() {
-      var cards = document.querySelectorAll('.agent-card');
-      var visible = 0;
-      cards.forEach(function(c) {
-        var tabMatch = _tab === 'all' || c.dataset.storeType === _tab;
-        var catMatch = _category === 'all' || c.dataset.category === _category;
-        var show = tabMatch && catMatch;
-        c.style.display = show ? '' : 'none';
-        if (show) visible++;
-      });
-      document.getElementById('agentCount').textContent = visible + ' agent' + (visible !== 1 ? 's' : '');
-    }
-  </script>
+    <a href="/robots/swarm/" class="card">
+      <div class="card-icon" style="background:#f97316">🐝</div>
+      <div class="card-body">
+        <div class="card-name">Robot Swarm</div>
+        <div class="card-desc">60-200 boids flocking — click to attract, separation/alignment/cohesion, predator mode, formations</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
 
-  <script>
-    (function() {
-      // Handle login callback: /?login=success#session=<token>
-      if (location.search.includes('login=success') && location.hash.startsWith('#session=')) {
-        var token = location.hash.slice('#session='.length);
-        if (token) {
-          localStorage.setItem('frs_session', JSON.stringify({ token: token }));
-          // Clean URL
-          history.replaceState(null, '', '/');
-          location.reload();
-          return;
-        }
-      }
+    <a href="/robots/spring-mass/" class="card">
+      <div class="card-icon" style="background:#f97316">🫧</div>
+      <div class="card-body">
+        <div class="card-name">Soft Body Robot</div>
+        <div class="card-desc">Spring-mass deformable body — drag nodes, 4 shapes (blob/worm/wheel/cube), pin nodes, throw</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
 
-      var session = null;
-      try {
-        var stored = localStorage.getItem('frs_session');
-        if (stored) session = JSON.parse(stored);
-      } catch (_) {}
+    <a href="/robots/gripper-sim/" class="card">
+      <div class="card-icon" style="background:#f97316">🤏</div>
+      <div class="card-body">
+        <div class="card-name">Gripper Force Sim</div>
+        <div class="card-desc">Parallel-jaw gripper — force vs weight vs friction. Slip/crush detection. Force balance diagram.</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
 
-      var loginEl = document.getElementById('auth-login');
-      var userEl = document.getElementById('auth-user');
-      var avatarEl = document.getElementById('auth-avatar');
-      var signoutEl = document.getElementById('auth-signout');
+    <a href="/robots/walker/" class="card">
+      <div class="card-icon" style="background:#f97316">🚶</div>
+      <div class="card-body">
+        <div class="card-name">Walking Robot</div>
+        <div class="card-desc">Bipedal walker — W to walk, P to push, Space to jump. Tune gait, track distance, balance meter.</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
 
-      if (session && session.token) {
-        // Decode payload to get avatar + login
-        try {
-          var parts = session.token.split('.');
-          var payload = JSON.parse(atob(parts[0]));
-          if (payload.exp && payload.exp < Date.now() / 1000) {
-            // Expired — clear and show login
-            localStorage.removeItem('frs_session');
-            session = null;
-          } else {
-            avatarEl.src = payload.avatar || '';
-            avatarEl.alt = payload.login || '';
-            userEl.style.display = 'flex';
-          }
-        } catch (_) {
-          localStorage.removeItem('frs_session');
-          session = null;
-        }
-      }
+    <a href="/robots/rover/" class="card">
+      <div class="card-icon" style="background:#f97316">🔴</div>
+      <div class="card-body">
+        <div class="card-name">Mars Rover</div>
+        <div class="card-desc">6-wheeled rover on Mars — WASD, collect samples, avoid rocks/craters, auto-explore, compass</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
 
-      if (!session) {
-        loginEl.style.display = 'inline-block';
-      }
+    <a href="/robots/neural-network/" class="card">
+      <div class="card-icon" style="background:#a855f7">🧠</div>
+      <div class="card-body">
+        <div class="card-name">Neural Network Trainer</div>
+        <div class="card-desc">Train a net to classify 2D points — decision boundary forms live, 4 datasets, loss curve, accuracy</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
 
-      signoutEl.addEventListener('click', function() {
-        fetch('/v1/auth/logout', { method: 'POST' }).finally(function() {
-          localStorage.removeItem('frs_session');
-          location.reload();
-        });
-      });
-    })();
-  </script>
+    <a href="/robots/maze-solver/" class="card">
+      <div class="card-icon" style="background:#f97316">🧩</div>
+      <div class="card-body">
+        <div class="card-name">Maze Solver</div>
+        <div class="card-desc">Robot navigates random mazes — A* vs BFS vs Wall Following, adjustable speed</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/pendulum/" class="card">
+      <div class="card-icon" style="background:#f97316">⚖️</div>
+      <div class="card-body">
+        <div class="card-name">Inverted Pendulum</div>
+        <div class="card-desc">PID control — balance pendulum on cart, tune Kp/Ki/Kd, push to disturb, auto-tune</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/bouncing-ball/" class="card">
+      <div class="card-icon" style="background:#f97316">🏀</div>
+      <div class="card-body">
+        <div class="card-name">Bouncing Ball</div>
+        <div class="card-desc">3D rigid-body physics (Rapier.js) — 5 gravity modes, click to drop, orbit camera</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/line-follower/" class="card">
+      <div class="card-icon" style="background:#f97316">🛤️</div>
+      <div class="card-body">
+        <div class="card-name">Line Follower</div>
+        <div class="card-desc">PID line-following robot — draw your own track, tune Kp/Ki/Kd</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/pose-tracker/" class="card">
+      <div class="card-icon" style="background:#10b981">🤸</div>
+      <div class="card-body">
+        <div class="card-name">Pose Tracker</div>
+        <div class="card-desc">17-keypoint human pose estimation (MoveNet) — skeleton overlay, for teleoperation/gesture control</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/object-detector/" class="card">
+      <div class="card-icon" style="background:#10b981">👁️</div>
+      <div class="card-body">
+        <div class="card-name">Object Detector</div>
+        <div class="card-desc">DETR real-time detection — 80 classes from webcam, bounding boxes, confidence</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/depth-camera/" class="card">
+      <div class="card-icon" style="background:#10b981">📐</div>
+      <div class="card-body">
+        <div class="card-name">Depth Camera</div>
+        <div class="card-desc">Monocular depth estimation — distance from single camera, 3 colormaps</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/motor-controller/" class="card">
+      <div class="card-icon" style="background:#3b82f6">⚙️</div>
+      <div class="card-body">
+        <div class="card-name">DC Motor Controller</div>
+        <div class="card-desc">Arduino PID motor driver — wiring, encoder feedback, tuning guide, copy-paste code</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/segment-anything/" class="card">
+      <div class="card-icon" style="background:#10b981">✂️</div>
+      <div class="card-body">
+        <div class="card-name">Segment Anything (SAM)</div>
+        <div class="card-desc">Click to segment any object in an image. Meta AI SAM model running in your browser (~50MB). Upload or use webcam.</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+    <a href="/robots/voice-control/" class="card">
+      <div class="card-icon" style="background:#f97316">🎙️</div>
+      <div class="card-body">
+        <div class="card-name">Voice-Controlled Robot</div>
+        <div class="card-desc">Talk to control a robot arm. Say left/right/up/down/grab/drop/wave. Web Speech API — zero download.</div>
+      </div>
+      <span class="card-cta">Open →</span>
+    </a>
+
+  </div>
+
+  <footer>FreeRobotStore — Interactive robot simulations</footer>
 </body>
 </html>
