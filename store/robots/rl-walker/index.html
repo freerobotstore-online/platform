@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RL Walker - Neuroevolution | FreeRobotStore</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0a0f;color:#e2e2e8;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+  header{padding:18px 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1e1e2e}
+  header .logo{font-size:24px}
+  header h1{font-size:18px;font-weight:600;color:#fdba74}
+  header span{font-size:13px;color:#f97316;margin-left:auto;font-weight:500}
+  .main{display:flex;flex:1;overflow:hidden}
+  .sidebar{width:320px;min-width:320px;border-right:1px solid #1e1e2e;padding:20px;overflow-y:auto}
+  .canvas-wrap{flex:1;display:flex;flex-direction:column}
+  canvas{flex:1;display:block;width:100%}
+  .controls{padding:12px 20px;border-top:1px solid #1e1e2e;display:flex;gap:10px;align-items:center}
+  button{background:#f97316;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s}
+  button:hover{background:#ea580c}
+  button.secondary{background:#1e1e2e;color:#fdba74;border:1px solid #2e2e3e}
+  button.secondary:hover{background:#2e2e3e}
+  button.active{background:#ea580c;box-shadow:0 0 8px #f9731644}
+  .stat-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #111118;font-size:13px}
+  .stat-row .label{color:#888}
+  .stat-row .value{color:#fdba74;font-weight:600;font-family:'Courier New',monospace}
+  h2{font-size:14px;font-weight:600;color:#fdba74;margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px}
+  h2:first-child{margin-top:0}
+  .chart-wrap{background:#0d0d14;border:1px solid #1e1e2e;border-radius:8px;padding:12px;margin-top:8px}
+  canvas.chart{width:100%;height:140px}
+  .speed-btns{display:flex;gap:4px}
+  .speed-btns button{padding:6px 12px;font-size:12px}
+  .legend{display:flex;gap:14px;margin-top:6px;font-size:11px;color:#888}
+  .legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle}
+  .legend .best::before{background:#f97316}
+  .legend .avg::before{background:#60a5fa}
+  .info{font-size:12px;color:#666;line-height:1.5;margin-top:12px;padding:12px;background:#0d0d14;border-radius:8px;border:1px solid #1e1e2e}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">&#129470;</div>
+  <h1>Reinforcement Learning Walker</h1>
+  <span>FreeRobotStore</span>
+</header>
+<div class="main">
+  <div class="sidebar">
+    <h2>Generation Stats</h2>
+    <div class="stat-row"><span class="label">Generation</span><span class="value" id="genNum">0</span></div>
+    <div class="stat-row"><span class="label">Best Distance</span><span class="value" id="bestDist">0.00</span></div>
+    <div class="stat-row"><span class="label">Avg Distance</span><span class="value" id="avgDist">0.00</span></div>
+    <div class="stat-row"><span class="label">Population</span><span class="value" id="popSize">20</span></div>
+    <div class="stat-row"><span class="label">Time</span><span class="value" id="simTime">0.0s</span></div>
+    <div class="stat-row"><span class="label">Status</span><span class="value" id="status">Ready</span></div>
+
+    <h2>Fitness History</h2>
+    <div class="chart-wrap">
+      <canvas id="chart" class="chart" width="276" height="140"></canvas>
+    </div>
+    <div class="legend"><span class="best">Best</span><span class="avg">Average</span></div>
+
+    <h2>Neural Network</h2>
+    <div class="stat-row"><span class="label">Inputs</span><span class="value">6</span></div>
+    <div class="stat-row"><span class="label">Hidden</span><span class="value">8</span></div>
+    <div class="stat-row"><span class="label">Outputs</span><span class="value">4</span></div>
+    <div class="stat-row"><span class="label">Weights</span><span class="value">84</span></div>
+
+    <div class="info">
+      Each creature has a small neural network controlling 4 joint torques.
+      Inputs: hip &amp; knee angles (4) + body angle + angular velocity.
+      The best 5 walkers breed via crossover + mutation to form the next generation of 20.
+    </div>
+  </div>
+  <div class="canvas-wrap">
+    <canvas id="sim"></canvas>
+    <div class="controls">
+      <button id="btnEvolve" onclick="startEvolution()">Start Evolution</button>
+      <button class="secondary" onclick="stopEvolution()">Pause</button>
+      <button class="secondary" onclick="resetAll()">Reset</button>
+      <div class="speed-btns" style="margin-left:auto">
+        <button class="secondary" onclick="setSpeed(1)" id="sp1">1x</button>
+        <button class="secondary" onclick="setSpeed(5)" id="sp5">5x</button>
+        <button class="secondary" onclick="setSpeed(10)" id="sp10">10x</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SIM_STEPS = 600; // steps per evaluation
+const POP_SIZE = 20;
+const ELITE_COUNT = 5;
+const MUTATION_RATE = 0.15;
+const MUTATION_STRENGTH = 0.5;
+const DT = 1 / 60;
+const GRAVITY = -9.8;
+const GROUND_Y = 0;
+
+// Neural network: 6 inputs -> 8 hidden (tanh) -> 4 outputs (tanh)
+const N_IN = 6, N_HID = 8, N_OUT = 4;
+const N_WEIGHTS = N_IN * N_HID + N_HID + N_HID * N_OUT + N_OUT; // 48 + 8 + 32 + 4 = 92... let me recalc
+// Actually: (6*8) + 8 + (8*4) + 4 = 48+8+32+4 = 92
+
+function createNN() {
+  const w = new Float32Array(N_IN * N_HID + N_HID + N_HID * N_OUT + N_OUT);
+  for (let i = 0; i < w.length; i++) w[i] = (Math.random() - 0.5) * 2;
+  return w;
+}
+
+function runNN(w, inputs) {
+  let idx = 0;
+  // Hidden layer
+  const hidden = new Float32Array(N_HID);
+  for (let h = 0; h < N_HID; h++) {
+    let sum = 0;
+    for (let i = 0; i < N_IN; i++) sum += inputs[i] * w[idx++];
+    hidden[h] = Math.tanh(sum + w[N_IN * N_HID + h]);
+  }
+  idx = N_IN * N_HID + N_HID;
+  // Output layer
+  const outputs = new Float32Array(N_OUT);
+  for (let o = 0; o < N_OUT; o++) {
+    let sum = 0;
+    for (let h = 0; h < N_HID; h++) sum += hidden[h] * w[idx++];
+    outputs[o] = Math.tanh(sum + w[N_IN * N_HID + N_HID + N_HID * N_OUT + o]);
+  }
+  return outputs;
+}
+
+// Creature physics: body + 2 legs, each with hip and knee
+// Simplified: body is a rectangle, each leg has upper and lower segment
+class Creature {
+  constructor(nn) {
+    this.nn = nn;
+    this.reset();
+  }
+
+  reset() {
+    // Body center
+    this.x = 0;
+    this.y = 1.2;
+    this.angle = 0;
+    this.vx = 0;
+    this.vy = 0;
+    this.vangle = 0;
+    // Joint angles (relative to body for hips, relative to upper leg for knees)
+    this.hipL = -0.2;
+    this.hipR = 0.2;
+    this.kneeL = 0.3;
+    this.kneeR = 0.3;
+    this.vHipL = 0;
+    this.vHipR = 0;
+    this.vKneeL = 0;
+    this.vKneeR = 0;
+    this.fitness = 0;
+    this.alive = true;
+    this.startX = 0;
+  }
+
+  step() {
+    if (!this.alive) return;
+
+    const inputs = [
+      this.hipL / Math.PI,
+      this.hipR / Math.PI,
+      this.kneeL / Math.PI,
+      this.kneeR / Math.PI,
+      this.angle / Math.PI,
+      this.vangle / 5
+    ];
+    const out = runNN(this.nn, inputs);
+    const torqueScale = 12;
+    const tHipL = out[0] * torqueScale;
+    const tHipR = out[1] * torqueScale;
+    const tKneeL = out[2] * torqueScale;
+    const tKneeR = out[3] * torqueScale;
+
+    // Apply torques as angular accelerations on joints
+    this.vHipL += tHipL * DT;
+    this.vHipR += tHipR * DT;
+    this.vKneeL += tKneeL * DT;
+    this.vKneeR += tKneeR * DT;
+
+    // Damping
+    this.vHipL *= 0.95;
+    this.vHipR *= 0.95;
+    this.vKneeL *= 0.95;
+    this.vKneeR *= 0.95;
+
+    this.hipL += this.vHipL * DT;
+    this.hipR += this.vHipR * DT;
+    this.kneeL += this.vKneeL * DT;
+    this.kneeR += this.vKneeR * DT;
+
+    // Joint limits
+    this.hipL = Math.max(-1.2, Math.min(1.2, this.hipL));
+    this.hipR = Math.max(-1.2, Math.min(1.2, this.hipR));
+    this.kneeL = Math.max(0, Math.min(2.2, this.kneeL));
+    this.kneeR = Math.max(0, Math.min(2.2, this.kneeR));
+
+    // Compute foot positions
+    const legLen = 0.45;
+    const footL = this.getFootPos('L');
+    const footR = this.getFootPos('R');
+
+    // Ground contact forces
+    let forceX = 0, forceY = 0, torque = 0;
+
+    [footL, footR].forEach(foot => {
+      if (foot.y < GROUND_Y) {
+        const penetration = GROUND_Y - foot.y;
+        forceY += penetration * 200; // spring
+        forceY += -this.vy * 10; // damper
+        // Friction
+        const friction = -this.vx * 5;
+        forceX += friction;
+      }
+    });
+
+    // Gravity
+    forceY += GRAVITY * 2;
+
+    // Body rotation spring (penalize extreme angles)
+    torque += -this.angle * 20 - this.vangle * 5;
+
+    // Joint reaction torques on body
+    torque += -(tHipL + tHipR) * 0.1;
+
+    // Update body
+    this.vx += forceX * DT;
+    this.vy += forceY * DT;
+    this.vangle += torque * DT;
+
+    this.x += this.vx * DT;
+    this.y += this.vy * DT;
+    this.angle += this.vangle * DT;
+
+    // Keep body above ground
+    if (this.y < 0.4) {
+      this.y = 0.4;
+      this.vy = Math.max(0, this.vy);
+    }
+
+    // Dead if fallen
+    if (Math.abs(this.angle) > 1.5) {
+      this.alive = false;
+    }
+
+    this.fitness = this.x - this.startX;
+  }
+
+  getFootPos(side) {
+    const hip = side === 'L' ? this.hipL : this.hipR;
+    const knee = side === 'L' ? this.kneeL : this.kneeR;
+    const hipOffX = side === 'L' ? -0.15 : 0.15;
+    const upperLen = 0.45, lowerLen = 0.4;
+
+    const hipX = this.x + hipOffX * Math.cos(this.angle);
+    const hipY = this.y + hipOffX * Math.sin(this.angle) - 0.2;
+
+    const absHip = this.angle + hip - Math.PI / 2;
+    const kneeX = hipX + upperLen * Math.cos(absHip);
+    const kneeY = hipY + upperLen * Math.sin(absHip);
+
+    const absKnee = absHip + knee;
+    const footX = kneeX + lowerLen * Math.cos(absKnee);
+    const footY = kneeY + lowerLen * Math.sin(absKnee);
+
+    return { x: footX, y: footY, kneeX, kneeY, hipX, hipY };
+  }
+}
+
+// Evolution
+let population = [];
+let generation = 0;
+let bestHistory = [];
+let avgHistory = [];
+let simStep = 0;
+let running = false;
+let speed = 1;
+let animId = null;
+let evaluating = false;
+
+function initPopulation() {
+  population = [];
+  for (let i = 0; i < POP_SIZE; i++) {
+    population.push(new Creature(createNN()));
+  }
+}
+
+function evolve() {
+  // Sort by fitness
+  population.sort((a, b) => b.fitness - a.fitness);
+
+  const bestFit = population[0].fitness;
+  const avgFit = population.reduce((s, c) => s + c.fitness, 0) / POP_SIZE;
+  bestHistory.push(bestFit);
+  avgHistory.push(avgFit);
+
+  // Select elite
+  const elites = population.slice(0, ELITE_COUNT).map(c => c.nn.slice());
+
+  // Breed next generation
+  const newPop = [];
+  // Keep elites
+  elites.forEach(nn => newPop.push(new Creature(nn)));
+
+  // Fill rest with crossover + mutation
+  while (newPop.length < POP_SIZE) {
+    const p1 = elites[Math.floor(Math.random() * ELITE_COUNT)];
+    const p2 = elites[Math.floor(Math.random() * ELITE_COUNT)];
+    const child = new Float32Array(p1.length);
+    for (let i = 0; i < child.length; i++) {
+      child[i] = Math.random() < 0.5 ? p1[i] : p2[i];
+      if (Math.random() < MUTATION_RATE) {
+        child[i] += (Math.random() - 0.5) * MUTATION_STRENGTH;
+      }
+    }
+    newPop.push(new Creature(child));
+  }
+
+  population = newPop;
+  generation++;
+  simStep = 0;
+}
+
+function setSpeed(s) {
+  speed = s;
+  document.querySelectorAll('.speed-btns button').forEach(b => b.classList.remove('active'));
+  document.getElementById('sp' + s).classList.add('active');
+}
+
+function startEvolution() {
+  if (running) return;
+  running = true;
+  document.getElementById('status').textContent = 'Running';
+  document.getElementById('btnEvolve').textContent = 'Running...';
+  if (population.length === 0) initPopulation();
+  loop();
+}
+
+function stopEvolution() {
+  running = false;
+  document.getElementById('status').textContent = 'Paused';
+  document.getElementById('btnEvolve').textContent = 'Resume';
+  if (animId) cancelAnimationFrame(animId);
+}
+
+function resetAll() {
+  stopEvolution();
+  population = [];
+  generation = 0;
+  bestHistory = [];
+  avgHistory = [];
+  simStep = 0;
+  document.getElementById('genNum').textContent = '0';
+  document.getElementById('bestDist').textContent = '0.00';
+  document.getElementById('avgDist').textContent = '0.00';
+  document.getElementById('status').textContent = 'Ready';
+  document.getElementById('btnEvolve').textContent = 'Start Evolution';
+  drawSim();
+  drawChart();
+}
+
+function loop() {
+  if (!running) return;
+
+  for (let sp = 0; sp < speed; sp++) {
+    if (simStep < SIM_STEPS) {
+      population.forEach(c => c.step());
+      simStep++;
+    } else {
+      evolve();
+    }
+  }
+
+  // Update stats
+  const best = Math.max(...population.map(c => c.fitness));
+  const avg = population.reduce((s, c) => s + c.fitness, 0) / POP_SIZE;
+  document.getElementById('genNum').textContent = generation;
+  document.getElementById('bestDist').textContent = best.toFixed(2);
+  document.getElementById('avgDist').textContent = avg.toFixed(2);
+  document.getElementById('simTime').textContent = (simStep * DT).toFixed(1) + 's';
+
+  drawSim();
+  if (simStep % 30 === 0 || simStep >= SIM_STEPS) drawChart();
+
+  animId = requestAnimationFrame(loop);
+}
+
+// Rendering
+const simCanvas = document.getElementById('sim');
+const simCtx = simCanvas.getContext('2d');
+
+function resizeSim() {
+  const rect = simCanvas.parentElement.getBoundingClientRect();
+  simCanvas.width = rect.width;
+  simCanvas.height = rect.height - 52; // minus controls
+}
+window.addEventListener('resize', () => { resizeSim(); drawSim(); });
+resizeSim();
+
+function drawSim() {
+  const W = simCanvas.width, H = simCanvas.height;
+  const ctx = simCtx;
+  ctx.clearRect(0, 0, W, H);
+
+  // Camera follows best creature
+  let camX = 0;
+  if (population.length > 0) {
+    const sorted = [...population].sort((a, b) => b.fitness - a.fitness);
+    camX = sorted[0].x;
+  }
+
+  const scale = 80; // pixels per meter
+  const groundScreenY = H * 0.7;
+
+  function toScreen(wx, wy) {
+    return {
+      x: W / 2 + (wx - camX) * scale,
+      y: groundScreenY - wy * scale
+    };
+  }
+
+  // Ground
+  ctx.fillStyle = '#111118';
+  ctx.fillRect(0, groundScreenY, W, H - groundScreenY);
+  ctx.strokeStyle = '#2e2e3e';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, groundScreenY);
+  ctx.lineTo(W, groundScreenY);
+  ctx.stroke();
+
+  // Grid marks
+  ctx.fillStyle = '#333';
+  ctx.font = '10px monospace';
+  for (let m = Math.floor(camX - W / scale / 2) - 1; m < camX + W / scale / 2 + 1; m++) {
+    const sx = toScreen(m, 0);
+    ctx.fillRect(sx.x, groundScreenY, 1, 8);
+    if (m % 5 === 0) ctx.fillText(m + 'm', sx.x + 2, groundScreenY + 18);
+  }
+
+  // Draw creatures (worst first so best is on top)
+  const sorted = [...population].sort((a, b) => a.fitness - b.fitness);
+  sorted.forEach((c, i) => {
+    const alpha = i === sorted.length - 1 ? 1 : 0.15;
+    const color = i === sorted.length - 1 ? '#f97316' : '#f9731644';
+    drawCreature(ctx, c, toScreen, scale, color, alpha);
+  });
+
+  // Start line
+  const startS = toScreen(0, 0);
+  ctx.strokeStyle = '#f9731644';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(startS.x, 0);
+  ctx.lineTo(startS.x, H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawCreature(ctx, c, toScreen, scale, color, alpha) {
+  ctx.globalAlpha = alpha;
+
+  // Body
+  const bodyW = 0.35, bodyH = 0.15;
+  const corners = [
+    [-bodyW/2, bodyH/2], [bodyW/2, bodyH/2],
+    [bodyW/2, -bodyH/2], [-bodyW/2, -bodyH/2]
+  ].map(([lx, ly]) => {
+    const rx = lx * Math.cos(c.angle) - ly * Math.sin(c.angle) + c.x;
+    const ry = lx * Math.sin(c.angle) + ly * Math.cos(c.angle) + c.y;
+    return toScreen(rx, ry);
+  });
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(corners[0].x, corners[0].y);
+  corners.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.closePath();
+  ctx.fill();
+
+  // Head (small circle)
+  const headX = c.x + 0.2 * Math.cos(c.angle);
+  const headY = c.y + 0.2 * Math.sin(c.angle) + 0.12;
+  const hs = toScreen(headX, headY);
+  ctx.beginPath();
+  ctx.arc(hs.x, hs.y, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs
+  ['L', 'R'].forEach(side => {
+    const foot = c.getFootPos(side);
+    const hip = toScreen(foot.hipX, foot.hipY);
+    const knee = toScreen(foot.kneeX, foot.kneeY);
+    const ft = toScreen(foot.x, foot.y);
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(hip.x, hip.y);
+    ctx.lineTo(knee.x, knee.y);
+    ctx.lineTo(ft.x, ft.y);
+    ctx.stroke();
+
+    // Joint dots
+    ctx.fillStyle = '#fff';
+    [hip, knee, ft].forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  });
+
+  ctx.globalAlpha = 1;
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (bestHistory.length < 2) return;
+
+  const allVals = [...bestHistory, ...avgHistory];
+  const maxVal = Math.max(...allVals, 1);
+  const minVal = Math.min(...allVals, 0);
+  const range = maxVal - minVal || 1;
+
+  function toX(i) { return (i / (bestHistory.length - 1)) * (W - 20) + 10; }
+  function toY(v) { return H - 10 - ((v - minVal) / range) * (H - 20); }
+
+  // Grid
+  ctx.strokeStyle = '#1e1e2e';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 5; i++) {
+    const y = 10 + i * (H - 20) / 4;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Average line
+  ctx.strokeStyle = '#60a5fa';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  avgHistory.forEach((v, i) => {
+    i === 0 ? ctx.moveTo(toX(i), toY(v)) : ctx.lineTo(toX(i), toY(v));
+  });
+  ctx.stroke();
+
+  // Best line
+  ctx.strokeStyle = '#f97316';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  bestHistory.forEach((v, i) => {
+    i === 0 ? ctx.moveTo(toX(i), toY(v)) : ctx.lineTo(toX(i), toY(v));
+  });
+  ctx.stroke();
+
+  // Axis labels
+  ctx.fillStyle = '#666';
+  ctx.font = '9px monospace';
+  ctx.fillText(maxVal.toFixed(1), 0, 10);
+  ctx.fillText(minVal.toFixed(1), 0, H - 2);
+}
+
+// Init
+setSpeed(1);
+drawSim();
+</script>
+</body>
+</html>
