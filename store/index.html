@@ -175,10 +175,10 @@
 
     <section>
       <div class="tabs">
-          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">23</span></button>
+          <button class="tab active" onclick="switchTab('all')">All <span class="tab-count">25</span></button>
           <button class="tab" onclick="switchTab('firmware')">Firmware <span class="tab-count">1</span></button>
-          <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">3</span></button>
-          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">19</span></button>
+          <button class="tab" onclick="switchTab('model')">Models <span class="tab-count">4</span></button>
+          <button class="tab" onclick="switchTab('behavior')">Behaviors <span class="tab-count">20</span></button>
         </div>
 
         <div class="toolbar">
@@ -194,7 +194,8 @@
         <button class="filter-btn" onclick="filterCategory('control')">Control</button>
         <button class="filter-btn" onclick="filterCategory('perception')">Perception</button>
         <button class="filter-btn" onclick="filterCategory('actuators')">Actuators</button>
-        <span class="agent-count" id="agentCount">23 agents</span>
+        <button class="filter-btn" onclick="filterCategory('interaction')">Interaction</button>
+        <span class="agent-count" id="agentCount">25 agents</span>
       </div>
             <div class="agents-grid" id="agentsGrid">
         <div class="agent-card" data-category="flight" data-store-type="behavior">
@@ -610,11 +611,66 @@
             Open
           </a>
         </div>
+
+        <div class="agent-card" data-category="perception" data-store-type="model">
+          <a href="/robots/segment-anything/" class="agent-card-body">
+            <div class="agent-icon" style="background:#10b981">✂️</div>
+            <div class="agent-body">
+              <span class="agent-name">Segment Anything (SAM)</span>
+              <span class="agent-desc">Click to segment any object in an image. Meta AI SAM model r...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(16,185,129,0.15);color:#34d399">Model</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/segment-anything/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
+
+        <div class="agent-card" data-category="interaction" data-store-type="behavior">
+          <a href="/robots/voice-control/" class="agent-card-body">
+            <div class="agent-icon" style="background:#f97316">🎙️</div>
+            <div class="agent-body">
+              <span class="agent-name">Voice-Controlled Robot</span>
+              <span class="agent-desc">Talk to control a robot arm. Say left/right/up/down/grab/dro...</span>
+              <div class="agent-meta">
+                <span class="tag" style="background:rgba(249,115,22,0.15);color:#fb923c">Behavior</span>
+                <span class="tag"></span>
+              </div>
+            </div>
+          </a>
+          <a href="/robots/voice-control/" class="agent-cta">
+            <svg viewBox="0 0 24 24"><polygon points="6,4 20,12 6,20"/></svg>
+            Open
+          </a>
+        </div>
       </div>
     </section>
   </main>
 
-  
+  <!-- API_KEYS_SECTION -->
+
+  <section class="container" style="margin-top:2rem">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:1.5rem;text-align:center">
+      <h2 style="font-family:var(--font-display);font-size:1.25rem;margin-bottom:0.5rem">Bring Your Own API Key</h2>
+      <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;max-width:500px;margin-left:auto;margin-right:auto">
+        Some agents use AI providers (OpenAI, Claude, Gemini). Add your API key once —
+        the platform securely stores it and injects it for you. You pay your provider directly.
+      </p>
+      <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:1rem">
+        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">OpenAI</span>
+        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">Anthropic</span>
+        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">Google AI</span>
+        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">Groq</span>
+        <span style="display:flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:8px;border:1px solid var(--line);font-size:0.82rem;color:var(--muted)">OpenRouter</span>
+      </div>
+      <a href="/v1/keys" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1.25rem;border-radius:10px;background:var(--accent);color:white;font-weight:600;font-size:0.88rem;text-decoration:none">Manage API Keys</a>
+      <p style="color:var(--muted-soft);font-size:0.72rem;margin-top:0.5rem">Encrypted with AES-256-GCM. Keys never leave the platform server.</p>
+    </div>
+  </section>
 
   <!-- Where everything lives -->
   <section class="container" style="padding-top:2rem;padding-bottom:2rem">
