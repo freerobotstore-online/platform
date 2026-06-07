@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serge — FreeRobotStore Creator</title>
+  <meta name="description" content="Serge has built 25 simulations on FreeRobotStore.">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;min-height:100vh}
+    .container{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+    a{color:#f97316;text-decoration:none}a:hover{text-decoration:underline}
+    header{border-bottom:1px solid #1a1a1a;padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem}
+    .brand{font-family:'Fraunces',serif;font-size:1.05rem;font-weight:700;color:#fafafa;text-decoration:none}
+    nav{display:flex;gap:1rem;font-size:.82rem;font-weight:600;margin-left:auto}
+    nav a{color:#737373}nav a:hover{color:#fafafa}
+    .profile{display:flex;align-items:center;gap:1.25rem;margin-bottom:2rem;flex-wrap:wrap}
+    .profile h1{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700}
+    .profile .stats{font-size:.85rem;color:#737373;margin-top:.25rem}
+    .profile .stats b{color:#f97316}
+    .badge{display:inline-block;font-size:.68rem;padding:.15rem .5rem;border-radius:4px;background:rgba(124,58,237,.1);color:#f97316;font-weight:600;margin-right:.25rem;margin-bottom:.25rem}
+    .github{display:inline-flex;align-items:center;gap:.35rem;padding:.3rem .7rem;border-radius:6px;border:1px solid #262626;color:#a3a3a3;font-size:.78rem;font-weight:600;margin-top:.5rem}
+    .github:hover{border-color:#f97316;color:#f97316;text-decoration:none}
+    h2{font-family:'Fraunces',serif;font-size:1.2rem;font-weight:700;margin-bottom:1rem}
+    h2 span{color:#f97316}
+    .items-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.75rem}
+    .item-card{background:#141414;border:1px solid #1a1a1a;border-radius:10px;padding:1rem;display:flex;gap:.75rem;align-items:flex-start;transition:border-color .15s}
+    .item-card:hover{border-color:#f97316}
+    .item-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
+    .item-name{font-size:.9rem;font-weight:700;margin-bottom:.15rem}
+    .item-desc{font-size:.72rem;color:#737373;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .contribution-bar{margin:1.5rem 0}
+    .bar-label{font-size:.78rem;color:#525252;margin-bottom:.35rem}
+    .bar{height:8px;background:#1a1a1a;border-radius:4px;overflow:hidden;display:flex}
+    .bar-fill{height:100%;border-radius:4px}
+    footer{margin-top:3rem;padding-top:1.5rem;border-top:1px solid #1a1a1a;text-align:center;font-size:.72rem;color:#404040}
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="brand">🦾 FreeRobotStore</a>
+    <nav>
+      <a href="/">Simulations</a>
+      <a href="/creators/">Creators</a>
+      <a href="/institute/">Institute</a>
+    </nav>
+  </header>
+  <div class="container">
+    <div class="profile">
+      <img style="width:80px;height:80px;border-radius:20px;border:2px solid #262626" src="https://github.com/serge-ivo.png?size=96" alt="Serge" onerror="this.style.display='none'">
+      <div>
+        <h1>Serge</h1>
+        <div class="stats"><b>25</b> simulations on FreeRobotStore</div>
+        <div style="margin-top:.35rem"><span class="badge">flight</span> <span class="badge">simulation</span> <span class="badge">locomotion</span> <span class="badge">coordination</span> <span class="badge">manipulation</span> <span class="badge">localization</span> <span class="badge">learning</span> <span class="badge">navigation</span> <span class="badge">control</span> <span class="badge">perception</span> <span class="badge">actuators</span> <span class="badge">interaction</span></div>
+        <a href="https://github.com/serge-ivo" class="github" target="_blank">GitHub @serge-ivo</a>
+      </div>
+    </div>
+
+    <div class="contribution-bar">
+      <div class="bar-label">Contributions by category</div>
+      <div class="bar">
+        <div class="bar-fill" style="width:4.0%;background:#f97316" title="flight: 1"></div>
+        <div class="bar-fill" style="width:12.0%;background:#3b82f6" title="simulation: 3"></div>
+        <div class="bar-fill" style="width:20.0%;background:#10b981" title="locomotion: 5"></div>
+        <div class="bar-fill" style="width:8.0%;background:#7c3aed" title="coordination: 2"></div>
+        <div class="bar-fill" style="width:12.0%;background:#ef4444" title="manipulation: 3"></div>
+        <div class="bar-fill" style="width:4.0%;background:#eab308" title="localization: 1"></div>
+        <div class="bar-fill" style="width:4.0%;background:#06b6d4" title="learning: 1"></div>
+        <div class="bar-fill" style="width:8.0%;background:#ec4899" title="navigation: 2"></div>
+        <div class="bar-fill" style="width:4.0%;background:#f97316" title="control: 1"></div>
+        <div class="bar-fill" style="width:16.0%;background:#3b82f6" title="perception: 4"></div>
+        <div class="bar-fill" style="width:4.0%;background:#10b981" title="actuators: 1"></div>
+        <div class="bar-fill" style="width:4.0%;background:#7c3aed" title="interaction: 1"></div>
+      </div>
+      <div style="display:flex;gap:1rem;margin-top:.35rem;flex-wrap:wrap">
+        <span style="font-size:.68rem;color:#f97316">flight (1)</span>
+        <span style="font-size:.68rem;color:#3b82f6">simulation (3)</span>
+        <span style="font-size:.68rem;color:#10b981">locomotion (5)</span>
+        <span style="font-size:.68rem;color:#7c3aed">coordination (2)</span>
+        <span style="font-size:.68rem;color:#ef4444">manipulation (3)</span>
+        <span style="font-size:.68rem;color:#eab308">localization (1)</span>
+        <span style="font-size:.68rem;color:#06b6d4">learning (1)</span>
+        <span style="font-size:.68rem;color:#ec4899">navigation (2)</span>
+        <span style="font-size:.68rem;color:#f97316">control (1)</span>
+        <span style="font-size:.68rem;color:#3b82f6">perception (4)</span>
+        <span style="font-size:.68rem;color:#10b981">actuators (1)</span>
+        <span style="font-size:.68rem;color:#7c3aed">interaction (1)</span>
+      </div>
+    </div>
+
+    <h2>Simulations by <span>Serge</span></h2>
+    <div class="items-grid">
+
+      <a href="/robots/drone-sim/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🚁</div>
+        <div class="item-info">
+          <div class="item-name">Drone Simulator</div>
+          <div class="item-desc">3D quadcopter — WASD flight, hover/acro mode, ring course, wind, first-person cam, trees + landscape</div>
+        </div>
+      </a>
+
+      <a href="/robots/fluid-sim/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#06b6d4">💧</div>
+        <div class="item-info">
+          <div class="item-name">Fluid Simulation</div>
+          <div class="item-desc">SPH particle fluid — click to splash, dam break, obstacles. Adjust gravity/viscosity/pressure. Veloc</div>
+        </div>
+      </a>
+
+      <a href="/robots/spider-robot/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🕷️</div>
+        <div class="item-info">
+          <div class="item-name">Spider Robot</div>
+          <div class="item-desc">6-legged hexapod with IK — WASD walk, 3 gaits (tripod/wave/ripple), 18 servo joints, adjustable heig</div>
+        </div>
+      </a>
+
+      <a href="/robots/snake-robot/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🐍</div>
+        <div class="item-info">
+          <div class="item-name">Snake Robot</div>
+          <div class="item-desc">16-segment serpentine robot — WASD steer, 3 locomotion modes (lateral/sidewind/rectilinear), adjusta</div>
+        </div>
+      </a>
+
+      <a href="/robots/robot-soccer/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">⚽</div>
+        <div class="item-info">
+          <div class="item-name">Robot Soccer</div>
+          <div class="item-desc">3v3 robot soccer — WASD + boost, AI teammates, score goals, adjustable difficulty, 2-player mode (IJ</div>
+        </div>
+      </a>
+
+      <a href="/robots/crane-sim/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🏗️</div>
+        <div class="item-info">
+          <div class="item-name">Tower Crane</div>
+          <div class="item-desc">Operate a tower crane — rotate, trolley, cable controls. Pick up crates, deliver to zones. Pendulum </div>
+        </div>
+      </a>
+
+      <a href="/robots/particle-filter/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#a855f7">📍</div>
+        <div class="item-info">
+          <div class="item-name">Particle Filter</div>
+          <div class="item-desc">Robot localization demo — 500 particles converge on true position using landmarks. Drive and watch i</div>
+        </div>
+      </a>
+
+      <a href="/robots/robot-arm/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🦾</div>
+        <div class="item-info">
+          <div class="item-name">Robot Arm</div>
+          <div class="item-desc">5-DOF arm — keyboard (QWASDE), mouse orbit/zoom, pick/wave/scan presets, add scene objects</div>
+        </div>
+      </a>
+
+      <a href="/robots/car-physics/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🏎️</div>
+        <div class="item-info">
+          <div class="item-name">Car Physics</div>
+          <div class="item-desc">Ackermann steering + tire friction — WASD, handbrake drifting, tire marks, track mode, speedometer</div>
+        </div>
+      </a>
+
+      <a href="/robots/swarm/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🐝</div>
+        <div class="item-info">
+          <div class="item-name">Robot Swarm</div>
+          <div class="item-desc">60-200 boids flocking — click to attract, separation/alignment/cohesion, predator mode, formations</div>
+        </div>
+      </a>
+
+      <a href="/robots/spring-mass/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🫧</div>
+        <div class="item-info">
+          <div class="item-name">Soft Body Robot</div>
+          <div class="item-desc">Spring-mass deformable body — drag nodes, 4 shapes (blob/worm/wheel/cube), pin nodes, throw</div>
+        </div>
+      </a>
+
+      <a href="/robots/gripper-sim/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🤏</div>
+        <div class="item-info">
+          <div class="item-name">Gripper Force Sim</div>
+          <div class="item-desc">Parallel-jaw gripper — force vs weight vs friction. Slip/crush detection. Force balance diagram.</div>
+        </div>
+      </a>
+
+      <a href="/robots/walker/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🚶</div>
+        <div class="item-info">
+          <div class="item-name">Walking Robot</div>
+          <div class="item-desc">Bipedal walker — W to walk, P to push, Space to jump. Tune gait, track distance, balance meter.</div>
+        </div>
+      </a>
+
+      <a href="/robots/rover/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🔴</div>
+        <div class="item-info">
+          <div class="item-name">Mars Rover</div>
+          <div class="item-desc">6-wheeled rover on Mars — WASD, collect samples, avoid rocks/craters, auto-explore, compass</div>
+        </div>
+      </a>
+
+      <a href="/robots/neural-network/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#a855f7">🧠</div>
+        <div class="item-info">
+          <div class="item-name">Neural Network Trainer</div>
+          <div class="item-desc">Train a net to classify 2D points — decision boundary forms live, 4 datasets, loss curve, accuracy</div>
+        </div>
+      </a>
+
+      <a href="/robots/maze-solver/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🧩</div>
+        <div class="item-info">
+          <div class="item-name">Maze Solver</div>
+          <div class="item-desc">Robot navigates random mazes — A* vs BFS vs Wall Following, adjustable speed</div>
+        </div>
+      </a>
+
+      <a href="/robots/pendulum/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">⚖️</div>
+        <div class="item-info">
+          <div class="item-name">Inverted Pendulum</div>
+          <div class="item-desc">PID control — balance pendulum on cart, tune Kp/Ki/Kd, push to disturb, auto-tune</div>
+        </div>
+      </a>
+
+      <a href="/robots/bouncing-ball/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🏀</div>
+        <div class="item-info">
+          <div class="item-name">Bouncing Ball</div>
+          <div class="item-desc">3D rigid-body physics (Rapier.js) — 5 gravity modes, click to drop, orbit camera</div>
+        </div>
+      </a>
+
+      <a href="/robots/line-follower/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🛤️</div>
+        <div class="item-info">
+          <div class="item-name">Line Follower</div>
+          <div class="item-desc">PID line-following robot — draw your own track, tune Kp/Ki/Kd</div>
+        </div>
+      </a>
+
+      <a href="/robots/pose-tracker/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#10b981">🤸</div>
+        <div class="item-info">
+          <div class="item-name">Pose Tracker</div>
+          <div class="item-desc">17-keypoint human pose estimation (MoveNet) — skeleton overlay, for teleoperation/gesture control</div>
+        </div>
+      </a>
+
+      <a href="/robots/object-detector/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#10b981">👁️</div>
+        <div class="item-info">
+          <div class="item-name">Object Detector</div>
+          <div class="item-desc">DETR real-time detection — 80 classes from webcam, bounding boxes, confidence</div>
+        </div>
+      </a>
+
+      <a href="/robots/depth-camera/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#10b981">📐</div>
+        <div class="item-info">
+          <div class="item-name">Depth Camera</div>
+          <div class="item-desc">Monocular depth estimation — distance from single camera, 3 colormaps</div>
+        </div>
+      </a>
+
+      <a href="/robots/motor-controller/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#3b82f6">⚙️</div>
+        <div class="item-info">
+          <div class="item-name">DC Motor Controller</div>
+          <div class="item-desc">Arduino PID motor driver — wiring, encoder feedback, tuning guide, copy-paste code</div>
+        </div>
+      </a>
+
+      <a href="/robots/segment-anything/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#10b981">✂️</div>
+        <div class="item-info">
+          <div class="item-name">Segment Anything (SAM)</div>
+          <div class="item-desc">Click to segment any object in an image. Meta AI SAM model running in your browser (~50MB). Upload o</div>
+        </div>
+      </a>
+
+      <a href="/robots/voice-control/" style="text-decoration:none;color:inherit" class="item-card">
+        <div class="item-icon" style="background:#f97316">🎙️</div>
+        <div class="item-info">
+          <div class="item-name">Voice-Controlled Robot</div>
+          <div class="item-desc">Talk to control a robot arm. Say left/right/up/down/grab/drop/wave. Web Speech API — zero download.</div>
+        </div>
+      </a>
+
+    </div>
+
+    <footer>
+      <a href="/creators/">All Creators</a> · <a href="/">FreeRobotStore</a>
+    </footer>
+  </div>
+</body>
+</html>
