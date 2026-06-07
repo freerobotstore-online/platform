@@ -63,8 +63,8 @@
     {
       "id": "nav-pipeline",
       "name": "Robot Navigation Pipeline",
-      "description": "Chain",
-      "storeType": " LiDAR scan → A* pathfinding → PID tracking. Watch a robot navigate autonomously.",
+      "description": "LiDAR scan → A* pathfinding → PID tracking. Watch a robot navigate autonomously.",
+      "storeType": "behavior",
       "category": "behavior",
       "icon": "pipelines",
       "iconBg": "🗺️:#f97316",
