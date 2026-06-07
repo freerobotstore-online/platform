@@ -7,135 +7,150 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
-    h1{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .25rem} h1 span{color:#f97316}
-    .sub{color:#737373;font-size:.85rem;margin-bottom:.75rem;text-align:center;max-width:520px}
+    h1{font-size:1.3rem;font-weight:700;margin:1.25rem 0 .25rem} h1 span{color:#f97316}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.5rem;text-align:center;max-width:560px}
+    .tutorial{background:#171717;border:1px solid #262626;border-radius:10px;padding:.6rem 1rem;margin-bottom:.5rem;font-size:.82rem;color:#a3a3a3;max-width:650px;line-height:1.6;text-align:center}
+    .tutorial b{color:#f97316}
     canvas{border:1px solid #262626;border-radius:12px}
-    .controls{display:flex;gap:.75rem;margin:1rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    .controls{display:flex;gap:.5rem;margin:.75rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
     label{font-size:.82rem;color:#a3a3a3;display:flex;align-items:center;gap:.4rem}
-    input[type=range]{width:100px;accent-color:#f97316}
+    input[type=range]{width:120px;accent-color:#f97316}
     .val{color:#f97316;font-weight:600;min-width:2.5rem}
-    button{padding:.4rem 1rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button{padding:.5rem 1.25rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit}
     button:hover{border-color:#f97316;color:#f97316}
-    .info{font-size:.75rem;color:#525252;margin:.5rem;display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center}
-    .info span{color:#a3a3a3}
+    button.primary{background:#f97316;border-color:#f97316;color:#fff}
+    button:disabled{opacity:.3;cursor:not-allowed}
+    .result{font-size:1rem;font-weight:700;margin:.5rem;min-height:1.5em}
+    .result.ok{color:#10b981}
+    .result.bad{color:#ef4444}
+    .result.warn{color:#eab308}
+    .info{font-size:.75rem;color:#525252;margin:.25rem}
     a{color:#525252;text-decoration:none}
   </style>
 </head>
 <body>
-  <h1>Gripper <span>Force</span> Sim</h1>
-  <p class="sub">Simulate a parallel-jaw gripper picking up objects with different weights and friction. Too little force = drop. Too much = crush. Find the sweet spot.</p>
+  <h1>Gripper <span>Force</span> Challenge</h1>
+  <p class="sub">Can you pick up each object without dropping or crushing it? Set the grip force, then press <b>Grip & Lift</b>. Each object has different weight and fragility.</p>
 
-  <canvas id="sim" width="700" height="450"></canvas>
+  <div class="tutorial">
+    <b>The physics:</b> Your gripper squeezes with force F from both sides. Friction between jaws and object = F x friction coefficient.
+    If friction force < object weight, it slips. If grip force > object's crush limit, it breaks. Find the sweet spot!
+  </div>
+
+  <canvas id="sim" width="700" height="350"></canvas>
+
+  <div class="result" id="result">&nbsp;</div>
 
   <div class="controls">
-    <label>Grip Force <input type="range" id="force" min="0" max="100" value="50"><span class="val" id="force-v">50</span>N</label>
-    <label>Object Mass <input type="range" id="mass" min="1" max="50" value="10"><span class="val" id="mass-v">10</span>kg</label>
-    <label>Friction <input type="range" id="friction" min="1" max="10" step=".1" value="4"><span class="val" id="fric-v">4.0</span>μ</label>
-    <button id="btn-grip">Grip</button>
-    <button id="btn-lift">Lift</button>
-    <button id="btn-drop">Release</button>
-    <button id="btn-reset">Reset</button>
+    <label>Grip Force: <input type="range" id="force" min="0" max="100" value="30"><span class="val" id="force-v">30</span>N</label>
+    <button class="primary" id="btn-grip">Grip & Lift</button>
+    <button id="btn-next">Next Object</button>
+    <button id="btn-reset">Reset Score</button>
   </div>
-  <div class="info">
-    <div>Status: <span id="status">Ready</span></div>
-    <div>Normal Force: <span id="normal">0</span>N</div>
-    <div>Friction Force: <span id="fric-force">0</span>N</div>
-    <div>Weight: <span id="weight">0</span>N</div>
-    <div>Margin: <span id="margin">-</span></div>
-    <div><a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
-  </div>
+  <div class="info">Score: <span id="score">0</span> / <span id="total">0</span> objects lifted safely | <a href="https://freerobotstore.pages.dev">FreeRobotStore</a></div>
 
   <script>
     const canvas = document.getElementById('sim');
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     const g = 9.81;
-    const tableY = H * 0.65;
+    const tableY = H * 0.7;
 
-    let state = 'ready'; // ready, gripping, gripped, lifting, holding, dropping, crushed, slipped
-    let gripWidth = 120, objY = 0, objVy = 0, liftY = 0, gripAnim = 0;
-    let deformX = 0;
+    const objects = [
+      { name: 'Tennis Ball', mass: 0.06, friction: 0.6, crushForce: 50, color: '#84cc16', shape: 'circle', size: 25, emoji: '🎾' },
+      { name: 'Coffee Mug', mass: 0.3, friction: 0.4, crushForce: 40, color: '#f97316', shape: 'rect', size: 30, emoji: '☕' },
+      { name: 'Egg', mass: 0.06, friction: 0.3, crushForce: 8, color: '#fef3c7', shape: 'oval', size: 22, emoji: '🥚' },
+      { name: 'Steel Bolt', mass: 0.5, friction: 0.2, crushForce: 500, color: '#6b7280', shape: 'rect', size: 18, emoji: '🔩' },
+      { name: 'Glass Vase', mass: 0.8, friction: 0.3, crushForce: 25, color: '#67e8f9', shape: 'rect', size: 40, emoji: '🏺' },
+      { name: 'Watermelon', mass: 4, friction: 0.5, crushForce: 60, color: '#22c55e', shape: 'circle', size: 45, emoji: '🍉' },
+      { name: 'Phone', mass: 0.2, friction: 0.5, crushForce: 30, color: '#1e293b', shape: 'rect', size: 28, emoji: '📱' },
+      { name: 'Brick', mass: 2.5, friction: 0.7, crushForce: 800, color: '#b91c1c', shape: 'rect', size: 35, emoji: '🧱' },
+      { name: 'Grape', mass: 0.005, friction: 0.4, crushForce: 3, color: '#7c3aed', shape: 'circle', size: 12, emoji: '🍇' },
+      { name: 'Bowling Ball', mass: 6, friction: 0.3, crushForce: 2000, color: '#1e293b', shape: 'circle', size: 40, emoji: '🎳' },
+    ];
 
-    const forceEl = document.getElementById('force');
-    const massEl = document.getElementById('mass');
-    const fricEl = document.getElementById('friction');
-    forceEl.addEventListener('input', () => document.getElementById('force-v').textContent = forceEl.value);
-    massEl.addEventListener('input', () => document.getElementById('mass-v').textContent = massEl.value);
-    fricEl.addEventListener('input', () => document.getElementById('fric-v').textContent = (+fricEl.value).toFixed(1));
+    let currentIdx = 0, score = 0, totalAttempts = 0;
+    let state = 'ready'; // ready, gripping, lifting, success, slipped, crushed
+    let animProgress = 0, gripWidth = 0, liftY = 0;
 
-    function reset() {
-      state = 'ready'; gripWidth = 120; objY = 0; objVy = 0; liftY = 0; gripAnim = 0; deformX = 0;
-      document.getElementById('status').textContent = 'Ready';
-    }
+    const sl = id => document.getElementById(id);
+    sl('force').addEventListener('input', () => sl('force-v').textContent = sl('force').value);
 
-    document.getElementById('btn-grip').addEventListener('click', () => { if (state === 'ready') state = 'gripping'; });
-    document.getElementById('btn-lift').addEventListener('click', () => { if (state === 'gripped') state = 'lifting'; });
-    document.getElementById('btn-drop').addEventListener('click', () => { if (state === 'gripped' || state === 'holding') state = 'dropping'; });
-    document.getElementById('btn-reset').addEventListener('click', reset);
+    sl('btn-grip').addEventListener('click', () => {
+      if (state !== 'ready') return;
+      state = 'gripping';
+      animProgress = 0;
+      totalAttempts++;
+      sl('total').textContent = totalAttempts;
+    });
+
+    sl('btn-next').addEventListener('click', () => {
+      currentIdx = (currentIdx + 1) % objects.length;
+      state = 'ready';
+      animProgress = 0;
+      gripWidth = 0;
+      liftY = 0;
+      sl('result').textContent = '\u00a0';
+      sl('result').className = 'result';
+    });
+
+    sl('btn-reset').addEventListener('click', () => {
+      score = 0; totalAttempts = 0; currentIdx = 0;
+      state = 'ready'; animProgress = 0; gripWidth = 0; liftY = 0;
+      sl('score').textContent = '0'; sl('total').textContent = '0';
+      sl('result').textContent = '\u00a0'; sl('result').className = 'result';
+    });
 
     function getPhysics() {
-      const F = +forceEl.value;
-      const m = +massEl.value;
-      const mu = +fricEl.value / 10;
-      const W = m * g;
-      const N = F * 2; // two jaws
-      const Ff = N * mu;
-      const canHold = Ff >= W;
-      const crushThreshold = 80; // force that crushes
-      const crushed = F > crushThreshold;
-      const margin = canHold ? ((Ff - W) / W * 100).toFixed(0) + '% surplus' : ((W - Ff) / W * 100).toFixed(0) + '% deficit';
-      return { F, m, W, N, Ff, canHold, crushed, margin };
+      const obj = objects[currentIdx];
+      const F = +sl('force').value;
+      const weight = obj.mass * g;
+      const normalForce = F * 2;
+      const frictionForce = normalForce * obj.friction;
+      const canHold = frictionForce >= weight;
+      const crushed = F > obj.crushForce;
+      return { F, weight, normalForce, frictionForce, canHold, crushed, obj };
     }
 
     function update() {
       const p = getPhysics();
-      const objSize = 30 + p.m;
 
       if (state === 'gripping') {
-        gripWidth = Math.max(objSize + 4, gripWidth - 3);
-        if (gripWidth <= objSize + 4) {
-          if (p.crushed) { state = 'crushed'; document.getElementById('status').textContent = 'CRUSHED! Too much force!'; }
-          else { state = 'gripped'; document.getElementById('status').textContent = 'Gripped' + (p.canHold ? ' (stable)' : ' (will slip!)'); }
+        animProgress += 0.03;
+        gripWidth = Math.min(1, animProgress);
+        if (animProgress >= 1) {
+          if (p.crushed) {
+            state = 'crushed';
+            sl('result').textContent = `CRUSHED! ${p.obj.name} can't handle ${p.F}N (max ${p.obj.crushForce}N)`;
+            sl('result').className = 'result bad';
+          } else {
+            state = 'lifting';
+            animProgress = 0;
+          }
         }
       }
 
       if (state === 'lifting') {
-        if (p.canHold && !p.crushed) {
-          liftY = Math.min(120, liftY + 1.5);
-          if (liftY >= 120) { state = 'holding'; document.getElementById('status').textContent = 'Holding!'; }
+        animProgress += 0.02;
+        if (p.canHold) {
+          liftY = Math.min(80, animProgress * 200);
+          if (animProgress >= 0.5) {
+            state = 'success';
+            score++;
+            sl('score').textContent = score;
+            sl('result').textContent = `Lifted ${p.obj.name}! Friction ${p.frictionForce.toFixed(1)}N > Weight ${p.weight.toFixed(1)}N`;
+            sl('result').className = 'result ok';
+          }
         } else {
-          state = 'slipped';
-          document.getElementById('status').textContent = 'SLIPPED! Not enough friction force.';
-          objVy = 0;
+          // Slip animation
+          liftY = Math.max(0, liftY - 2);
+          if (animProgress > 0.3) {
+            state = 'slipped';
+            sl('result').textContent = `SLIPPED! Need ${p.weight.toFixed(1)}N friction but only have ${p.frictionForce.toFixed(1)}N. Increase force!`;
+            sl('result').className = 'result bad';
+          }
         }
       }
-
-      if (state === 'slipped') {
-        objVy += 0.5;
-        objY += objVy;
-        if (objY > 0) { objY = 0; objVy = -objVy * 0.3; if (Math.abs(objVy) < 0.5) { objVy = 0; state = 'ready'; gripWidth = 120; liftY = 0; } }
-      }
-
-      if (state === 'dropping') {
-        objVy += 0.5;
-        objY += objVy;
-        liftY = 0;
-        gripWidth = 120;
-        if (objY > 0) { objY = 0; objVy = -objVy * 0.3; if (Math.abs(objVy) < 0.5) { objVy = 0; state = 'ready'; } }
-      }
-
-      // Deformation visual
-      if (state === 'gripped' || state === 'lifting' || state === 'holding') {
-        deformX = Math.min(5, p.F / 20);
-      } else {
-        deformX *= 0.9;
-      }
-
-      // HUD
-      document.getElementById('normal').textContent = p.N.toFixed(1);
-      document.getElementById('fric-force').textContent = p.Ff.toFixed(1);
-      document.getElementById('weight').textContent = p.W.toFixed(1);
-      document.getElementById('margin').textContent = p.margin;
     }
 
     function draw() {
@@ -143,7 +158,9 @@
       ctx.fillRect(0, 0, W, H);
 
       const p = getPhysics();
-      const cx = W / 2, objSize = 30 + p.m;
+      const obj = p.obj;
+      const cx = W / 2;
+      const objY = tableY - obj.size / 2 - liftY;
 
       // Table
       ctx.fillStyle = '#1a1a1a';
@@ -151,98 +168,150 @@
       ctx.strokeStyle = '#262626'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(0, tableY); ctx.lineTo(W, tableY); ctx.stroke();
 
-      const baseObjY = tableY - objSize / 2 - liftY + objY;
+      // Object info card (left side)
+      ctx.fillStyle = '#141414';
+      ctx.fillRect(20, 20, 180, 140);
+      ctx.strokeStyle = '#262626'; ctx.lineWidth = 1;
+      ctx.strokeRect(20, 20, 180, 140);
+      ctx.fillStyle = '#fafafa'; ctx.font = '600 14px Manrope';
+      ctx.fillText(obj.emoji + ' ' + obj.name, 35, 45);
+      ctx.fillStyle = '#a3a3a3'; ctx.font = '12px Manrope';
+      ctx.fillText(`Weight: ${(obj.mass * g).toFixed(1)}N (${obj.mass}kg)`, 35, 70);
+      ctx.fillText(`Friction coeff: ${obj.friction}`, 35, 90);
+      ctx.fillText(`Crush limit: ${obj.crushForce}N`, 35, 110);
+      // Fragility bar
+      ctx.fillStyle = '#262626'; ctx.fillRect(35, 120, 140, 8);
+      const fragility = Math.min(1, 50 / obj.crushForce);
+      ctx.fillStyle = fragility > 0.5 ? '#ef4444' : fragility > 0.2 ? '#eab308' : '#10b981';
+      ctx.fillRect(35, 120, fragility * 140, 8);
+      ctx.fillStyle = '#737373'; ctx.font = '9px Manrope';
+      ctx.fillText(fragility > 0.5 ? 'Very fragile' : fragility > 0.2 ? 'Moderate' : 'Tough', 35, 143);
 
-      // Gripper arms
-      const armTop = baseObjY - objSize / 2 - 40;
-      const armH = 80;
+      // Force analysis (right side)
+      ctx.fillStyle = '#141414';
+      ctx.fillRect(W - 200, 20, 180, 140);
+      ctx.strokeStyle = '#262626'; ctx.strokeRect(W - 200, 20, 180, 140);
+      ctx.fillStyle = '#fafafa'; ctx.font = '600 12px Manrope';
+      ctx.fillText('Force Analysis', W - 185, 42);
+      ctx.font = '11px Manrope';
+      ctx.fillStyle = '#f97316'; ctx.fillText(`Grip: ${p.F}N each side`, W - 185, 62);
+      ctx.fillStyle = '#3b82f6'; ctx.fillText(`Normal: ${p.normalForce.toFixed(0)}N (2x grip)`, W - 185, 80);
+      ctx.fillStyle = '#10b981'; ctx.fillText(`Friction: ${p.frictionForce.toFixed(1)}N`, W - 185, 98);
+      ctx.fillStyle = '#ef4444'; ctx.fillText(`Weight: ${p.weight.toFixed(1)}N`, W - 185, 116);
+
+      const verdict = p.crushed ? 'CRUSH' : p.canHold ? 'HOLDS' : 'SLIPS';
+      const vColor = p.crushed ? '#ef4444' : p.canHold ? '#10b981' : '#eab308';
+      ctx.fillStyle = vColor; ctx.font = '700 16px Manrope';
+      ctx.fillText(verdict, W - 185, 142);
+
+      // Margin bar
+      if (!p.crushed) {
+        const ratio = p.frictionForce / Math.max(0.01, p.weight);
+        ctx.fillStyle = '#262626'; ctx.fillRect(W - 120, 132, 90, 10);
+        ctx.fillStyle = ratio >= 1 ? '#10b981' : '#ef4444';
+        ctx.fillRect(W - 120, 132, Math.min(90, ratio * 45), 10);
+        // 1.0 marker
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(W - 75, 131); ctx.lineTo(W - 75, 143); ctx.stroke();
+      }
+
+      // Gripper
+      const jawGap = obj.size + 20 - gripWidth * 16;
+      const jawTop = objY - obj.size - 20;
+      const jawH = obj.size + 40;
+
+      // Gripper crossbar
       ctx.fillStyle = '#404040';
-      // Left jaw
-      ctx.fillRect(cx - gripWidth / 2 - 8, armTop, 8, armH);
-      // Right jaw
-      ctx.fillRect(cx + gripWidth / 2, armTop, 8, armH);
-      // Crossbar
-      ctx.fillRect(cx - gripWidth / 2 - 8, armTop - 10, gripWidth + 16, 10);
+      ctx.fillRect(cx - jawGap / 2 - 12, jawTop - 15, jawGap + 24, 12);
       // Actuator
       ctx.fillStyle = '#333';
-      ctx.fillRect(cx - 15, armTop - 50, 30, 40);
+      ctx.fillRect(cx - 20, jawTop - 55, 40, 40);
       ctx.fillStyle = '#f97316';
-      ctx.fillRect(cx - 10, armTop - 45, 20, 8);
+      ctx.fillRect(cx - 12, jawTop - 48, 24, 8);
+      // Cable
+      ctx.strokeStyle = '#525252'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx, jawTop - 55); ctx.lineTo(cx, 10); ctx.stroke();
+
+      // Left jaw
+      ctx.fillStyle = state === 'crushed' ? '#ef4444' : '#525252';
+      ctx.fillRect(cx - jawGap / 2 - 10, jawTop, 10, jawH);
+      // Grip pad
+      ctx.fillStyle = '#f97316';
+      ctx.fillRect(cx - jawGap / 2 - 3, jawTop + 10, 3, jawH - 20);
+
+      // Right jaw
+      ctx.fillStyle = state === 'crushed' ? '#ef4444' : '#525252';
+      ctx.fillRect(cx + jawGap / 2, jawTop, 10, jawH);
+      ctx.fillStyle = '#f97316';
+      ctx.fillRect(cx + jawGap / 2, jawTop + 10, 3, jawH - 20);
 
       // Object
-      ctx.save();
-      ctx.translate(cx, baseObjY);
-
-      if (state === 'crushed') {
-        // Crushed visual
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
-        ctx.fillRect(-objSize / 2 - 10, -objSize / 4, objSize + 20, objSize / 2);
-        ctx.fillStyle = '#ef4444';
-        ctx.font = '600 14px Manrope';
+      if (state !== 'crushed') {
+        ctx.fillStyle = obj.color;
+        if (obj.shape === 'circle') {
+          ctx.beginPath(); ctx.arc(cx, objY, obj.size / 2, 0, Math.PI * 2); ctx.fill();
+        } else if (obj.shape === 'oval') {
+          ctx.beginPath(); ctx.ellipse(cx, objY, obj.size / 2 * 0.75, obj.size / 2, 0, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.fillRect(cx - obj.size / 2, objY - obj.size / 2, obj.size, obj.size);
+        }
+        // Emoji on object
+        ctx.font = `${Math.max(14, obj.size * 0.6)}px serif`;
         ctx.textAlign = 'center';
-        ctx.fillText('CRUSHED', 0, 5);
+        ctx.fillText(obj.emoji, cx, objY + obj.size * 0.2);
+        ctx.textAlign = 'start';
+
+        // Deformation when gripped
+        if (gripWidth > 0.5 && state !== 'slipped') {
+          const deform = Math.min(3, p.F / 30);
+          ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(cx - obj.size / 2 + deform, objY, deform * 2, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       } else {
-        // Normal object (with deformation)
-        const color = state === 'slipped' ? '#ef4444' : state === 'holding' ? '#10b981' : '#3b82f6';
-        ctx.fillStyle = color;
-        ctx.fillRect(-objSize / 2 + deformX, -objSize / 2 - deformX / 2, objSize - deformX * 2, objSize + deformX);
-
-        // Mass label
-        ctx.fillStyle = '#fff'; ctx.font = '600 12px Manrope'; ctx.textAlign = 'center';
-        ctx.fillText(`${p.m}kg`, 0, 4);
+        // Crushed pieces
+        ctx.fillStyle = obj.color;
+        for (let i = 0; i < 8; i++) {
+          const px = cx + (Math.random() - 0.5) * obj.size * 1.5;
+          const py = objY + (Math.random() - 0.5) * obj.size;
+          ctx.fillRect(px - 4, py - 4, 8 + Math.random() * 6, 6 + Math.random() * 4);
+        }
+        ctx.fillStyle = '#ef4444'; ctx.font = '600 16px Manrope'; ctx.textAlign = 'center';
+        ctx.fillText('CRUSHED!', cx, objY);
+        ctx.textAlign = 'start';
       }
-      ctx.restore();
 
-      // Force arrows
-      if (state === 'gripped' || state === 'lifting' || state === 'holding') {
-        const arrowLen = Math.min(60, p.F * 0.8);
-        // Left force arrow (pushing right)
-        drawArrow(cx - gripWidth / 2 - 20, baseObjY, cx - gripWidth / 2 - 20 + arrowLen, baseObjY, '#f97316');
-        // Right force arrow (pushing left)
-        drawArrow(cx + gripWidth / 2 + 20, baseObjY, cx + gripWidth / 2 + 20 - arrowLen, baseObjY, '#f97316');
+      // Force arrows (when gripping)
+      if (gripWidth > 0.3 && state !== 'ready') {
+        const arrowScale = Math.min(40, p.F * 0.5);
+        // Left push (orange arrow pointing right)
+        drawArrow(cx - jawGap/2 - 25, objY, cx - jawGap/2 - 25 + arrowScale, objY, '#f97316', `${p.F}N`);
+        // Right push (orange arrow pointing left)
+        drawArrow(cx + jawGap/2 + 25, objY, cx + jawGap/2 + 25 - arrowScale, objY, '#f97316', `${p.F}N`);
 
-        // Weight arrow (down)
-        const wArrow = Math.min(50, p.W * 0.5);
-        drawArrow(cx, baseObjY + objSize / 2, cx, baseObjY + objSize / 2 + wArrow, '#ef4444');
-
-        // Friction arrows (up, on both sides)
-        if (p.canHold) {
-          const fArrow = Math.min(50, p.Ff * 0.3);
-          drawArrow(cx - objSize / 2 - 3, baseObjY + objSize / 4, cx - objSize / 2 - 3, baseObjY + objSize / 4 - fArrow, '#10b981');
-          drawArrow(cx + objSize / 2 + 3, baseObjY + objSize / 4, cx + objSize / 2 + 3, baseObjY + objSize / 4 - fArrow, '#10b981');
+        if (state === 'lifting' || state === 'success') {
+          // Weight (red arrow down)
+          drawArrow(cx, objY + obj.size/2 + 5, cx, objY + obj.size/2 + 5 + Math.min(30, p.weight * 3), '#ef4444', `${p.weight.toFixed(1)}N`);
+          // Friction (green arrows up)
+          if (p.canHold) {
+            const fArr = Math.min(30, p.frictionForce * 2);
+            drawArrow(cx - 15, objY + obj.size/4, cx - 15, objY + obj.size/4 - fArr, '#10b981', '');
+            drawArrow(cx + 15, objY + obj.size/4, cx + 15, objY + obj.size/4 - fArr, '#10b981', '');
+          }
         }
       }
 
-      // Force balance diagram (bottom right)
-      ctx.fillStyle = '#171717'; ctx.strokeStyle = '#262626'; ctx.lineWidth = 1;
-      const bx = W - 160, by = 20, bw = 140, bh = 100;
-      ctx.fillRect(bx, by, bw, bh);
-      ctx.strokeRect(bx, by, bw, bh);
-      ctx.fillStyle = '#525252'; ctx.font = '10px Manrope'; ctx.textAlign = 'left';
-      ctx.fillText('Force Balance', bx + 8, by + 15);
-
-      const barW = 50;
-      // Weight bar
-      const wH = Math.min(60, p.W * 0.6);
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(bx + 20, by + 80 - wH, barW / 2, wH);
-      ctx.fillStyle = '#737373'; ctx.font = '9px Manrope';
-      ctx.fillText('W', bx + 30, by + 92);
-
-      // Friction bar
-      const fH = Math.min(60, p.Ff * 0.6);
-      ctx.fillStyle = p.canHold ? '#10b981' : '#eab308';
-      ctx.fillRect(bx + 80, by + 80 - fH, barW / 2, fH);
-      ctx.fillText('Ff', bx + 88, by + 92);
-
-      ctx.textAlign = 'start';
+      // Step indicator
+      ctx.fillStyle = '#262626'; ctx.font = '10px Manrope';
+      ctx.fillText(`Object ${currentIdx + 1} of ${objects.length}`, cx - 35, H - 10);
     }
 
-    function drawArrow(x1, y1, x2, y2, color) {
+    function drawArrow(x1, y1, x2, y2, color, label) {
       const angle = Math.atan2(y2 - y1, x2 - x1);
       const len = Math.hypot(x2 - x1, y2 - y1);
       if (len < 3) return;
-      ctx.strokeStyle = color; ctx.lineWidth = 2;
+      ctx.strokeStyle = color; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
       ctx.fillStyle = color;
       ctx.beginPath();
@@ -250,10 +319,14 @@
       ctx.lineTo(x2 - Math.cos(angle - 0.4) * 8, y2 - Math.sin(angle - 0.4) * 8);
       ctx.lineTo(x2 - Math.cos(angle + 0.4) * 8, y2 - Math.sin(angle + 0.4) * 8);
       ctx.fill();
+      if (label) {
+        ctx.font = '9px Manrope';
+        ctx.fillText(label, (x1 + x2) / 2 - 10, (y1 + y2) / 2 - 6);
+      }
     }
 
     function loop() { requestAnimationFrame(loop); update(); draw(); }
-    reset(); loop();
+    loop();
   </script>
 </body>
 </html>
