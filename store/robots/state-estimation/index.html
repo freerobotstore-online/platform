@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>State Estimation Comparison - FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .25rem} h1 span{color:#f97316}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.75rem;text-align:center;max-width:560px}
+    .wrap{display:flex;gap:.75rem;margin:.5rem;flex-wrap:wrap;justify-content:center;width:100%;max-width:1100px}
+    .panel{border:1px solid #262626;border-radius:12px;background:#111;padding:.75rem;flex:1;min-width:240px}
+    .panel h2{font-size:.82rem;color:#a3a3a3;margin-bottom:.4rem;font-weight:600}
+    canvas{width:100%;border-radius:8px;display:block}
+    .controls{display:flex;gap:.75rem;margin:.75rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.35rem .85rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    button.active{background:#f97316;border-color:#f97316;color:#fff}
+    label{font-size:.78rem;color:#a3a3a3;display:flex;align-items:center;gap:.4rem}
+    input[type=range]{width:80px;accent-color:#f97316}
+    .val{color:#f97316;font-weight:600;min-width:2.5rem}
+    .legend{display:flex;gap:1rem;margin:.4rem 0;font-size:.72rem;color:#a3a3a3;flex-wrap:wrap}
+    .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:3px;vertical-align:middle}
+    .stats{font-size:.78rem;color:#525252;margin:.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+    .stats span{color:#a3a3a3}
+    a.back{color:#525252;text-decoration:none;font-size:.82rem;margin-bottom:1rem}
+    a.back:hover{color:#f97316}
+    .chart-wrap{border:1px solid #262626;border-radius:12px;background:#111;padding:.75rem;width:100%;max-width:1100px;margin:.5rem}
+    .chart-wrap h2{font-size:.82rem;color:#a3a3a3;margin-bottom:.4rem;font-weight:600}
+  </style>
+</head>
+<body>
+  <h1>State <span>Estimation</span> Comparison</h1>
+  <p class="sub">Compare Kalman Filter, Extended Kalman Filter, and Unscented Kalman Filter tracking a robot moving in a circle with noisy sensors.</p>
+
+  <div class="controls">
+    <label>Process Noise <input type="range" id="pnoise" min="0.1" max="5" step="0.1" value="1.0"><span class="val" id="pnoise-v">1.0</span></label>
+    <label>Meas. Noise <input type="range" id="mnoise" min="0.5" max="10" step="0.5" value="3.0"><span class="val" id="mnoise-v">3.0</span></label>
+    <label>Update Rate <input type="range" id="rate" min="1" max="10" step="1" value="5"><span class="val" id="rate-v">5</span></label>
+    <button id="btn-reset">Reset</button>
+    <button id="btn-pause">Pause</button>
+    <button id="btn-nonlinear" class="">Nonlinear Path</button>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#fafafa"></i>True position</span>
+    <span><i style="background:#ef4444"></i>Measurement</span>
+    <span><i style="background:#3b82f6"></i>Kalman Filter</span>
+    <span><i style="background:#22c55e"></i>Extended KF</span>
+    <span><i style="background:#f97316"></i>Unscented KF</span>
+  </div>
+
+  <div class="wrap">
+    <div class="panel">
+      <h2>Kalman Filter (KF)</h2>
+      <canvas id="kf" width="320" height="320"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Extended Kalman Filter (EKF)</h2>
+      <canvas id="ekf" width="320" height="320"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Unscented Kalman Filter (UKF)</h2>
+      <canvas id="ukf" width="320" height="320"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <h2>RMSE Over Time</h2>
+    <canvas id="chart" width="1060" height="160"></canvas>
+  </div>
+
+  <div class="stats">
+    <div>Step: <span id="step">0</span></div>
+    <div>KF RMSE: <span id="kf-rmse" style="color:#3b82f6">0</span></div>
+    <div>EKF RMSE: <span id="ekf-rmse" style="color:#22c55e">0</span></div>
+    <div>UKF RMSE: <span id="ukf-rmse" style="color:#f97316">0</span></div>
+  </div>
+  <a class="back" href="/">Back to FreeRobotStore</a>
+
+  <script>
+    const canvasKF = document.getElementById('kf');
+    const canvasEKF = document.getElementById('ekf');
+    const canvasUKF = document.getElementById('ukf');
+    const canvasChart = document.getElementById('chart');
+    const ctxKF = canvasKF.getContext('2d');
+    const ctxEKF = canvasEKF.getContext('2d');
+    const ctxUKF = canvasUKF.getContext('2d');
+    const ctxChart = canvasChart.getContext('2d');
+
+    let processNoise = 1.0, measNoise = 3.0, updateRate = 5, nonlinear = false;
+    let paused = false, step = 0, time = 0;
+
+    const sl = id => document.getElementById(id);
+    ['pnoise','mnoise','rate'].forEach(id => {
+      sl(id).addEventListener('input', () => {
+        sl(id+'-v').textContent = sl(id).value;
+        if(id==='pnoise') processNoise = +sl(id).value;
+        if(id==='mnoise') measNoise = +sl(id).value;
+        if(id==='rate') updateRate = +sl(id).value;
+      });
+    });
+    sl('btn-nonlinear').addEventListener('click', function(){
+      nonlinear=!nonlinear; this.classList.toggle('active');
+    });
+    sl('btn-pause').addEventListener('click', ()=>{ paused=!paused; sl('btn-pause').textContent=paused?'Resume':'Pause'; });
+    sl('btn-reset').addEventListener('click', reset);
+
+    // True state: position on a circle (or figure-8 for nonlinear)
+    const CX=160, CY=160, R=100;
+    function truePos(t) {
+      if (nonlinear) {
+        return { x: CX + R*Math.sin(t)*1.0, y: CY + R*Math.sin(2*t)*0.6 };
+      }
+      return { x: CX + R*Math.cos(t), y: CY + R*Math.sin(t) };
+    }
+
+    function trueVel(t) {
+      if (nonlinear) {
+        return { vx: R*Math.cos(t)*0.02, vy: R*2*Math.cos(2*t)*0.6*0.02 };
+      }
+      return { vx: -R*Math.sin(t)*0.02, vy: R*Math.cos(t)*0.02 };
+    }
+
+    // Simple 2x2 matrix ops
+    function matAdd(A,B){ return A.map((r,i)=>r.map((v,j)=>v+B[i][j])); }
+    function matScale(A,s){ return A.map(r=>r.map(v=>v*s)); }
+    function matMul(A,B){ const n=A.length,m=B[0].length,p=B.length; const C=Array.from({length:n},()=>Array(m).fill(0)); for(let i=0;i<n;i++)for(let j=0;j<m;j++)for(let k=0;k<p;k++)C[i][j]+=A[i][k]*B[k][j]; return C; }
+    function matTrans(A){ return A[0].map((_,j)=>A.map(r=>r[j])); }
+    function mat2Inv(M){ const d=M[0][0]*M[1][1]-M[0][1]*M[1][0]; if(Math.abs(d)<1e-10)return[[1,0],[0,1]]; return[[M[1][1]/d,-M[0][1]/d],[-M[1][0]/d,M[0][0]/d]]; }
+
+    // Kalman Filter state: [x, y, vx, vy]
+    function createFilter() {
+      const p = truePos(0);
+      return {
+        x: [[p.x],[p.y],[0],[0]],
+        P: [[10,0,0,0],[0,10,0,0],[0,0,5,0],[0,0,0,5]],
+        trail: [], errors: []
+      };
+    }
+
+    let kf, ekf, ukf;
+    const dt = 0.02;
+    const F = [[1,0,dt,0],[0,1,0,dt],[0,0,1,0],[0,0,0,1]];
+    const H = [[1,0,0,0],[0,1,0,0]];
+    const HT = matTrans(H);
+
+    function getQ(){ const q=processNoise*0.1; return [[q,0,0,0],[0,q,0,0],[0,0,q,0],[0,0,0,q]]; }
+    function getR(){ const r=measNoise; return [[r,0],[0,r]]; }
+
+    function kfPredict(f) {
+      f.x = matMul(F, f.x);
+      f.P = matAdd(matMul(matMul(F, f.P), matTrans(F)), getQ());
+    }
+
+    function kfUpdate(f, z) {
+      const Rmat = getR();
+      const y = [[z.x-f.x[0][0]],[z.y-f.x[1][0]]];
+      const S = matAdd(matMul(matMul(H,f.P),HT), Rmat);
+      const SI = mat2Inv(S);
+      const K = matMul(matMul(f.P, HT), SI);
+      f.x = matAdd(f.x, matMul(K, y));
+      const I4 = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]];
+      const KH = matMul(K, H);
+      const ImKH = I4.map((r,i)=>r.map((v,j)=>v-KH[i][j]));
+      f.P = matMul(ImKH, f.P);
+    }
+
+    // EKF: nonlinear prediction with Jacobian
+    function ekfPredict(f) {
+      if (nonlinear) {
+        // Nonlinear motion model: slight curve
+        const x=f.x[0][0],y=f.x[1][0],vx=f.x[2][0],vy=f.x[3][0];
+        const speed = Math.sqrt(vx*vx+vy*vy)+0.01;
+        const omega = 0.02;
+        f.x[0][0] = x + vx*dt - 0.5*omega*vy*dt*dt;
+        f.x[1][0] = y + vy*dt + 0.5*omega*vx*dt*dt;
+        f.x[2][0] = vx*Math.cos(omega*dt) - vy*Math.sin(omega*dt);
+        f.x[3][0] = vx*Math.sin(omega*dt) + vy*Math.cos(omega*dt);
+
+        // Jacobian
+        const c=Math.cos(omega*dt), s=Math.sin(omega*dt);
+        const Fj = [[1,0,dt,-0.5*omega*dt*dt],[0,1,0.5*omega*dt*dt,dt],[0,0,c,-s],[0,0,s,c]];
+        f.P = matAdd(matMul(matMul(Fj,f.P),matTrans(Fj)), getQ());
+      } else {
+        kfPredict(f);
+      }
+    }
+
+    function ekfUpdate(f, z) { kfUpdate(f, z); }
+
+    // UKF: sigma points
+    function ukfPredict(f) {
+      const n = 4, alpha=1e-3, beta=2, kappa=0, lambda=alpha*alpha*(n+kappa)-n;
+      const wm0 = lambda/(n+lambda), wc0 = wm0 + (1-alpha*alpha+beta);
+      const wi = 1/(2*(n+lambda));
+
+      // Cholesky of (n+lambda)*P
+      const scale = n+lambda;
+      const sP = matScale(f.P, scale);
+      const L = cholesky4(sP);
+
+      // Generate sigma points
+      const sigmas = [];
+      const x = f.x.map(r=>r[0]);
+      sigmas.push([...x]);
+      for(let i=0;i<n;i++){
+        sigmas.push(x.map((v,j)=>v+L[j][i]));
+        sigmas.push(x.map((v,j)=>v-L[j][i]));
+      }
+
+      // Propagate
+      const propSigmas = sigmas.map(s => {
+        if (nonlinear) {
+          const omega=0.02, c=Math.cos(omega*dt), sn=Math.sin(omega*dt);
+          return [
+            s[0]+s[2]*dt-0.5*omega*s[3]*dt*dt,
+            s[1]+s[3]*dt+0.5*omega*s[2]*dt*dt,
+            s[2]*c-s[3]*sn,
+            s[2]*sn+s[3]*c
+          ];
+        }
+        return [s[0]+s[2]*dt, s[1]+s[3]*dt, s[2], s[3]];
+      });
+
+      // Weighted mean
+      const xm = [0,0,0,0];
+      xm[0] = wm0*propSigmas[0][0]; xm[1]=wm0*propSigmas[0][1]; xm[2]=wm0*propSigmas[0][2]; xm[3]=wm0*propSigmas[0][3];
+      for(let i=1;i<2*n+1;i++) for(let j=0;j<4;j++) xm[j]+=wi*propSigmas[i][j];
+
+      // Covariance
+      let Pnew = getQ().map(r=>[...r]);
+      function addOuter(P, dx, w){for(let i=0;i<4;i++)for(let j=0;j<4;j++)P[i][j]+=w*dx[i]*dx[j];}
+      let dx0 = propSigmas[0].map((v,i)=>v-xm[i]);
+      addOuter(Pnew, dx0, wc0);
+      for(let i=1;i<2*n+1;i++){let dxi=propSigmas[i].map((v,j)=>v-xm[j]);addOuter(Pnew,dxi,wi);}
+
+      f.x = xm.map(v=>[v]);
+      f.P = Pnew;
+      f._sigmas = propSigmas;
+      f._xm = xm;
+      f._wm0 = wm0;
+      f._wc0 = wc0;
+      f._wi = wi;
+    }
+
+    function ukfUpdate(f, z) {
+      const n=4, sigmas=f._sigmas, xm=f._xm, wm0=f._wm0, wc0=f._wc0, wi=f._wi;
+      if(!sigmas){ kfUpdate(f,z); return; }
+
+      // Measurement sigma points (just x,y)
+      const zSigmas = sigmas.map(s=>[s[0],s[1]]);
+      const zm = [0,0];
+      zm[0]=wm0*zSigmas[0][0]; zm[1]=wm0*zSigmas[0][1];
+      for(let i=1;i<2*n+1;i++){zm[0]+=wi*zSigmas[i][0]; zm[1]+=wi*zSigmas[i][1];}
+
+      // Innovation covariance
+      let Pzz = getR().map(r=>[...r]);
+      let Pxz = [[0,0],[0,0],[0,0],[0,0]];
+      let dz0=[zSigmas[0][0]-zm[0], zSigmas[0][1]-zm[1]];
+      let dx0=sigmas[0].map((v,i)=>v-xm[i]);
+      for(let i=0;i<2;i++)for(let j=0;j<2;j++)Pzz[i][j]+=wc0*dz0[i]*dz0[j];
+      for(let i=0;i<4;i++)for(let j=0;j<2;j++)Pxz[i][j]+=wc0*dx0[i]*dz0[j];
+      for(let k=1;k<2*n+1;k++){
+        let dzk=[zSigmas[k][0]-zm[0],zSigmas[k][1]-zm[1]];
+        let dxk=sigmas[k].map((v,i)=>v-xm[i]);
+        for(let i=0;i<2;i++)for(let j=0;j<2;j++)Pzz[i][j]+=wi*dzk[i]*dzk[j];
+        for(let i=0;i<4;i++)for(let j=0;j<2;j++)Pxz[i][j]+=wi*dxk[i]*dzk[j];
+      }
+
+      const SI = mat2Inv(Pzz);
+      const K = matMul(Pxz, SI);
+      const innov = [[z.x-zm[0]],[z.y-zm[1]]];
+      f.x = matAdd(f.x, matMul(K, innov));
+      const KPzz = matMul(K, matMul(Pzz, matTrans(K)));
+      f.P = f.P.map((r,i)=>r.map((v,j)=>v-KPzz[i][j]));
+    }
+
+    function cholesky4(A) {
+      const L = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+      for(let i=0;i<4;i++){
+        for(let j=0;j<=i;j++){
+          let sum=0;
+          for(let k=0;k<j;k++) sum+=L[i][k]*L[j][k];
+          if(i===j) L[i][j]=Math.sqrt(Math.max(0.001, A[i][i]-sum));
+          else L[i][j]=(A[i][j]-sum)/Math.max(0.001,L[j][j]);
+        }
+      }
+      return L;
+    }
+
+    let measurements = [], trueTrail = [];
+    let rmseHistory = {kf:[],ekf:[],ukf:[]};
+
+    function reset() {
+      step=0; time=0;
+      kf=createFilter(); ekf=createFilter(); ukf=createFilter();
+      measurements=[]; trueTrail=[];
+      rmseHistory={kf:[],ekf:[],ukf:[]};
+    }
+    reset();
+
+    function measure(tp) {
+      return { x: tp.x + (Math.random()-0.5)*measNoise*4, y: tp.y + (Math.random()-0.5)*measNoise*4 };
+    }
+
+    function rmse(f, tp) {
+      const dx=f.x[0][0]-tp.x, dy=f.x[1][0]-tp.y;
+      return Math.sqrt(dx*dx+dy*dy);
+    }
+
+    function simulate() {
+      if(paused) return;
+      time += dt;
+      step++;
+
+      const tp = truePos(time);
+      const tv = trueVel(time);
+      trueTrail.push({...tp});
+      if(trueTrail.length>200) trueTrail.shift();
+
+      // Predict
+      kfPredict(kf);
+      ekfPredict(ekf);
+      ukfPredict(ukf);
+
+      // Update at specified rate
+      if (step % Math.max(1, Math.round(10/updateRate)) === 0) {
+        const z = measure(tp);
+        measurements.push(z);
+        if(measurements.length>60) measurements.shift();
+        kfUpdate(kf, z);
+        ekfUpdate(ekf, z);
+        ukfUpdate(ukf, z);
+      }
+
+      // Set velocities in filters for better prediction
+      if(step===1){
+        kf.x[2][0]=tv.vx; kf.x[3][0]=tv.vy;
+        ekf.x[2][0]=tv.vx; ekf.x[3][0]=tv.vy;
+        ukf.x[2][0]=tv.vx; ukf.x[3][0]=tv.vy;
+      }
+
+      // Track errors
+      const e1=rmse(kf,tp), e2=rmse(ekf,tp), e3=rmse(ukf,tp);
+      kf.errors.push(e1); ekf.errors.push(e2); ukf.errors.push(e3);
+      if(kf.errors.length>200){kf.errors.shift();ekf.errors.shift();ukf.errors.shift();}
+
+      kf.trail.push({x:kf.x[0][0],y:kf.x[1][0]});
+      ekf.trail.push({x:ekf.x[0][0],y:ekf.x[1][0]});
+      ukf.trail.push({x:ukf.x[0][0],y:ukf.x[1][0]});
+      if(kf.trail.length>200){kf.trail.shift();ekf.trail.shift();ukf.trail.shift();}
+
+      // Running RMSE
+      const avg = arr => arr.length?Math.sqrt(arr.reduce((s,v)=>s+v*v,0)/arr.length):0;
+      rmseHistory.kf.push(e1); rmseHistory.ekf.push(e2); rmseHistory.ukf.push(e3);
+      if(rmseHistory.kf.length>300){rmseHistory.kf.shift();rmseHistory.ekf.shift();rmseHistory.ukf.shift();}
+
+      sl('step').textContent=step;
+      sl('kf-rmse').textContent=avg(kf.errors).toFixed(2);
+      sl('ekf-rmse').textContent=avg(ekf.errors).toFixed(2);
+      sl('ukf-rmse').textContent=avg(ukf.errors).toFixed(2);
+    }
+
+    function drawFilter(ctx, canvas, filter, color, label) {
+      const W=canvas.width, H=canvas.height;
+      ctx.fillStyle='#111';
+      ctx.fillRect(0,0,W,H);
+
+      // Grid
+      ctx.strokeStyle='#1a1a1a';ctx.lineWidth=0.5;
+      for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+      for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+      // True path
+      if(trueTrail.length>1){
+        ctx.strokeStyle='rgba(250,250,250,.3)';ctx.lineWidth=1;ctx.beginPath();
+        trueTrail.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.stroke();
+      }
+
+      // Measurements
+      measurements.forEach(m=>{
+        ctx.fillStyle='rgba(239,68,68,.4)';ctx.beginPath();ctx.arc(m.x,m.y,2.5,0,Math.PI*2);ctx.fill();
+      });
+
+      // Filter trail
+      if(filter.trail.length>1){
+        ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();
+        filter.trail.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.stroke();
+      }
+
+      // Covariance ellipse
+      const px=filter.P[0][0], py=filter.P[1][1], pxy=filter.P[0][1];
+      const ex=filter.x[0][0], ey=filter.x[1][0];
+      ctx.save();ctx.translate(ex,ey);
+      const angle=0.5*Math.atan2(2*pxy, px-py);
+      ctx.rotate(angle);
+      const a=Math.sqrt(Math.abs(px))*2, b=Math.sqrt(Math.abs(py))*2;
+      ctx.strokeStyle=color;ctx.lineWidth=1;ctx.globalAlpha=0.4;ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.ellipse(0,0,Math.min(a,80),Math.min(b,80),0,0,Math.PI*2);ctx.stroke();
+      ctx.setLineDash([]);ctx.globalAlpha=1;ctx.restore();
+
+      // Current estimate
+      ctx.fillStyle=color;ctx.beginPath();ctx.arc(ex,ey,5,0,Math.PI*2);ctx.fill();
+
+      // True position marker
+      const tp=truePos(time);
+      ctx.strokeStyle='#fafafa';ctx.lineWidth=1.5;ctx.beginPath();
+      ctx.arc(tp.x,tp.y,6,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(tp.x-4,tp.y);ctx.lineTo(tp.x+4,tp.y);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(tp.x,tp.y-4);ctx.lineTo(tp.x,tp.y+4);ctx.stroke();
+    }
+
+    function drawChart() {
+      const W=canvasChart.width, H=canvasChart.height;
+      ctxChart.fillStyle='#111';ctxChart.fillRect(0,0,W,H);
+
+      // Axes
+      ctxChart.strokeStyle='#333';ctxChart.lineWidth=1;
+      ctxChart.beginPath();ctxChart.moveTo(40,10);ctxChart.lineTo(40,H-20);ctxChart.lineTo(W-10,H-20);ctxChart.stroke();
+
+      const data = rmseHistory;
+      const maxLen = data.kf.length;
+      if(maxLen<2) return;
+      const maxVal = Math.max(1, ...data.kf.slice(-maxLen), ...data.ekf.slice(-maxLen), ...data.ukf.slice(-maxLen));
+
+      function drawLine(arr, color){
+        ctxChart.strokeStyle=color;ctxChart.lineWidth=1.2;ctxChart.beginPath();
+        arr.forEach((v,i)=>{
+          const x=40+(i/(maxLen-1))*(W-60);
+          const y=(H-20)-(v/maxVal)*(H-40);
+          i===0?ctxChart.moveTo(x,y):ctxChart.lineTo(x,y);
+        });
+        ctxChart.stroke();
+      }
+      drawLine(data.kf,'#3b82f6');
+      drawLine(data.ekf,'#22c55e');
+      drawLine(data.ukf,'#f97316');
+
+      // Labels
+      ctxChart.fillStyle='#525252';ctxChart.font='9px Manrope';ctxChart.textAlign='right';
+      ctxChart.fillText(maxVal.toFixed(1),36,15);
+      ctxChart.fillText('0',36,H-18);
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      simulate();
+      drawFilter(ctxKF, canvasKF, kf, '#3b82f6', 'KF');
+      drawFilter(ctxEKF, canvasEKF, ekf, '#22c55e', 'EKF');
+      drawFilter(ctxUKF, canvasUKF, ukf, '#f97316', 'UKF');
+      drawChart();
+    }
+    loop();
+  </script>
+<script src="/related.js"></script>
+</body>
+</html>

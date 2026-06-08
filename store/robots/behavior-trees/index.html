@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Behavior Tree Editor - FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .25rem} h1 span{color:#f97316}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.75rem;text-align:center;max-width:560px}
+    .wrap{display:flex;gap:1rem;margin:.5rem;flex-wrap:wrap;justify-content:center;width:100%;max-width:1100px}
+    .panel{border:1px solid #262626;border-radius:12px;background:#111;padding:.75rem;flex:1;min-width:320px}
+    .panel h2{font-size:.85rem;color:#a3a3a3;margin-bottom:.5rem;font-weight:600}
+    canvas{width:100%;border-radius:8px;display:block;cursor:crosshair}
+    .controls{display:flex;gap:.5rem;margin:.75rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.35rem .85rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    button.active{background:#f97316;border-color:#f97316;color:#fff}
+    .palette{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem}
+    .palette button{font-size:.72rem;padding:.25rem .6rem}
+    .legend{display:flex;gap:.75rem;flex-wrap:wrap;margin:.5rem 0;font-size:.72rem;color:#a3a3a3}
+    .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:3px;vertical-align:middle}
+    .stats{font-size:.78rem;color:#525252;margin:.5rem;display:flex;gap:1.5rem}
+    .stats span{color:#a3a3a3}
+    a.back{color:#525252;text-decoration:none;font-size:.82rem;margin-bottom:1rem}
+    a.back:hover{color:#f97316}
+    select{background:#171717;color:#fafafa;border:1px solid #333;border-radius:6px;padding:.25rem .5rem;font-size:.78rem;font-family:inherit}
+  </style>
+</head>
+<body>
+  <h1>Behavior Tree <span>Editor</span></h1>
+  <p class="sub">Visual behavior tree editor for robots. Drag nodes, connect relationships, then run the simulation to watch the robot execute the tree in real-time.</p>
+
+  <div class="controls">
+    <span style="font-size:.78rem;color:#a3a3a3">Add node:</span>
+    <div class="palette" id="palette"></div>
+    <button id="btn-run">Run</button>
+    <button id="btn-stop">Stop</button>
+    <button id="btn-clear">Clear</button>
+    <button id="btn-save">Save JSON</button>
+    <button id="btn-load">Load JSON</button>
+    <button id="btn-example">Example Tree</button>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#22c55e"></i>Success</span>
+    <span><i style="background:#ef4444"></i>Failure</span>
+    <span><i style="background:#f97316"></i>Running</span>
+    <span><i style="background:#6b7280"></i>Idle</span>
+  </div>
+
+  <div class="wrap">
+    <div class="panel" style="min-height:400px">
+      <h2>Tree Editor (click to place, drag to connect)</h2>
+      <canvas id="tree" width="540" height="400"></canvas>
+    </div>
+    <div class="panel" style="min-height:400px">
+      <h2>Simulation World</h2>
+      <canvas id="world" width="540" height="400"></canvas>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div>Tick: <span id="tick">0</span></div>
+    <div>Status: <span id="status">Idle</span></div>
+    <div>Nodes: <span id="nodecount">0</span></div>
+  </div>
+  <a class="back" href="/">Back to FreeRobotStore</a>
+
+  <script>
+    const treeCanvas = document.getElementById('tree');
+    const treeCtx = treeCanvas.getContext('2d');
+    const worldCanvas = document.getElementById('world');
+    const worldCtx = worldCanvas.getContext('2d');
+
+    const NODE_TYPES = {
+      composites: [
+        {name:'Sequence',color:'#3b82f6',symbol:'\u2192'},
+        {name:'Selector',color:'#8b5cf6',symbol:'?'},
+        {name:'Parallel',color:'#06b6d4',symbol:'\u2261'}
+      ],
+      conditions: [
+        {name:'SeeTarget',color:'#eab308'},
+        {name:'LowBattery',color:'#eab308'},
+        {name:'ObstacleNear',color:'#eab308'},
+        {name:'AtGoal',color:'#eab308'}
+      ],
+      actions: [
+        {name:'MoveTo',color:'#22c55e'},
+        {name:'Grab',color:'#22c55e'},
+        {name:'Release',color:'#22c55e'},
+        {name:'Wait',color:'#22c55e'},
+        {name:'Patrol',color:'#22c55e'},
+        {name:'Flee',color:'#22c55e'}
+      ]
+    };
+
+    let nodes = [], edges = [], selectedNode = null, dragging = null, connecting = null;
+    let placeType = null, running = false, tickCount = 0, tickTimer = null;
+    let dragOffX = 0, dragOffY = 0;
+
+    // Robot world state
+    let robot = {x:270,y:300,angle:0,battery:100,holding:false};
+    let targets = [{x:400,y:80,grabbed:false},{x:100,y:100,grabbed:false}];
+    let obstacles = [{x:300,y:200,r:30},{x:150,y:250,r:25}];
+    let goal = {x:450,y:350};
+    let patrolIdx = 0;
+    const patrolPoints = [{x:80,y:80},{x:460,y:80},{x:460,y:340},{x:80,y:340}];
+
+    // Build palette
+    const palette = document.getElementById('palette');
+    for (const [cat, items] of Object.entries(NODE_TYPES)) {
+      items.forEach(t => {
+        const b = document.createElement('button');
+        b.textContent = t.name;
+        b.style.borderColor = t.color;
+        b.style.color = t.color;
+        b.addEventListener('click', () => { placeType = t; });
+        palette.appendChild(b);
+      });
+    }
+
+    function createNode(type, x, y) {
+      return {id: Date.now()+Math.random(), type: type.name, color: type.color, symbol: type.symbol||'', x, y, w:80, h:34, status:'idle', children:[]};
+    }
+
+    function getNodeAt(x, y) {
+      for (let i=nodes.length-1; i>=0; i--) {
+        const n = nodes[i];
+        if (x>=n.x && x<=n.x+n.w && y>=n.y && y<=n.y+n.h) return n;
+      }
+      return null;
+    }
+
+    treeCanvas.addEventListener('mousedown', e => {
+      const r = treeCanvas.getBoundingClientRect();
+      const mx = (e.clientX-r.left)*(treeCanvas.width/r.width);
+      const my = (e.clientY-r.top)*(treeCanvas.height/r.height);
+      const hit = getNodeAt(mx, my);
+
+      if (e.shiftKey && hit) {
+        connecting = hit;
+        return;
+      }
+      if (hit) {
+        dragging = hit;
+        dragOffX = mx - hit.x;
+        dragOffY = my - hit.y;
+        selectedNode = hit;
+      } else if (placeType) {
+        const n = createNode(placeType, mx-40, my-17);
+        nodes.push(n);
+        selectedNode = n;
+      }
+    });
+
+    treeCanvas.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const r = treeCanvas.getBoundingClientRect();
+      const mx = (e.clientX-r.left)*(treeCanvas.width/r.width);
+      const my = (e.clientY-r.top)*(treeCanvas.height/r.height);
+      dragging.x = mx - dragOffX;
+      dragging.y = my - dragOffY;
+    });
+
+    treeCanvas.addEventListener('mouseup', e => {
+      if (connecting) {
+        const r = treeCanvas.getBoundingClientRect();
+        const mx = (e.clientX-r.left)*(treeCanvas.width/r.width);
+        const my = (e.clientY-r.top)*(treeCanvas.height/r.height);
+        const hit = getNodeAt(mx, my);
+        if (hit && hit !== connecting) {
+          if (!connecting.children.includes(hit.id)) {
+            connecting.children.push(hit.id);
+            edges.push({from:connecting.id, to:hit.id});
+          }
+        }
+        connecting = null;
+      }
+      dragging = null;
+    });
+
+    treeCanvas.addEventListener('dblclick', e => {
+      const r = treeCanvas.getBoundingClientRect();
+      const mx = (e.clientX-r.left)*(treeCanvas.width/r.width);
+      const my = (e.clientY-r.top)*(treeCanvas.height/r.height);
+      const hit = getNodeAt(mx, my);
+      if (hit) {
+        nodes = nodes.filter(n => n.id !== hit.id);
+        edges = edges.filter(ed => ed.from !== hit.id && ed.to !== hit.id);
+        nodes.forEach(n => n.children = n.children.filter(c => c !== hit.id));
+      }
+    });
+
+    function findRoot() {
+      const childIds = new Set(edges.map(e=>e.to));
+      return nodes.find(n => !childIds.has(n.id));
+    }
+
+    function getChildren(node) {
+      return node.children.map(id => nodes.find(n=>n.id===id)).filter(Boolean);
+    }
+
+    // BT Tick logic
+    function tick(node) {
+      if (!node) return 'failure';
+      const children = getChildren(node);
+      const type = node.type;
+
+      // Conditions
+      if (type === 'SeeTarget') {
+        const vis = targets.some(t => !t.grabbed && dist(robot,t) < 180);
+        node.status = vis ? 'success' : 'failure';
+        return node.status;
+      }
+      if (type === 'LowBattery') {
+        node.status = robot.battery < 30 ? 'success' : 'failure';
+        return node.status;
+      }
+      if (type === 'ObstacleNear') {
+        const near = obstacles.some(o => dist(robot,o) < o.r+40);
+        node.status = near ? 'success' : 'failure';
+        return node.status;
+      }
+      if (type === 'AtGoal') {
+        node.status = dist(robot,goal) < 20 ? 'success' : 'failure';
+        return node.status;
+      }
+
+      // Actions
+      if (type === 'MoveTo') {
+        const t = targets.find(t=>!t.grabbed) || goal;
+        const d = dist(robot, t);
+        if (d < 15) { node.status='success'; return 'success'; }
+        moveToward(robot, t, 2);
+        robot.battery -= 0.1;
+        node.status='running';
+        return 'running';
+      }
+      if (type === 'Grab') {
+        const t = targets.find(t=>!t.grabbed && dist(robot,t)<25);
+        if (t) { t.grabbed=true; robot.holding=true; node.status='success'; }
+        else node.status='failure';
+        return node.status;
+      }
+      if (type === 'Release') {
+        robot.holding=false; node.status='success'; return 'success';
+      }
+      if (type === 'Wait') {
+        node.status = tickCount%30 < 15 ? 'running' : 'success';
+        return node.status;
+      }
+      if (type === 'Patrol') {
+        const pt = patrolPoints[patrolIdx%patrolPoints.length];
+        if (dist(robot,pt)<15) { patrolIdx++; node.status='success'; return 'success'; }
+        moveToward(robot, pt, 1.5);
+        robot.battery -= 0.05;
+        node.status='running'; return 'running';
+      }
+      if (type === 'Flee') {
+        const near = obstacles.reduce((cl,o)=>dist(robot,o)<dist(robot,cl)?o:cl, obstacles[0]);
+        const dx = robot.x-near.x, dy = robot.y-near.y;
+        const d = Math.sqrt(dx*dx+dy*dy)||1;
+        robot.x += dx/d*3; robot.y += dy/d*3;
+        robot.battery -= 0.15;
+        node.status='success'; return 'success';
+      }
+
+      // Composites
+      if (type === 'Sequence') {
+        node.status = 'running';
+        for (const c of children) {
+          const r = tick(c);
+          if (r === 'failure') { node.status='failure'; return 'failure'; }
+          if (r === 'running') return 'running';
+        }
+        node.status='success'; return 'success';
+      }
+      if (type === 'Selector') {
+        node.status = 'running';
+        for (const c of children) {
+          const r = tick(c);
+          if (r === 'success') { node.status='success'; return 'success'; }
+          if (r === 'running') return 'running';
+        }
+        node.status='failure'; return 'failure';
+      }
+      if (type === 'Parallel') {
+        node.status = 'running';
+        let results = children.map(c => tick(c));
+        if (results.every(r=>r==='success')) { node.status='success'; return 'success'; }
+        if (results.some(r=>r==='failure')) { node.status='failure'; return 'failure'; }
+        return 'running';
+      }
+
+      node.status = 'failure';
+      return 'failure';
+    }
+
+    function dist(a,b) { return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2); }
+    function moveToward(obj, target, speed) {
+      const dx=target.x-obj.x, dy=target.y-obj.y, d=Math.sqrt(dx*dx+dy*dy)||1;
+      obj.x+=dx/d*speed; obj.y+=dy/d*speed;
+      obj.angle=Math.atan2(dy,dx);
+    }
+
+    function resetWorld() {
+      robot = {x:270,y:300,angle:0,battery:100,holding:false};
+      targets = [{x:400,y:80,grabbed:false},{x:100,y:100,grabbed:false}];
+      patrolIdx = 0;
+      tickCount = 0;
+      nodes.forEach(n => n.status='idle');
+    }
+
+    document.getElementById('btn-run').addEventListener('click', () => {
+      if (running) return;
+      running = true;
+      resetWorld();
+      tickTimer = setInterval(() => {
+        const root = findRoot();
+        if (root) tick(root);
+        tickCount++;
+        document.getElementById('tick').textContent = tickCount;
+        const root2 = findRoot();
+        document.getElementById('status').textContent = root2 ? root2.status : 'N/A';
+      }, 100);
+    });
+
+    document.getElementById('btn-stop').addEventListener('click', () => {
+      running = false;
+      clearInterval(tickTimer);
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      running = false; clearInterval(tickTimer);
+      nodes = []; edges = []; resetWorld();
+    });
+
+    document.getElementById('btn-save').addEventListener('click', () => {
+      const data = JSON.stringify({nodes, edges}, null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'behavior-tree.json';
+      a.click();
+    });
+
+    document.getElementById('btn-load').addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = '.json';
+      input.onchange = e => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = ev => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            nodes = data.nodes || [];
+            edges = data.edges || [];
+            nodes.forEach(n => n.status = 'idle');
+          } catch(err) {}
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    });
+
+    document.getElementById('btn-example').addEventListener('click', () => {
+      running = false; clearInterval(tickTimer);
+      nodes = [
+        {id:1,type:'Selector',color:'#8b5cf6',symbol:'?',x:230,y:20,w:80,h:34,status:'idle',children:[2,5]},
+        {id:2,type:'Sequence',color:'#3b82f6',symbol:'\u2192',x:100,y:90,w:80,h:34,status:'idle',children:[3,4]},
+        {id:3,type:'SeeTarget',color:'#eab308',symbol:'',x:50,y:170,w:80,h:34,status:'idle',children:[]},
+        {id:4,type:'MoveTo',color:'#22c55e',symbol:'',x:150,y:170,w:80,h:34,status:'idle',children:[]},
+        {id:5,type:'Sequence',color:'#3b82f6',symbol:'\u2192',x:320,y:90,w:80,h:34,status:'idle',children:[6,7]},
+        {id:6,type:'ObstacleNear',color:'#eab308',symbol:'',x:280,y:170,w:80,h:34,status:'idle',children:[]},
+        {id:7,type:'Flee',color:'#22c55e',symbol:'',x:380,y:170,w:80,h:34,status:'idle',children:[]}
+      ];
+      edges = [{from:1,to:2},{from:1,to:5},{from:2,to:3},{from:2,to:4},{from:5,to:6},{from:5,to:7}];
+      resetWorld();
+    });
+
+    // Drawing
+    function statusColor(s) {
+      if (s==='success') return '#22c55e';
+      if (s==='failure') return '#ef4444';
+      if (s==='running') return '#f97316';
+      return '#6b7280';
+    }
+
+    function drawTree() {
+      treeCtx.fillStyle='#111';
+      treeCtx.fillRect(0,0,treeCanvas.width,treeCanvas.height);
+
+      // Edges
+      for (const e of edges) {
+        const from = nodes.find(n=>n.id===e.from);
+        const to = nodes.find(n=>n.id===e.to);
+        if (!from||!to) continue;
+        treeCtx.strokeStyle='#404040';
+        treeCtx.lineWidth=1.5;
+        treeCtx.beginPath();
+        treeCtx.moveTo(from.x+from.w/2, from.y+from.h);
+        treeCtx.lineTo(to.x+to.w/2, to.y);
+        treeCtx.stroke();
+      }
+
+      // Nodes
+      for (const n of nodes) {
+        const sc = statusColor(n.status);
+        treeCtx.fillStyle = '#1a1a1a';
+        treeCtx.strokeStyle = running ? sc : n.color;
+        treeCtx.lineWidth = running && n.status==='running' ? 2.5 : 1.5;
+        treeCtx.beginPath();
+        treeCtx.roundRect(n.x, n.y, n.w, n.h, 6);
+        treeCtx.fill();
+        treeCtx.stroke();
+
+        if (running) {
+          treeCtx.fillStyle = sc;
+          treeCtx.beginPath();
+          treeCtx.arc(n.x+n.w-8, n.y+8, 4, 0, Math.PI*2);
+          treeCtx.fill();
+        }
+
+        treeCtx.fillStyle = '#fafafa';
+        treeCtx.font = '11px Manrope, system-ui';
+        treeCtx.textAlign = 'center';
+        treeCtx.fillText((n.symbol?n.symbol+' ':'')+n.type, n.x+n.w/2, n.y+n.h/2+4);
+      }
+
+      // Connecting hint
+      if (connecting) {
+        treeCtx.strokeStyle='#f97316';
+        treeCtx.setLineDash([4,4]);
+        treeCtx.beginPath();
+        treeCtx.moveTo(connecting.x+connecting.w/2, connecting.y+connecting.h);
+        treeCtx.lineTo(connecting.x+connecting.w/2+20, connecting.y+connecting.h+30);
+        treeCtx.stroke();
+        treeCtx.setLineDash([]);
+      }
+
+      document.getElementById('nodecount').textContent = nodes.length;
+    }
+
+    function drawWorld() {
+      const ctx = worldCtx;
+      const W = worldCanvas.width, H = worldCanvas.height;
+      ctx.fillStyle='#0d1117';
+      ctx.fillRect(0,0,W,H);
+
+      // Grid
+      ctx.strokeStyle='#1a1a1a';
+      ctx.lineWidth=0.5;
+      for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+      for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+      // Goal
+      ctx.fillStyle='rgba(34,197,94,.15)';
+      ctx.beginPath();ctx.arc(goal.x,goal.y,20,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#22c55e';
+      ctx.font='10px Manrope';ctx.textAlign='center';
+      ctx.fillText('GOAL',goal.x,goal.y+3);
+
+      // Patrol points
+      ctx.strokeStyle='rgba(59,130,246,.3)';
+      ctx.setLineDash([3,3]);
+      ctx.beginPath();
+      patrolPoints.forEach((p,i)=>{i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);});
+      ctx.closePath();ctx.stroke();
+      ctx.setLineDash([]);
+      patrolPoints.forEach((p,i)=>{
+        ctx.fillStyle=i===patrolIdx%patrolPoints.length?'#3b82f6':'#1e40af';
+        ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();
+      });
+
+      // Obstacles
+      obstacles.forEach(o=>{
+        ctx.fillStyle='rgba(239,68,68,.15)';
+        ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#ef4444';ctx.lineWidth=1;ctx.stroke();
+      });
+
+      // Targets
+      targets.forEach(t=>{
+        if(t.grabbed)return;
+        ctx.fillStyle='#eab308';
+        ctx.beginPath();ctx.arc(t.x,t.y,8,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#0a0a0a';ctx.font='8px Manrope';ctx.fillText('T',t.x,t.y+3);
+      });
+
+      // Robot
+      ctx.save();
+      ctx.translate(robot.x,robot.y);
+      ctx.rotate(robot.angle);
+      ctx.fillStyle='#f97316';
+      ctx.beginPath();
+      ctx.moveTo(12,0);ctx.lineTo(-8,-7);ctx.lineTo(-5,0);ctx.lineTo(-8,7);
+      ctx.closePath();ctx.fill();
+      ctx.restore();
+
+      // Robot vision cone
+      ctx.fillStyle='rgba(249,115,22,.04)';
+      ctx.beginPath();
+      ctx.moveTo(robot.x,robot.y);
+      ctx.arc(robot.x,robot.y,180,robot.angle-.4,robot.angle+.4);
+      ctx.closePath();ctx.fill();
+
+      // Battery bar
+      ctx.fillStyle='#262626';
+      ctx.fillRect(10,H-20,100,10);
+      ctx.fillStyle=robot.battery>30?'#22c55e':'#ef4444';
+      ctx.fillRect(10,H-20,robot.battery,10);
+      ctx.fillStyle='#a3a3a3';ctx.font='8px Manrope';ctx.textAlign='left';
+      ctx.fillText('BAT: '+Math.round(robot.battery)+'%',12,H-12);
+
+      // Holding indicator
+      if(robot.holding){
+        ctx.fillStyle='#eab308';ctx.font='10px Manrope';ctx.textAlign='right';
+        ctx.fillText('HOLDING',W-10,H-12);
+      }
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      drawTree();
+      drawWorld();
+    }
+    loop();
+  </script>
+<script src="/related.js"></script>
+</body>
+</html>

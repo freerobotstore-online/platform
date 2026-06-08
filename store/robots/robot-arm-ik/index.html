@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Arm IK Solver Comparison - FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .25rem} h1 span{color:#f97316}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.75rem;text-align:center;max-width:560px}
+    .wrap{display:flex;gap:.75rem;margin:.5rem;flex-wrap:wrap;justify-content:center;width:100%;max-width:1100px}
+    .panel{border:1px solid #262626;border-radius:12px;background:#111;padding:.75rem;flex:1;min-width:300px}
+    .panel h2{font-size:.82rem;color:#a3a3a3;margin-bottom:.4rem;font-weight:600}
+    canvas{width:100%;border-radius:8px;display:block;cursor:crosshair}
+    .controls{display:flex;gap:.75rem;margin:.75rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.35rem .85rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    button.active{background:#f97316;border-color:#f97316;color:#fff}
+    label{font-size:.78rem;color:#a3a3a3;display:flex;align-items:center;gap:.4rem}
+    input[type=range]{width:70px;accent-color:#f97316}
+    .val{color:#f97316;font-weight:600;min-width:2rem}
+    .legend{display:flex;gap:1rem;margin:.4rem 0;font-size:.72rem;color:#a3a3a3}
+    .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:3px;vertical-align:middle}
+    .stats{font-size:.78rem;color:#525252;margin:.5rem;display:flex;gap:1rem;flex-wrap:wrap}
+    .stats span{color:#a3a3a3}
+    .chart-wrap{border:1px solid #262626;border-radius:12px;background:#111;padding:.75rem;width:100%;max-width:1100px;margin:.5rem}
+    .chart-wrap h2{font-size:.82rem;color:#a3a3a3;margin-bottom:.4rem;font-weight:600}
+    a.back{color:#525252;text-decoration:none;font-size:.82rem;margin-bottom:1rem}
+    a.back:hover{color:#f97316}
+  </style>
+</head>
+<body>
+  <h1>Robot Arm <span>IK Solver</span> Comparison</h1>
+  <p class="sub">3-DOF planar robot arm. Click anywhere to set target. Compare Jacobian Transpose, CCD, and FABRIK solving simultaneously.</p>
+
+  <div class="controls">
+    <label>Link 1 <input type="range" id="l1" min="30" max="120" value="80"><span class="val" id="l1-v">80</span></label>
+    <label>Link 2 <input type="range" id="l2" min="30" max="120" value="70"><span class="val" id="l2-v">70</span></label>
+    <label>Link 3 <input type="range" id="l3" min="20" max="80" value="50"><span class="val" id="l3-v">50</span></label>
+    <label>Joint Limits <input type="range" id="jlim" min="30" max="180" value="150"><span class="val" id="jlim-v">150</span>&deg;</label>
+    <button id="btn-reset">Reset</button>
+    <button id="btn-workspace">Show Workspace</button>
+    <button id="btn-animate">Animate Target</button>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:#3b82f6"></i>Jacobian Transpose</span>
+    <span><i style="background:#22c55e"></i>CCD</span>
+    <span><i style="background:#f97316"></i>FABRIK</span>
+    <span><i style="background:#ef4444"></i>Target</span>
+  </div>
+
+  <div class="wrap">
+    <div class="panel">
+      <h2>Jacobian Transpose</h2>
+      <canvas id="jac" width="340" height="340"></canvas>
+    </div>
+    <div class="panel">
+      <h2>CCD (Cyclic Coordinate Descent)</h2>
+      <canvas id="ccd" width="340" height="340"></canvas>
+    </div>
+    <div class="panel">
+      <h2>FABRIK</h2>
+      <canvas id="fab" width="340" height="340"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-wrap">
+    <h2>Convergence Speed (error vs iterations)</h2>
+    <canvas id="chart" width="1060" height="140"></canvas>
+  </div>
+
+  <div class="stats">
+    <div>Jacobian iters: <span id="jac-iter" style="color:#3b82f6">0</span></div>
+    <div>Jacobian err: <span id="jac-err" style="color:#3b82f6">0</span></div>
+    <div>CCD iters: <span id="ccd-iter" style="color:#22c55e">0</span></div>
+    <div>CCD err: <span id="ccd-err" style="color:#22c55e">0</span></div>
+    <div>FABRIK iters: <span id="fab-iter" style="color:#f97316">0</span></div>
+    <div>FABRIK err: <span id="fab-err" style="color:#f97316">0</span></div>
+  </div>
+  <a class="back" href="/">Back to FreeRobotStore</a>
+
+  <script>
+    const canvasJac = document.getElementById('jac');
+    const canvasCCD = document.getElementById('ccd');
+    const canvasFab = document.getElementById('fab');
+    const canvasChart = document.getElementById('chart');
+    const ctxJac = canvasJac.getContext('2d');
+    const ctxCCD = canvasCCD.getContext('2d');
+    const ctxFab = canvasFab.getContext('2d');
+    const ctxChart = canvasChart.getContext('2d');
+
+    const sl = id => document.getElementById(id);
+    let lengths = [80, 70, 50];
+    let jointLimit = 150 * Math.PI / 180;
+    let showWorkspace = false, animateTarget = false;
+
+    const BASE = {x: 170, y: 280};
+    let target = {x: 250, y: 120};
+
+    // Each solver has its own joint angles
+    let jacAngles = [0, 0, 0];
+    let ccdAngles = [0, 0, 0];
+    let fabAngles = [0, 0, 0];
+
+    let jacIters = 0, ccdIters = 0, fabIters = 0;
+    let jacHistory = [], ccdHistory = [], fabHistory = [];
+    let solving = false, solveStep = 0;
+
+    ['l1','l2','l3','jlim'].forEach(id => {
+      sl(id).addEventListener('input', () => {
+        sl(id+'-v').textContent = sl(id).value;
+        lengths = [+sl('l1').value, +sl('l2').value, +sl('l3').value];
+        jointLimit = +sl('jlim').value * Math.PI / 180;
+      });
+    });
+
+    sl('btn-reset').addEventListener('click', () => {
+      jacAngles=[0,0,0]; ccdAngles=[0,0,0]; fabAngles=[0,0,0];
+      jacHistory=[]; ccdHistory=[]; fabHistory=[];
+      solving=false; solveStep=0;
+    });
+    sl('btn-workspace').addEventListener('click', function(){ showWorkspace=!showWorkspace; this.classList.toggle('active'); });
+    sl('btn-animate').addEventListener('click', function(){ animateTarget=!animateTarget; this.classList.toggle('active'); });
+
+    // Click to set target on any canvas
+    [canvasJac, canvasCCD, canvasFab].forEach(c => {
+      c.addEventListener('click', e => {
+        const r = c.getBoundingClientRect();
+        target.x = (e.clientX - r.left) * (c.width / r.width);
+        target.y = (e.clientY - r.top) * (c.height / r.height);
+        startSolve();
+      });
+    });
+
+    function startSolve() {
+      solving = true;
+      solveStep = 0;
+      jacIters = 0; ccdIters = 0; fabIters = 0;
+      jacHistory = []; ccdHistory = []; fabHistory = [];
+    }
+
+    function forwardKinematics(angles) {
+      const points = [{...BASE}];
+      let cumAngle = 0;
+      for (let i = 0; i < 3; i++) {
+        cumAngle += angles[i];
+        const prev = points[points.length - 1];
+        points.push({
+          x: prev.x + lengths[i] * Math.cos(cumAngle),
+          y: prev.y + lengths[i] * Math.sin(cumAngle)
+        });
+      }
+      return points;
+    }
+
+    function endEffector(angles) {
+      const pts = forwardKinematics(angles);
+      return pts[pts.length - 1];
+    }
+
+    function clampAngle(a) {
+      while (a > Math.PI) a -= 2*Math.PI;
+      while (a < -Math.PI) a += 2*Math.PI;
+      return Math.max(-jointLimit, Math.min(jointLimit, a));
+    }
+
+    function errDist(angles) {
+      const ee = endEffector(angles);
+      return Math.sqrt((ee.x-target.x)**2 + (ee.y-target.y)**2);
+    }
+
+    // Jacobian Transpose method
+    function solveJacobian() {
+      if (errDist(jacAngles) < 2) return;
+      const ee = endEffector(jacAngles);
+      const dx = target.x - ee.x, dy = target.y - ee.y;
+
+      // Compute Jacobian columns (for 2D rotation joints)
+      const pts = forwardKinematics(jacAngles);
+      const dtheta = [0, 0, 0];
+      for (let i = 0; i < 3; i++) {
+        const jx = -(ee.y - pts[i].y);
+        const jy = ee.x - pts[i].x;
+        dtheta[i] = (jx * dx + jy * dy) * 0.00005;
+      }
+
+      for (let i = 0; i < 3; i++) {
+        jacAngles[i] += dtheta[i];
+        jacAngles[i] = clampAngle(jacAngles[i]);
+      }
+      jacIters++;
+    }
+
+    // CCD method
+    function solveCCD() {
+      if (errDist(ccdAngles) < 2) return;
+      const pts = forwardKinematics(ccdAngles);
+      const ee = pts[3];
+
+      // Iterate from end to base
+      for (let i = 2; i >= 0; i--) {
+        const joint = pts[i];
+        const toEE = Math.atan2(ee.y - joint.y, ee.x - joint.x);
+        const toTarget = Math.atan2(target.y - joint.y, target.x - joint.x);
+        let delta = toTarget - toEE;
+        while (delta > Math.PI) delta -= 2*Math.PI;
+        while (delta < -Math.PI) delta += 2*Math.PI;
+        ccdAngles[i] += delta * 0.5;
+        ccdAngles[i] = clampAngle(ccdAngles[i]);
+
+        // Recompute forward
+        const newPts = forwardKinematics(ccdAngles);
+        pts[0] = newPts[0]; pts[1] = newPts[1]; pts[2] = newPts[2]; pts[3] = newPts[3];
+      }
+      ccdIters++;
+    }
+
+    // FABRIK method
+    function solveFABRIK() {
+      if (errDist(fabAngles) < 2) return;
+      let pts = forwardKinematics(fabAngles);
+      const positions = pts.map(p => ({...p}));
+
+      // Forward reaching (from end to base)
+      positions[3] = {...target};
+      for (let i = 2; i >= 0; i--) {
+        const dx = positions[i].x - positions[i+1].x;
+        const dy = positions[i].y - positions[i+1].y;
+        const d = Math.sqrt(dx*dx + dy*dy) || 0.001;
+        positions[i].x = positions[i+1].x + dx/d * lengths[i];
+        positions[i].y = positions[i+1].y + dy/d * lengths[i];
+      }
+
+      // Backward reaching (from base to end)
+      positions[0] = {...BASE};
+      for (let i = 0; i < 3; i++) {
+        const dx = positions[i+1].x - positions[i].x;
+        const dy = positions[i+1].y - positions[i].y;
+        const d = Math.sqrt(dx*dx + dy*dy) || 0.001;
+        positions[i+1].x = positions[i].x + dx/d * lengths[i];
+        positions[i+1].y = positions[i].y + dy/d * lengths[i];
+      }
+
+      // Convert positions back to angles
+      let cumAngle = 0;
+      for (let i = 0; i < 3; i++) {
+        const dx = positions[i+1].x - positions[i].x;
+        const dy = positions[i+1].y - positions[i].y;
+        const absAngle = Math.atan2(dy, dx);
+        fabAngles[i] = clampAngle(absAngle - cumAngle);
+        cumAngle += fabAngles[i];
+      }
+      fabIters++;
+    }
+
+    function drawArm(ctx, canvas, angles, color) {
+      const W = canvas.width, H = canvas.height;
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, W, H);
+
+      // Grid
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 0.5;
+      for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+      for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+      // Workspace (reachable area)
+      if (showWorkspace) {
+        const totalLen = lengths[0] + lengths[1] + lengths[2];
+        const minLen = Math.abs(lengths[0] - lengths[1] - lengths[2]);
+        ctx.fillStyle = 'rgba(249,115,22,.04)';
+        ctx.beginPath(); ctx.arc(BASE.x, BASE.y, totalLen, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(249,115,22,.15)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(BASE.x, BASE.y, totalLen, 0, Math.PI*2); ctx.stroke();
+        if (minLen > 5) {
+          ctx.fillStyle = '#111';
+          ctx.beginPath(); ctx.arc(BASE.x, BASE.y, minLen, 0, Math.PI*2); ctx.fill();
+          ctx.strokeStyle = 'rgba(249,115,22,.1)';
+          ctx.beginPath(); ctx.arc(BASE.x, BASE.y, minLen, 0, Math.PI*2); ctx.stroke();
+        }
+      }
+
+      // Target
+      ctx.fillStyle = 'rgba(239,68,68,.15)';
+      ctx.beginPath(); ctx.arc(target.x, target.y, 12, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(target.x, target.y, 6, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(target.x-8,target.y); ctx.lineTo(target.x+8,target.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(target.x,target.y-8); ctx.lineTo(target.x,target.y+8); ctx.stroke();
+
+      // Arm
+      const pts = forwardKinematics(angles);
+      ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath();
+      pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.stroke();
+
+      // Joints
+      pts.forEach((p, i) => {
+        ctx.fillStyle = i === 0 ? '#525252' : (i === pts.length-1 ? color : '#a3a3a3');
+        ctx.beginPath(); ctx.arc(p.x, p.y, i===0?6:4, 0, Math.PI*2); ctx.fill();
+      });
+
+      // End effector trail indicator
+      const ee = pts[pts.length-1];
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath(); ctx.arc(ee.x, ee.y, 8, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Base mount
+      ctx.fillStyle = '#333';
+      ctx.fillRect(BASE.x-15, BASE.y, 30, 10);
+    }
+
+    function drawChart() {
+      const W = canvasChart.width, H = canvasChart.height;
+      ctxChart.fillStyle = '#111'; ctxChart.fillRect(0,0,W,H);
+
+      ctxChart.strokeStyle='#333';ctxChart.lineWidth=1;
+      ctxChart.beginPath();ctxChart.moveTo(40,10);ctxChart.lineTo(40,H-20);ctxChart.lineTo(W-10,H-20);ctxChart.stroke();
+
+      const maxLen = Math.max(jacHistory.length, ccdHistory.length, fabHistory.length, 2);
+      const maxVal = Math.max(10, ...jacHistory, ...ccdHistory, ...fabHistory);
+
+      function drawLine(arr, color) {
+        if (arr.length < 2) return;
+        ctxChart.strokeStyle = color; ctxChart.lineWidth = 1.5; ctxChart.beginPath();
+        arr.forEach((v, i) => {
+          const x = 40 + (i/(maxLen-1))*(W-60);
+          const y = (H-20) - (v/maxVal)*(H-40);
+          i===0 ? ctxChart.moveTo(x,y) : ctxChart.lineTo(x,y);
+        });
+        ctxChart.stroke();
+      }
+      drawLine(jacHistory, '#3b82f6');
+      drawLine(ccdHistory, '#22c55e');
+      drawLine(fabHistory, '#f97316');
+
+      // Axis labels
+      ctxChart.fillStyle='#525252';ctxChart.font='9px Manrope';ctxChart.textAlign='right';
+      ctxChart.fillText(maxVal.toFixed(0)+'px',36,15);
+      ctxChart.fillText('0',36,H-18);
+      ctxChart.textAlign='center';
+      ctxChart.fillText('iterations',W/2,H-5);
+    }
+
+    let animTime = 0;
+    function loop() {
+      requestAnimationFrame(loop);
+
+      if (animateTarget) {
+        animTime += 0.015;
+        target.x = BASE.x + Math.cos(animTime) * 120;
+        target.y = BASE.y + Math.sin(animTime * 1.7) * 100 - 80;
+        solving = true;
+      }
+
+      if (solving) {
+        for (let i = 0; i < 3; i++) {
+          solveJacobian();
+          solveCCD();
+          solveFABRIK();
+        }
+        solveStep++;
+
+        jacHistory.push(errDist(jacAngles));
+        ccdHistory.push(errDist(ccdAngles));
+        fabHistory.push(errDist(fabAngles));
+        if (jacHistory.length > 200) { jacHistory.shift(); ccdHistory.shift(); fabHistory.shift(); }
+
+        if (!animateTarget && solveStep > 300) solving = false;
+      }
+
+      drawArm(ctxJac, canvasJac, jacAngles, '#3b82f6');
+      drawArm(ctxCCD, canvasCCD, ccdAngles, '#22c55e');
+      drawArm(ctxFab, canvasFab, fabAngles, '#f97316');
+      drawChart();
+
+      sl('jac-iter').textContent = jacIters;
+      sl('jac-err').textContent = errDist(jacAngles).toFixed(1);
+      sl('ccd-iter').textContent = ccdIters;
+      sl('ccd-err').textContent = errDist(ccdAngles).toFixed(1);
+      sl('fab-iter').textContent = fabIters;
+      sl('fab-err').textContent = errDist(fabAngles).toFixed(1);
+    }
+
+    startSolve();
+    loop();
+  </script>
+<script src="/related.js"></script>
+</body>
+</html>

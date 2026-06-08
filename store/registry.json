@@ -479,6 +479,54 @@
       "creator": "serge-ivo",
       "creatorName": "Serge",
       "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "behavior-trees",
+      "name": "Behavior Tree Editor",
+      "description": "Visual node editor for robot AI. Drag nodes, connect tree, run simulation. Watch robot execute behaviors.",
+      "icon": "🌲",
+      "iconBg": "#10b981",
+      "category": "planning",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "state-estimation",
+      "name": "State Estimation Comparison",
+      "description": "Kalman vs Extended Kalman vs Unscented Kalman. Covariance ellipses, RMSE charts, nonlinear motion.",
+      "icon": "📈",
+      "iconBg": "#8b5cf6",
+      "category": "sensing",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "robot-arm-ik",
+      "name": "IK Solver Comparison",
+      "description": "Jacobian vs CCD vs FABRIK solving simultaneously. Click target, watch convergence, compare speed.",
+      "icon": "🦾",
+      "iconBg": "#f97316",
+      "category": "motion",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "formation-control",
+      "name": "Formation Control",
+      "description": "8-16 robots maintaining formations (circle, V, diamond). Leader-follower vs consensus. Dynamic switching.",
+      "icon": "🔺",
+      "iconBg": "#3b82f6",
+      "category": "composed",
+      "storeType": "behavior",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
     }
   ]
 }

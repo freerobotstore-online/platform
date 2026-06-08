@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formation Control - FreeRobotStore</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a0a;color:#fafafa;font-family:'Manrope',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+    h1{font-size:1.3rem;font-weight:700;margin:1.5rem 0 .25rem} h1 span{color:#f97316}
+    .sub{color:#737373;font-size:.85rem;margin-bottom:.75rem;text-align:center;max-width:560px}
+    canvas{border:1px solid #262626;border-radius:12px;cursor:crosshair}
+    .controls{display:flex;gap:.5rem;margin:.75rem 0;flex-wrap:wrap;justify-content:center;align-items:center}
+    button{padding:.35rem .85rem;border-radius:8px;border:1px solid #333;background:#171717;color:#fafafa;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}
+    button:hover{border-color:#f97316;color:#f97316}
+    button.active{background:#f97316;border-color:#f97316;color:#fff}
+    label{font-size:.78rem;color:#a3a3a3;display:flex;align-items:center;gap:.4rem}
+    input[type=range]{width:70px;accent-color:#f97316}
+    .val{color:#f97316;font-weight:600;min-width:2rem}
+    .row{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;align-items:center}
+    .stats{font-size:.78rem;color:#525252;margin:.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+    .stats span{color:#a3a3a3}
+    a.back{color:#525252;text-decoration:none;font-size:.82rem;margin-bottom:1rem}
+    a.back:hover{color:#f97316}
+    .sep{width:1px;height:20px;background:#333}
+  </style>
+</head>
+<body>
+  <h1>Formation <span>Control</span></h1>
+  <p class="sub">Multi-robot formation control. Robots maintain geometric shapes while navigating. Click to place obstacles. Switch formations and control modes in real-time.</p>
+
+  <div class="controls">
+    <div class="row">
+      <span style="font-size:.72rem;color:#525252">Formation:</span>
+      <button class="active" data-form="circle">Circle</button>
+      <button data-form="line">Line</button>
+      <button data-form="v-shape">V-Shape</button>
+      <button data-form="square">Square</button>
+      <button data-form="diamond">Diamond</button>
+      <button data-form="custom">Custom</button>
+    </div>
+    <div class="sep"></div>
+    <div class="row">
+      <span style="font-size:.72rem;color:#525252">Mode:</span>
+      <button class="active" data-mode="leader">Leader-Follower</button>
+      <button data-mode="consensus">Consensus</button>
+    </div>
+  </div>
+  <div class="controls">
+    <label>Speed <input type="range" id="speed" min="0.5" max="4" step="0.1" value="1.5"><span class="val" id="speed-v">1.5</span></label>
+    <label>Separation <input type="range" id="sep-dist" min="30" max="100" step="5" value="55"><span class="val" id="sep-dist-v">55</span></label>
+    <label>Tightness <input type="range" id="tight" min="0.5" max="5" step="0.1" value="2.0"><span class="val" id="tight-v">2.0</span></label>
+    <label>Robots <input type="range" id="count" min="4" max="16" step="1" value="10"><span class="val" id="count-v">10</span></label>
+    <button id="btn-clear">Clear Obstacles</button>
+  </div>
+
+  <canvas id="sim" width="900" height="600"></canvas>
+
+  <div class="stats">
+    <div>Robots: <span id="s-count">10</span></div>
+    <div>Formation: <span id="s-form">circle</span></div>
+    <div>Mode: <span id="s-mode">leader</span></div>
+    <div>Avg Error: <span id="s-err">0</span></div>
+    <div>Links: <span id="s-links">0</span></div>
+  </div>
+  <a class="back" href="/">Back to FreeRobotStore</a>
+
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    let formation = 'circle', mode = 'leader';
+    let speed = 1.5, sepDist = 55, tightness = 2.0, numRobots = 10;
+    let obstacles = [];
+    let robots = [];
+    let leaderAngle = 0, leaderTarget = {x: W/2, y: H/2};
+    let time = 0;
+
+    const sl = id => document.getElementById(id);
+    ['speed','sep-dist','tight','count'].forEach(id => {
+      sl(id).addEventListener('input', () => {
+        sl(id+'-v').textContent = sl(id).value;
+        speed = +sl('speed').value;
+        sepDist = +sl('sep-dist').value;
+        tightness = +sl('tight').value;
+        const newCount = +sl('count').value;
+        if (newCount !== numRobots) { numRobots = newCount; initRobots(); }
+      });
+    });
+
+    // Formation buttons
+    document.querySelectorAll('[data-form]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-form]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        formation = btn.dataset.form;
+      });
+    });
+    document.querySelectorAll('[data-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        mode = btn.dataset.mode;
+      });
+    });
+
+    sl('btn-clear').addEventListener('click', () => { obstacles = []; });
+
+    canvas.addEventListener('click', e => {
+      const r = canvas.getBoundingClientRect();
+      const mx = (e.clientX - r.left) * (W / r.width);
+      const my = (e.clientY - r.top) * (H / r.height);
+      obstacles.push({x: mx, y: my, r: 25 + Math.random()*15});
+    });
+
+    canvas.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const r = canvas.getBoundingClientRect();
+      leaderTarget.x = (e.clientX - r.left) * (W / r.width);
+      leaderTarget.y = (e.clientY - r.top) * (H / r.height);
+    });
+
+    function initRobots() {
+      robots = [];
+      for (let i = 0; i < numRobots; i++) {
+        const angle = (i / numRobots) * Math.PI * 2;
+        robots.push({
+          x: W/2 + Math.cos(angle) * 80,
+          y: H/2 + Math.sin(angle) * 80,
+          vx: 0, vy: 0,
+          trail: []
+        });
+      }
+    }
+    initRobots();
+
+    function getFormationOffsets(n) {
+      const offsets = [];
+      const s = sepDist;
+      switch (formation) {
+        case 'circle':
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * Math.PI * 2;
+            offsets.push({x: Math.cos(a) * s * 1.5, y: Math.sin(a) * s * 1.5});
+          }
+          break;
+        case 'line':
+          for (let i = 0; i < n; i++) {
+            offsets.push({x: (i - (n-1)/2) * s, y: 0});
+          }
+          break;
+        case 'v-shape':
+          for (let i = 0; i < n; i++) {
+            const side = i % 2 === 0 ? 1 : -1;
+            const depth = Math.floor(i / 2);
+            offsets.push({x: -depth * s * 0.7, y: side * (depth + 1) * s * 0.5});
+          }
+          break;
+        case 'square': {
+          const side = Math.ceil(Math.sqrt(n));
+          for (let i = 0; i < n; i++) {
+            const row = Math.floor(i / side);
+            const col = i % side;
+            offsets.push({x: (col - (side-1)/2) * s, y: (row - (Math.ceil(n/side)-1)/2) * s});
+          }
+          break;
+        }
+        case 'diamond':
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * Math.PI * 2;
+            const r = s * 1.5 * (1 + 0.3 * Math.cos(2 * a));
+            offsets.push({x: Math.cos(a) * r, y: Math.sin(a) * r});
+          }
+          break;
+        case 'custom': {
+          // Star pattern
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * Math.PI * 2;
+            const r = s * (i % 2 === 0 ? 2 : 1);
+            offsets.push({x: Math.cos(a) * r, y: Math.sin(a) * r});
+          }
+          break;
+        }
+      }
+      return offsets;
+    }
+
+    function update() {
+      time += 0.016;
+
+      // Leader movement (smooth wandering)
+      leaderAngle += (Math.sin(time*0.3)*0.02 + Math.cos(time*0.7)*0.01);
+      const ldx = leaderTarget.x - W/2, ldy = leaderTarget.y - H/2;
+      const centerX = W/2 + Math.cos(time*0.2) * 150 + ldx * 0.3;
+      const centerY = H/2 + Math.sin(time*0.3) * 100 + ldy * 0.3;
+
+      const offsets = getFormationOffsets(numRobots);
+
+      // Rotate offsets by leader angle
+      const cosA = Math.cos(leaderAngle), sinA = Math.sin(leaderAngle);
+      const targets = offsets.map(o => ({
+        x: centerX + o.x * cosA - o.y * sinA,
+        y: centerY + o.x * sinA + o.y * cosA
+      }));
+
+      for (let i = 0; i < robots.length; i++) {
+        const r = robots[i];
+        let goalX, goalY;
+
+        if (mode === 'leader') {
+          // Leader-follower: each robot goes to its assigned position
+          goalX = targets[i].x;
+          goalY = targets[i].y;
+        } else {
+          // Consensus: average of neighbors' desired positions + own target
+          goalX = targets[i].x;
+          goalY = targets[i].y;
+          let nx = 0, ny = 0, nc = 0;
+          for (let j = 0; j < robots.length; j++) {
+            if (j === i) continue;
+            const d = Math.sqrt((robots[j].x-r.x)**2+(robots[j].y-r.y)**2);
+            if (d < sepDist * 3) {
+              nx += robots[j].x + (targets[i].x - targets[j].x);
+              ny += robots[j].y + (targets[i].y - targets[j].y);
+              nc++;
+            }
+          }
+          if (nc > 0) {
+            goalX = goalX * 0.4 + (nx/nc) * 0.6;
+            goalY = goalY * 0.4 + (ny/nc) * 0.6;
+          }
+        }
+
+        // Move toward goal
+        let dx = goalX - r.x, dy = goalY - r.y;
+        let d = Math.sqrt(dx*dx + dy*dy) || 1;
+        let fx = dx / d * tightness;
+        let fy = dy / d * tightness;
+
+        // Inter-robot repulsion
+        for (let j = 0; j < robots.length; j++) {
+          if (j === i) continue;
+          const rx = r.x - robots[j].x, ry = r.y - robots[j].y;
+          const rd = Math.sqrt(rx*rx + ry*ry);
+          if (rd < sepDist * 0.6 && rd > 0) {
+            fx += (rx/rd) * 3 / (rd*0.1);
+            fy += (ry/rd) * 3 / (rd*0.1);
+          }
+        }
+
+        // Obstacle avoidance
+        for (const o of obstacles) {
+          const ox = r.x - o.x, oy = r.y - o.y;
+          const od = Math.sqrt(ox*ox + oy*oy);
+          if (od < o.r + 40 && od > 0) {
+            const force = 5 / (od - o.r + 5);
+            fx += (ox/od) * force;
+            fy += (oy/od) * force;
+          }
+        }
+
+        // Wall avoidance
+        if (r.x < 40) fx += 2; if (r.x > W-40) fx -= 2;
+        if (r.y < 40) fy += 2; if (r.y > H-40) fy -= 2;
+
+        // Apply velocity
+        r.vx = r.vx * 0.85 + fx * speed * 0.15;
+        r.vy = r.vy * 0.85 + fy * speed * 0.15;
+
+        // Speed limit
+        const spd = Math.sqrt(r.vx*r.vx + r.vy*r.vy);
+        const maxSpd = speed * 3;
+        if (spd > maxSpd) { r.vx = r.vx/spd*maxSpd; r.vy = r.vy/spd*maxSpd; }
+
+        r.x += r.vx;
+        r.y += r.vy;
+
+        // Clamp to bounds
+        r.x = Math.max(10, Math.min(W-10, r.x));
+        r.y = Math.max(10, Math.min(H-10, r.y));
+
+        // Trail
+        r.trail.push({x:r.x, y:r.y});
+        if (r.trail.length > 20) r.trail.shift();
+      }
+
+      // Stats
+      let totalErr = 0;
+      for (let i = 0; i < robots.length; i++) {
+        totalErr += Math.sqrt((robots[i].x-targets[i].x)**2 + (robots[i].y-targets[i].y)**2);
+      }
+      sl('s-count').textContent = robots.length;
+      sl('s-form').textContent = formation;
+      sl('s-mode').textContent = mode;
+      sl('s-err').textContent = (totalErr / robots.length).toFixed(1);
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, W, H);
+
+      // Grid
+      ctx.strokeStyle = '#141414'; ctx.lineWidth = 0.5;
+      for(let x=0;x<W;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+      for(let y=0;y<H;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+      // Obstacles
+      for (const o of obstacles) {
+        ctx.fillStyle = 'rgba(239,68,68,.1)';
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI*2); ctx.stroke();
+        // Danger zone
+        ctx.strokeStyle = 'rgba(239,68,68,.15)'; ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.arc(o.x, o.y, o.r+40, 0, Math.PI*2); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Communication links
+      let linkCount = 0;
+      for (let i = 0; i < robots.length; i++) {
+        for (let j = i+1; j < robots.length; j++) {
+          const d = Math.sqrt((robots[i].x-robots[j].x)**2 + (robots[i].y-robots[j].y)**2);
+          if (d < sepDist * 3) {
+            const alpha = Math.max(0, 1 - d/(sepDist*3));
+            ctx.strokeStyle = `rgba(249,115,22,${alpha*0.15})`;
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(robots[i].x, robots[i].y);
+            ctx.lineTo(robots[j].x, robots[j].y);
+            ctx.stroke();
+            linkCount++;
+          }
+        }
+      }
+      sl('s-links').textContent = linkCount;
+
+      // Robot trails
+      for (const r of robots) {
+        if (r.trail.length > 1) {
+          ctx.beginPath();
+          r.trail.forEach((p, i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+          ctx.strokeStyle = 'rgba(249,115,22,.08)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+
+      // Robots
+      for (let i = 0; i < robots.length; i++) {
+        const r = robots[i];
+        const angle = Math.atan2(r.vy, r.vx);
+        const isLeader = (mode === 'leader' && i === 0);
+
+        // Body
+        ctx.save();
+        ctx.translate(r.x, r.y);
+        ctx.rotate(angle);
+
+        if (isLeader) {
+          ctx.fillStyle = '#f97316';
+          ctx.beginPath();
+          ctx.moveTo(10, 0); ctx.lineTo(-6, -5); ctx.lineTo(-4, 0); ctx.lineTo(-6, 5);
+          ctx.closePath(); ctx.fill();
+          // Crown indicator
+          ctx.strokeStyle = '#f97316'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI*2); ctx.stroke();
+        } else {
+          ctx.fillStyle = '#f97316';
+          ctx.globalAlpha = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(7, 0); ctx.lineTo(-5, -4); ctx.lineTo(-3, 0); ctx.lineTo(-5, 4);
+          ctx.closePath(); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+
+        // Robot index
+        ctx.fillStyle = 'rgba(250,250,250,.3)';
+        ctx.font = '8px Manrope';
+        ctx.textAlign = 'center';
+        ctx.fillText(i, r.x, r.y - 10);
+      }
+
+      // Formation target ghost (faint)
+      const offsets = getFormationOffsets(numRobots);
+      const cosA = Math.cos(leaderAngle), sinA = Math.sin(leaderAngle);
+      const cx = W/2 + Math.cos(time*0.2)*150 + (leaderTarget.x-W/2)*0.3;
+      const cy = H/2 + Math.sin(time*0.3)*100 + (leaderTarget.y-H/2)*0.3;
+      ctx.globalAlpha = 0.15;
+      for (const o of offsets) {
+        const tx = cx + o.x*cosA - o.y*sinA;
+        const ty = cy + o.x*sinA + o.y*cosA;
+        ctx.strokeStyle = '#f97316'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(tx, ty, 5, 0, Math.PI*2); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // Instructions
+      ctx.fillStyle = '#333'; ctx.font = '10px Manrope'; ctx.textAlign = 'left';
+      ctx.fillText('Left-click: place obstacle | Right-click: move leader target', 10, H-10);
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      update();
+      draw();
+    }
+    loop();
+  </script>
+<script src="/related.js"></script>
+</body>
+</html>
