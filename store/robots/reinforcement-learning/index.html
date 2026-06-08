@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Q-Learning Grid World - FreeRobotStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:Manrope,system-ui,sans-serif;overflow-x:hidden}
+.back{position:fixed;top:12px;left:12px;z-index:99;color:#f97316;text-decoration:none;font-size:.8rem;font-weight:600;opacity:.7}.back:hover{opacity:1}
+h1{text-align:center;color:#f97316;margin:16px 0 4px;font-size:1.5rem;font-weight:700}
+.sub{text-align:center;color:#737373;font-size:.82rem;margin-bottom:10px;max-width:700px;margin-left:auto;margin-right:auto}
+.wrap{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;padding:0 12px}
+canvas{background:#111;border:1px solid #262626;border-radius:8px}
+.panel{background:#141414;border:1px solid #262626;border-radius:8px;padding:12px;min-width:220px;max-width:260px}
+.panel h3{color:#f97316;font-size:.82rem;margin-bottom:6px}
+.ctrl label{font-size:.7rem;color:#a3a3a3;display:flex;justify-content:space-between;margin:3px 0}
+.ctrl input[type=range]{width:100%;accent-color:#f97316}
+.btn{background:#f97316;color:#000;border:none;padding:6px 14px;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer;width:100%;margin:3px 0;font-family:Manrope,system-ui,sans-serif}.btn:hover{background:#fb923c}
+.btn.sec{background:#262626;color:#fafafa}.btn.sec:hover{background:#333}
+.stats{font-size:.68rem;color:#737373;margin-top:6px;line-height:1.6}
+.stats b{color:#fafafa}
+.tag{display:inline-block;background:#f97316;color:#000;font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;vertical-align:middle}
+.chart-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:0 12px;margin-top:8px}
+.legend{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px 0;font-size:.68rem;color:#737373}
+.legend span{display:flex;align-items:center;gap:3px}
+.legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+footer{text-align:center;padding:20px;font-size:.65rem;color:#404040}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Q-Learning Grid World <span class="tag">Learning</span></h1>
+<p class="sub">Agent learns optimal path via Q-learning. Watch exploration become exploitation as the Q-table fills with experience.</p>
+<div class="legend">
+<span><span class="dot" style="background:#10b981"></span> Agent</span>
+<span><span class="dot" style="background:#f97316"></span> Goal</span>
+<span><span class="dot" style="background:#ef4444"></span> Wall</span>
+<span><span class="dot" style="background:#3b82f6"></span> High Q-value</span>
+</div>
+<div class="wrap">
+<div>
+<canvas id="grid" width="500" height="500"></canvas>
+<div class="chart-row">
+<canvas id="chart" width="500" height="120"></canvas>
+</div>
+</div>
+<div class="panel">
+<h3>Parameters</h3>
+<div class="ctrl">
+<label>Learning rate (alpha) <span id="alphaV">0.1</span></label>
+<input type="range" id="alpha" min="0.01" max="0.5" step="0.01" value="0.1">
+<label>Discount factor (gamma) <span id="gammaV">0.95</span></label>
+<input type="range" id="gamma" min="0.5" max="0.99" step="0.01" value="0.95">
+<label>Epsilon (exploration) <span id="epsV">0.3</span></label>
+<input type="range" id="eps" min="0.01" max="1" step="0.01" value="0.3">
+<label>Speed (steps/frame) <span id="speedV">5</span></label>
+<input type="range" id="speed" min="1" max="50" step="1" value="5">
+</div>
+<h3 style="margin-top:10px">Training</h3>
+<button class="btn" id="trainBtn">Start Training</button>
+<button class="btn sec" id="resetBtn">Reset Q-Table</button>
+<button class="btn sec" id="mazeBtn">New Maze</button>
+<h3 style="margin-top:10px">Display</h3>
+<div class="ctrl">
+<label><input type="checkbox" id="showQ" checked> Show Q-value heatmap</label>
+<label><input type="checkbox" id="showArrows" checked> Show policy arrows</label>
+</div>
+<div class="stats">
+<b>Episode:</b> <span id="epCount">0</span><br>
+<b>Steps this ep:</b> <span id="stepCount">0</span><br>
+<b>Total reward:</b> <span id="totalReward">0</span><br>
+<b>Best ep reward:</b> <span id="bestReward">-</span><br>
+<b>Avg last 10:</b> <span id="avgReward">-</span>
+</div>
+</div>
+</div>
+<footer>FreeRobotStore — free simulations &amp; education.</footer>
+<script>
+const GRID=10,CELL=50;
+const gridC=document.getElementById('grid'),ctx=gridC.getContext('2d');
+const chartC=document.getElementById('chart'),ctxC=chartC.getContext('2d');
+
+// Actions: 0=up,1=right,2=down,3=left
+const DX=[0,1,0,-1],DY=[-1,0,1,0];
+const ARROWS=['\u2191','\u2192','\u2193','\u2190'];
+
+let walls=new Set(),goal={x:9,y:9},agent={x:0,y:0};
+let Q=[];// Q[y][x][a]
+let running=false,episodes=[],episode=0,steps=0,epReward=0,bestReward=-Infinity;
+
+function initQ(){Q=[];for(let y=0;y<GRID;y++){Q[y]=[];for(let x=0;x<GRID;x++)Q[y][x]=[0,0,0,0];}}
+function genMaze(){
+walls.clear();
+for(let i=0;i<20;i++){
+let x=Math.floor(Math.random()*GRID),y=Math.floor(Math.random()*GRID);
+if((x===0&&y===0)||(x===goal.x&&y===goal.y))continue;
+walls.add(y*GRID+x);
+}
+}
+function reset(){running=false;document.getElementById('trainBtn').textContent='Start Training';episode=0;steps=0;epReward=0;episodes=[];bestReward=-Infinity;initQ();agent={x:0,y:0};draw();}
+
+function getAlpha(){return parseFloat(document.getElementById('alpha').value);}
+function getGamma(){return parseFloat(document.getElementById('gamma').value);}
+function getEps(){return parseFloat(document.getElementById('eps').value);}
+function getSpeed(){return parseInt(document.getElementById('speed').value);}
+
+function isWall(x,y){return walls.has(y*GRID+x);}
+function isValid(x,y){return x>=0&&x<GRID&&y>=0&&y<GRID&&!isWall(x,y);}
+
+function step(){
+let a;
+if(Math.random()<getEps()){a=Math.floor(Math.random()*4);}
+else{a=Q[agent.y][agent.x].indexOf(Math.max(...Q[agent.y][agent.x]));}
+let nx=agent.x+DX[a],ny=agent.y+DY[a];
+let reward=-1;
+if(!isValid(nx,ny)){nx=agent.x;ny=agent.y;reward=-2;}
+if(nx===goal.x&&ny===goal.y)reward=100;
+// Q-update
+let maxNext=Math.max(...Q[ny][nx]);
+Q[agent.y][agent.x][a]+=getAlpha()*(reward+getGamma()*maxNext-Q[agent.y][agent.x][a]);
+agent.x=nx;agent.y=ny;
+epReward+=reward;steps++;
+if(agent.x===goal.x&&agent.y===goal.y||steps>200){
+episodes.push(epReward);
+if(epReward>bestReward)bestReward=epReward;
+episode++;epReward=0;steps=0;agent={x:0,y:0};
+}
+}
+
+function draw(){
+ctx.clearRect(0,0,500,500);
+let showQ=document.getElementById('showQ').checked;
+let showArr=document.getElementById('showArrows').checked;
+// Find max Q for normalization
+let maxQ=1;
+for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){let m=Math.max(...Q[y][x]);if(m>maxQ)maxQ=m;}
+for(let y=0;y<GRID;y++)for(let x=0;x<GRID;x++){
+let px=x*CELL,py=y*CELL;
+if(isWall(x,y)){ctx.fillStyle='#ef4444';ctx.fillRect(px,py,CELL,CELL);continue;}
+if(showQ){
+let v=Math.max(...Q[y][x]);
+let intensity=Math.max(0,v/maxQ);
+ctx.fillStyle=`rgba(59,130,246,${intensity*0.6})`;
+ctx.fillRect(px,py,CELL,CELL);
+}
+ctx.strokeStyle='#262626';ctx.strokeRect(px,py,CELL,CELL);
+if(showArr&&!isWall(x,y)){
+let best=Q[y][x].indexOf(Math.max(...Q[y][x]));
+if(Math.max(...Q[y][x])>0){
+ctx.fillStyle='rgba(250,250,250,0.5)';ctx.font='14px Manrope';ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.fillText(ARROWS[best],px+CELL/2,py+CELL/2);
+}
+}
+}
+// Goal
+ctx.fillStyle='#f97316';ctx.beginPath();ctx.arc(goal.x*CELL+CELL/2,goal.y*CELL+CELL/2,CELL/3,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#000';ctx.font='bold 14px Manrope';ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.fillText('G',goal.x*CELL+CELL/2,goal.y*CELL+CELL/2);
+// Agent
+ctx.fillStyle='#10b981';ctx.beginPath();ctx.arc(agent.x*CELL+CELL/2,agent.y*CELL+CELL/2,CELL/3,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#000';ctx.font='bold 12px Manrope';ctx.fillText('A',agent.x*CELL+CELL/2,agent.y*CELL+CELL/2);
+// Stats
+document.getElementById('epCount').textContent=episode;
+document.getElementById('stepCount').textContent=steps;
+document.getElementById('totalReward').textContent=Math.round(epReward);
+document.getElementById('bestReward').textContent=bestReward>-Infinity?Math.round(bestReward):'-';
+let last10=episodes.slice(-10);
+document.getElementById('avgReward').textContent=last10.length?Math.round(last10.reduce((a,b)=>a+b,0)/last10.length):'-';
+drawChart();
+}
+
+function drawChart(){
+ctxC.fillStyle='#111';ctxC.fillRect(0,0,500,120);
+if(episodes.length<2)return;
+let min=Math.min(...episodes),max=Math.max(...episodes);
+if(max===min)max=min+1;
+let w=500/Math.min(episodes.length,200);
+let start=Math.max(0,episodes.length-200);
+ctxC.strokeStyle='#f97316';ctxC.lineWidth=1.5;ctxC.beginPath();
+for(let i=start;i<episodes.length;i++){
+let x=(i-start)*w;
+let y=120-((episodes[i]-min)/(max-min))*100-10;
+if(i===start)ctxC.moveTo(x,y);else ctxC.lineTo(x,y);
+}
+ctxC.stroke();
+ctxC.fillStyle='#737373';ctxC.font='9px Manrope';ctxC.textAlign='left';
+ctxC.fillText('Episode Reward',4,12);
+ctxC.fillText(`max:${Math.round(max)}`,4,24);
+ctxC.fillText(`min:${Math.round(min)}`,4,36);
+}
+
+function tick(){
+if(!running)return;
+let spd=getSpeed();
+for(let i=0;i<spd;i++)step();
+draw();
+requestAnimationFrame(tick);
+}
+
+document.getElementById('trainBtn').onclick=()=>{
+running=!running;
+document.getElementById('trainBtn').textContent=running?'Pause':'Start Training';
+if(running)tick();
+};
+document.getElementById('resetBtn').onclick=reset;
+document.getElementById('mazeBtn').onclick=()=>{genMaze();initQ();episode=0;episodes=[];steps=0;epReward=0;bestReward=-Infinity;agent={x:0,y:0};draw();};
+
+// Sliders update display
+['alpha','gamma','eps','speed'].forEach(id=>{
+document.getElementById(id).oninput=function(){document.getElementById(id+'V').textContent=this.value;};
+});
+
+// Click to toggle walls
+gridC.addEventListener('click',e=>{
+let rect=gridC.getBoundingClientRect();
+let x=Math.floor((e.clientX-rect.left)/CELL),y=Math.floor((e.clientY-rect.top)/CELL);
+if(x<0||x>=GRID||y<0||y>=GRID)return;
+if(x===0&&y===0)return;if(x===goal.x&&y===goal.y)return;
+let key=y*GRID+x;
+if(walls.has(key))walls.delete(key);else walls.add(key);
+draw();
+});
+
+genMaze();initQ();draw();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

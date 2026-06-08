@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Multi-Robot Task Allocation - FreeRobotStore</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fafafa;font-family:Manrope,system-ui,sans-serif;overflow-x:hidden}
+.back{position:fixed;top:12px;left:12px;z-index:99;color:#f97316;text-decoration:none;font-size:.8rem;font-weight:600;opacity:.7}.back:hover{opacity:1}
+h1{text-align:center;color:#f97316;margin:16px 0 4px;font-size:1.5rem;font-weight:700}
+.sub{text-align:center;color:#737373;font-size:.82rem;margin-bottom:10px;max-width:700px;margin-left:auto;margin-right:auto}
+.wrap{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;padding:0 12px}
+canvas{background:#111;border:1px solid #262626;border-radius:8px}
+.panel{background:#141414;border:1px solid #262626;border-radius:8px;padding:12px;min-width:220px;max-width:260px}
+.panel h3{color:#f97316;font-size:.82rem;margin-bottom:6px}
+.ctrl label{font-size:.7rem;color:#a3a3a3;display:flex;justify-content:space-between;margin:3px 0}
+.ctrl input[type=range]{width:100%;accent-color:#f97316}
+.ctrl select{width:100%;background:#262626;color:#fafafa;border:1px solid #333;padding:4px 6px;border-radius:4px;font-size:.72rem;font-family:Manrope,system-ui,sans-serif;margin:3px 0}
+.btn{background:#f97316;color:#000;border:none;padding:6px 14px;border-radius:6px;font-size:.76rem;font-weight:600;cursor:pointer;width:100%;margin:3px 0;font-family:Manrope,system-ui,sans-serif}.btn:hover{background:#fb923c}
+.btn.sec{background:#262626;color:#fafafa}.btn.sec:hover{background:#333}
+.stats{font-size:.68rem;color:#737373;margin-top:6px;line-height:1.6}
+.stats b{color:#fafafa}
+.tag{display:inline-block;background:#f97316;color:#000;font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:700;margin-left:4px;vertical-align:middle}
+.legend{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px 0;font-size:.68rem;color:#737373}
+.legend span{display:flex;align-items:center;gap:3px}
+.legend .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:8px}
+.metric{background:#1a1a1a;border:1px solid #262626;border-radius:4px;padding:4px 6px;text-align:center}
+.metric .val{font-size:.9rem;font-weight:700;color:#f97316}
+.metric .lbl{font-size:.6rem;color:#737373}
+footer{text-align:center;padding:20px;font-size:.65rem;color:#404040}
+footer a{color:#f97316;text-decoration:none}
+</style>
+</head>
+<body>
+<a class="back" href="/">Back to Store</a>
+<h1>Multi-Robot Task Allocation <span class="tag">Composed</span></h1>
+<p class="sub">Robots coordinate to complete tasks using different allocation strategies. Compare efficiency, fairness, and makespan.</p>
+<div class="legend">
+<span><span class="dot" style="background:#10b981"></span> Idle robot</span>
+<span><span class="dot" style="background:#3b82f6"></span> Working robot</span>
+<span><span class="dot" style="background:#f97316"></span> Pending task</span>
+<span><span class="dot" style="background:#737373"></span> Completed task</span>
+</div>
+<div class="wrap">
+<canvas id="canvas" width="600" height="500"></canvas>
+<div class="panel">
+<h3>Strategy</h3>
+<div class="ctrl">
+<select id="strategy">
+<option value="nearest">Nearest-First</option>
+<option value="auction">Auction-Based</option>
+<option value="hungarian">Hungarian Algorithm</option>
+</select>
+<label>Robots <span id="robotsV">5</span></label>
+<input type="range" id="robots" min="3" max="8" step="1" value="5">
+<label>Initial tasks <span id="tasksV">8</span></label>
+<input type="range" id="tasks" min="4" max="15" step="1" value="8">
+<label>New task interval <span id="spawnV">60</span> frames</label>
+<input type="range" id="spawn" min="20" max="200" step="10" value="60">
+<label>Robot speed <span id="speedV">2.5</span></label>
+<input type="range" id="speed" min="1" max="5" step="0.5" value="2.5">
+<label>Task work time <span id="workV">40</span> frames</label>
+<input type="range" id="work" min="10" max="100" step="5" value="40">
+</div>
+<h3 style="margin-top:10px">Controls</h3>
+<button class="btn" id="startBtn">Start</button>
+<button class="btn sec" id="resetBtn">Reset</button>
+<div class="metrics">
+<div class="metric"><div class="val" id="mDist">0</div><div class="lbl">Total Dist</div></div>
+<div class="metric"><div class="val" id="mMake">0</div><div class="lbl">Makespan</div></div>
+<div class="metric"><div class="val" id="mDone">0</div><div class="lbl">Completed</div></div>
+<div class="metric"><div class="val" id="mFair">-</div><div class="lbl">Fairness</div></div>
+</div>
+<div class="stats">
+<b>Strategy:</b> <span id="stratLabel">Nearest-First</span><br>
+<b>Frame:</b> <span id="frameCount">0</span><br>
+<b>Pending tasks:</b> <span id="pendingCount">0</span>
+</div>
+</div>
+</div>
+<footer>FreeRobotStore — free simulations &amp; education.</footer>
+<script>
+const C=document.getElementById('canvas'),ctx=C.getContext('2d');
+const W=600,H=500;
+const COLORS=['#10b981','#3b82f6','#a855f7','#06b6d4','#ec4899','#eab308','#ef4444','#14b8a6'];
+
+let robots=[],tasks=[],completed=[],running=false,frame=0,totalDist=0;
+
+function getRobotCount(){return parseInt(document.getElementById('robots').value);}
+function getTaskCount(){return parseInt(document.getElementById('tasks').value);}
+function getSpawn(){return parseInt(document.getElementById('spawn').value);}
+function getSpeed(){return parseFloat(document.getElementById('speed').value);}
+function getWork(){return parseInt(document.getElementById('work').value);}
+function getStrategy(){return document.getElementById('strategy').value;}
+
+function randPos(){return{x:40+Math.random()*(W-80),y:40+Math.random()*(H-80)};}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+
+function init(){
+running=false;frame=0;totalDist=0;completed=[];
+document.getElementById('startBtn').textContent='Start';
+let n=getRobotCount(),t=getTaskCount();
+robots=[];tasks=[];
+for(let i=0;i<n;i++)robots.push({...randPos(),id:i,color:COLORS[i%COLORS.length],target:null,state:'idle',workLeft:0,tasksDone:0,distTraveled:0});
+for(let i=0;i<t;i++)tasks.push({...randPos(),id:i,assigned:false,done:false});
+draw();
+}
+
+function allocate(){
+let strategy=getStrategy();
+let free=robots.filter(r=>r.state==='idle');
+let pending=tasks.filter(t=>!t.assigned&&!t.done);
+if(!free.length||!pending.length)return;
+
+if(strategy==='nearest'){
+// Each free robot grabs nearest unassigned task
+free.forEach(r=>{
+let best=null,bestD=Infinity;
+pending.forEach(t=>{
+if(t.assigned)return;
+let d=dist(r,t);if(d<bestD){bestD=d;best=t;}
+});
+if(best){best.assigned=true;r.target=best;r.state='moving';}
+});
+}else if(strategy==='auction'){
+// Tasks bid: lowest cost wins
+pending.forEach(t=>{
+let best=null,bestD=Infinity;
+free.forEach(r=>{
+if(r.state!=='idle')return;
+let d=dist(r,t);if(d<bestD){bestD=d;best=r;}
+});
+if(best){t.assigned=true;best.target=t;best.state='moving';free=free.filter(f=>f!==best);}
+});
+}else if(strategy==='hungarian'){
+// Simplified Hungarian: build cost matrix, greedy assignment by min cost
+let costs=[];
+free.forEach((r,i)=>{costs[i]=[];pending.forEach((t,j)=>{costs[i][j]=dist(r,t);});});
+let usedR=new Set(),usedT=new Set();
+let pairs=[];
+for(let k=0;k<Math.min(free.length,pending.length);k++){
+let minC=Infinity,mi=-1,mj=-1;
+for(let i=0;i<free.length;i++){if(usedR.has(i))continue;
+for(let j=0;j<pending.length;j++){if(usedT.has(j))continue;
+if(costs[i][j]<minC){minC=costs[i][j];mi=i;mj=j;}}}
+if(mi>=0){usedR.add(mi);usedT.add(mj);pairs.push([mi,mj]);}
+}
+pairs.forEach(([ri,ti])=>{pending[ti].assigned=true;free[ri].target=pending[ti];free[ri].state='moving';});
+}
+}
+
+function step(){
+let spd=getSpeed(),workTime=getWork();
+// Move robots toward targets
+robots.forEach(r=>{
+if(r.state==='moving'&&r.target){
+let d=dist(r,r.target);
+if(d<spd){r.x=r.target.x;r.y=r.target.y;r.state='working';r.workLeft=workTime;r.distTraveled+=d;totalDist+=d;}
+else{let dx=(r.target.x-r.x)/d*spd,dy=(r.target.y-r.y)/d*spd;r.x+=dx;r.y+=dy;r.distTraveled+=spd;totalDist+=spd;}
+}else if(r.state==='working'){
+r.workLeft--;
+if(r.workLeft<=0){r.target.done=true;completed.push(r.target);r.target=null;r.state='idle';r.tasksDone++;}
+}
+});
+// Collision avoidance (simple repulsion)
+for(let i=0;i<robots.length;i++)for(let j=i+1;j<robots.length;j++){
+let d=dist(robots[i],robots[j]);
+if(d<20&&d>0){let push=((20-d)/2)/d;let dx=robots[i].x-robots[j].x,dy=robots[i].y-robots[j].y;
+robots[i].x+=dx*push;robots[i].y+=dy*push;robots[j].x-=dx*push;robots[j].y-=dy*push;}
+}
+// Spawn new tasks
+if(frame%getSpawn()===0&&frame>0){tasks.push({...randPos(),id:tasks.length,assigned:false,done:false});}
+// Re-allocate
+allocate();
+frame++;
+}
+
+function draw(){
+ctx.fillStyle='#111';ctx.fillRect(0,0,W,H);
+// Draw completed tasks
+completed.forEach(t=>{ctx.fillStyle='#333';ctx.beginPath();ctx.arc(t.x,t.y,6,0,Math.PI*2);ctx.fill();});
+// Draw pending tasks
+tasks.filter(t=>!t.done).forEach(t=>{
+ctx.fillStyle=t.assigned?'#a3a3a3':'#f97316';
+ctx.beginPath();ctx.arc(t.x,t.y,8,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#000';ctx.font='bold 8px Manrope';ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.fillText('T',t.x,t.y);
+});
+// Draw robot paths
+robots.forEach(r=>{
+if(r.target&&r.state==='moving'){ctx.strokeStyle=r.color+'66';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(r.x,r.y);ctx.lineTo(r.target.x,r.target.y);ctx.stroke();ctx.setLineDash([]);}
+});
+// Draw robots
+robots.forEach(r=>{
+ctx.fillStyle=r.state==='idle'?r.color:r.state==='working'?'#eab308':r.color;
+ctx.beginPath();ctx.arc(r.x,r.y,12,0,Math.PI*2);ctx.fill();
+ctx.strokeStyle='#fafafa';ctx.lineWidth=1.5;ctx.stroke();ctx.lineWidth=1;
+ctx.fillStyle='#000';ctx.font='bold 9px Manrope';ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.fillText('R'+(r.id+1),r.x,r.y);
+// Work progress
+if(r.state==='working'){
+let pct=1-r.workLeft/getWork();
+ctx.strokeStyle='#10b981';ctx.lineWidth=2;ctx.beginPath();ctx.arc(r.x,r.y,14,-Math.PI/2,-Math.PI/2+pct*Math.PI*2);ctx.stroke();ctx.lineWidth=1;
+}
+});
+// Update metrics
+document.getElementById('mDist').textContent=Math.round(totalDist);
+document.getElementById('mMake').textContent=frame;
+document.getElementById('mDone').textContent=completed.length;
+document.getElementById('pendingCount').textContent=tasks.filter(t=>!t.done&&!t.assigned).length;
+document.getElementById('frameCount').textContent=frame;
+// Fairness: 1 - (max-min)/(max+1)
+if(completed.length>0){
+let counts=robots.map(r=>r.tasksDone);
+let mx=Math.max(...counts),mn=Math.min(...counts);
+let fairness=mx>0?(1-(mx-mn)/(mx+1)).toFixed(2):'1.00';
+document.getElementById('mFair').textContent=fairness;
+}
+}
+
+function tick(){if(!running)return;step();draw();requestAnimationFrame(tick);}
+
+document.getElementById('startBtn').onclick=()=>{running=!running;document.getElementById('startBtn').textContent=running?'Pause':'Resume';if(running)tick();};
+document.getElementById('resetBtn').onclick=init;
+document.getElementById('strategy').onchange=function(){document.getElementById('stratLabel').textContent=this.options[this.selectedIndex].text;};
+['robots','tasks','spawn','speed','work'].forEach(id=>{document.getElementById(id).oninput=function(){document.getElementById(id+'V').textContent=this.value;};});
+
+init();
+</script>
+<script src="/related.js"></script>
+</body>
+</html>

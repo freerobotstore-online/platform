@@ -455,6 +455,30 @@
       "creator": "serge-ivo",
       "creatorName": "Serge",
       "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "reinforcement-learning",
+      "name": "Q-Learning Grid World",
+      "description": "Agent learns optimal path via Q-learning. Epsilon-greedy exploration, Q-table heatmap, policy arrows, episode reward chart.",
+      "storeType": "behavior",
+      "category": "learning",
+      "icon": "🎓",
+      "iconBg": "#f97316",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
+    },
+    {
+      "id": "multi-robot",
+      "name": "Multi-Robot Task Allocation",
+      "description": "4-6 robots coordinate tasks using nearest-first, auction-based, or Hungarian algorithm. Dynamic tasks, collision avoidance, fairness metrics.",
+      "storeType": "behavior",
+      "category": "composed",
+      "icon": "🤖",
+      "iconBg": "#f97316",
+      "creator": "serge-ivo",
+      "creatorName": "Serge",
+      "creatorAvatar": "https://github.com/serge-ivo.png?size=96"
     }
   ]
 }
